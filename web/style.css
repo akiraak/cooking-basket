@@ -1,0 +1,156 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f5f5f5;
+  color: #333;
+  -webkit-text-size-adjust: 100%;
+}
+
+.container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 16px;
+  font-size: 1.4rem;
+}
+
+/* フォーム */
+#add-form {
+  margin-bottom: 12px;
+}
+
+.form-row {
+  display: flex;
+  gap: 8px;
+}
+
+#item-name {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+#item-quantity {
+  width: 52px;
+  padding: 10px 4px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: center;
+}
+
+/* ボタン */
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-add {
+  background: #007aff;
+  color: #fff;
+}
+
+.btn-add:active {
+  background: #005ecb;
+}
+
+.btn-danger {
+  background: none;
+  color: #ff3b30;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+/* アクションバー */
+.actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #888;
+}
+
+/* リスト */
+#shopping-list {
+  list-style: none;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.list-item.checked {
+  opacity: 0.5;
+}
+
+.list-item.checked .item-name {
+  text-decoration: line-through;
+}
+
+.list-item input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-name {
+  font-size: 15px;
+  word-break: break-word;
+}
+
+.item-quantity {
+  font-size: 12px;
+  color: #888;
+}
+
+.btn-delete {
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+
+.btn-delete:active {
+  color: #ff3b30;
+}
+
+/* 空メッセージ */
+.empty {
+  text-align: center;
+  color: #aaa;
+  padding: 40px 0;
+  font-size: 15px;
+}

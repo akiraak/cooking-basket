@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>買い物リスト</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>買い物リスト</h1>
+
+    <form id="add-form">
+      <div class="form-row">
+        <input type="text" id="item-name" placeholder="アイテム名" required autofocus>
+        <input type="number" id="item-quantity" value="1" min="1" max="99">
+        <button type="submit" class="btn btn-add">追加</button>
+      </div>
+    </form>
+
+    <div class="actions">
+      <span id="item-count">0 件</span>
+      <button id="delete-checked" class="btn btn-danger" style="display:none">チェック済みを削除</button>
+    </div>
+
+    <ul id="shopping-list"></ul>
+
+    <div id="empty-message" class="empty" style="display:none">
+      リストは空です
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
