@@ -75,7 +75,6 @@ function renderTable() {
     tr.innerHTML = `
       <td>${item.id}</td>
       <td><input type="text" class="name-input" value="${escapeHtml(item.name)}" data-field="name"></td>
-      <td><input type="number" class="qty-input" value="${item.quantity}" min="1" max="99" data-field="quantity"></td>
       <td><input type="text" class="cat-input" value="${escapeHtml(item.category)}" data-field="category"></td>
       <td><span class="badge ${item.checked ? 'badge-done' : 'badge-pending'}">${item.checked ? '購入済' : '未購入'}</span></td>
       <td>${formatDate(item.created_at)}</td>
@@ -88,10 +87,9 @@ function renderTable() {
     // 保存ボタン
     tr.querySelector('.btn-save').addEventListener('click', () => {
       const name = tr.querySelector('[data-field="name"]').value.trim();
-      const quantity = parseInt(tr.querySelector('[data-field="quantity"]').value, 10) || 1;
       const category = tr.querySelector('[data-field="category"]').value.trim();
       if (!name) return alert('名前は必須です');
-      saveItem(item.id, { name, quantity, category });
+      saveItem(item.id, { name, category });
     });
 
     // 削除ボタン

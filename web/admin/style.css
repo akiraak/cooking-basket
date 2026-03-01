@@ -116,8 +116,7 @@ th {
 }
 
 /* インライン編集 */
-td input[type="text"],
-td input[type="number"] {
+td input[type="text"] {
   border: 1px solid #ddd;
   border-radius: 4px;
   padding: 4px 6px;
@@ -126,19 +125,13 @@ td input[type="number"] {
   min-width: 60px;
 }
 
-td input[type="text"]:focus,
-td input[type="number"]:focus {
+td input[type="text"]:focus {
   outline: none;
   border-color: #007aff;
 }
 
 td .name-input {
   min-width: 120px;
-}
-
-td .qty-input {
-  width: 50px;
-  min-width: 50px;
 }
 
 td .cat-input {

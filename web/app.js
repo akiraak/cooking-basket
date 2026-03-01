@@ -3,9 +3,7 @@ const API = '/api/shopping';
 const listEl = document.getElementById('shopping-list');
 const formEl = document.getElementById('add-form');
 const nameInput = document.getElementById('item-name');
-const quantityInput = document.getElementById('item-quantity');
 const countEl = document.getElementById('item-count');
-const deleteCheckedBtn = document.getElementById('delete-checked');
 const emptyEl = document.getElementById('empty-message');
 
 let items = [];
@@ -21,14 +19,14 @@ async function api(method, path = '', body = null) {
 // 描画
 function render() {
   listEl.innerHTML = '';
-  items.forEach(item => {
+  const unchecked = items.filter(i => !i.checked);
+  unchecked.forEach(item => {
     const li = document.createElement('li');
-    li.className = 'list-item' + (item.checked ? ' checked' : '');
+    li.className = 'list-item';
     li.innerHTML = `
-      <input type="checkbox" ${item.checked ? 'checked' : ''}>
+      <input type="checkbox">
       <div class="item-info">
         <div class="item-name">${escapeHtml(item.name)}</div>
-        ${item.quantity > 1 ? `<div class="item-quantity">x${item.quantity}</div>` : ''}
       </div>
       <button class="btn-delete">&times;</button>
     `;
@@ -37,10 +35,8 @@ function render() {
     listEl.appendChild(li);
   });
 
-  const checkedCount = items.filter(i => i.checked).length;
-  countEl.textContent = `${items.length} 件`;
-  deleteCheckedBtn.style.display = checkedCount > 0 ? '' : 'none';
-  emptyEl.style.display = items.length === 0 ? '' : 'none';
+  countEl.textContent = `${unchecked.length} 件`;
+  emptyEl.style.display = unchecked.length === 0 ? '' : 'none';
 }
 
 function escapeHtml(str) {
@@ -58,8 +54,8 @@ async function loadItems() {
   }
 }
 
-async function addItem(name, quantity) {
-  const res = await api('POST', '', { name, quantity });
+async function addItem(name) {
+  const res = await api('POST', '', { name });
   if (res.success) {
     items.unshift(res.data);
     render();
@@ -67,11 +63,9 @@ async function addItem(name, quantity) {
 }
 
 async function toggleCheck(item) {
-  const res = await api('PUT', `/${item.id}`, { checked: item.checked ? 0 : 1 });
+  const res = await api('PUT', `/${item.id}`, { checked: 1 });
   if (res.success) {
-    item.checked = res.data.checked;
-    // チェック済みを下に並べ替え
-    items.sort((a, b) => a.checked - b.checked);
+    items = items.filter(i => i.id !== item.id);
     render();
   }
 }
@@ -84,27 +78,15 @@ async function removeItem(id) {
   }
 }
 
-async function removeChecked() {
-  const res = await api('DELETE', '/checked');
-  if (res.success) {
-    items = items.filter(i => !i.checked);
-    render();
-  }
-}
-
 // イベント
 formEl.addEventListener('submit', (e) => {
   e.preventDefault();
   const name = nameInput.value.trim();
   if (!name) return;
-  const quantity = parseInt(quantityInput.value, 10) || 1;
-  addItem(name, quantity);
+  addItem(name);
   nameInput.value = '';
-  quantityInput.value = '1';
   nameInput.focus();
 });
-
-deleteCheckedBtn.addEventListener('click', removeChecked);
 
 // 初期読み込み
 loadItems();

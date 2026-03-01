@@ -19,7 +19,6 @@ export function initDatabase(): void {
     CREATE TABLE IF NOT EXISTS shopping_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      quantity INTEGER DEFAULT 1,
       category TEXT DEFAULT '',
       checked INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),

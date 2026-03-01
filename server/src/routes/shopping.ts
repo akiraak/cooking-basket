@@ -17,12 +17,12 @@ shoppingRouter.get('/', (_req: Request, res: Response) => {
 
 // アイテム追加
 shoppingRouter.post('/', (req: Request, res: Response) => {
-  const { name, quantity, category } = req.body;
+  const { name, category } = req.body;
   if (!name || typeof name !== 'string' || name.trim() === '') {
     res.status(400).json({ success: false, data: null, error: 'name は必須です' });
     return;
   }
-  const item = createItem({ name: name.trim(), quantity, category });
+  const item = createItem({ name: name.trim(), category });
   res.status(201).json({ success: true, data: item, error: null });
 });
 
