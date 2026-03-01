@@ -125,6 +125,20 @@ h1 {
   color: #ff3b30;
 }
 
+/* 横向き防止: landscape時にコンテンツを逆回転して縦表示を維持 */
+@media screen and (orientation: landscape) {
+  html {
+    transform: rotate(-90deg);
+    transform-origin: left top;
+    width: 100vh;
+    height: 100vw;
+    overflow-x: hidden;
+    position: absolute;
+    top: 100%;
+    left: 0;
+  }
+}
+
 /* 空メッセージ */
 .empty {
   text-align: center;

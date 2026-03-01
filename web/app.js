@@ -88,5 +88,10 @@ formEl.addEventListener('submit', (e) => {
   nameInput.focus();
 });
 
+// 画面回転ロック（対応ブラウザのみ）
+if (screen.orientation && screen.orientation.lock) {
+  screen.orientation.lock('portrait').catch(() => {});
+}
+
 // 初期読み込み
 loadItems();
