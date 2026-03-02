@@ -68,9 +68,15 @@ docsRouter.get('/specs/:file', (req: Request, res: Response) => {
   }
 
   const raw = fs.readFileSync(filePath, 'utf-8');
+  // front matter からタイトル取得
+  const fmTitleMatch = raw.match(/^---[\s\S]*?title:\s*(.+)[\s\S]*?---/);
   // Jekyll front matter を除去
   const md = raw.replace(/^---[\s\S]*?---\n*/, '');
   const html = marked(md) as string;
+
+  // h1 からタイトル取得（front matter になければ）
+  const h1Match = html.match(/<h1>(.*?)<\/h1>/);
+  const pageTitle = fmTitleMatch ? fmTitleMatch[1].trim() : (h1Match ? h1Match[1] : file.replace('.md', ''));
 
   // h2 見出しを抽出してサイドバー目次を生成
   const headings: { id: string; text: string }[] = [];
@@ -88,10 +94,15 @@ docsRouter.get('/specs/:file', (req: Request, res: Response) => {
     ? `<aside class="sidebar"><h3>目次</h3>\n${tocItems}\n<div class="sidebar-divider"></div>\n<a href="/docs/">← 一覧へ戻る</a></aside>`
     : `<aside class="sidebar"><h3>メニュー</h3>\n<a href="/docs/">← 一覧へ戻る</a></aside>`;
 
-  res.send(layoutHtml(escapeHtml(file.replace('.md', '')), `
+  const breadcrumb = `<nav class="breadcrumb">
+    <a href="/docs/">仕様書一覧</a><span class="sep">/</span><span class="current">${escapeHtml(pageTitle)}</span>
+  </nav>`;
+
+  res.send(layoutHtml(escapeHtml(pageTitle), `
     <div class="layout">
       ${sidebar}
       <div class="main">
+        ${breadcrumb}
         <article class="doc-content">${htmlWithIds}</article>
       </div>
     </div>
@@ -135,6 +146,9 @@ function renderListPage(files: { file: string; name: string; title: string; type
         <a href="/admin/">管理画面</a>
       </aside>
       <div class="main">
+        <nav class="breadcrumb">
+          <span class="current">仕様書一覧</span>
+        </nav>
         <h1>仕様書一覧</h1>
         <h2 class="section-label">ドキュメント</h2>
         <ul class="doc-list">${mdItems}</ul>
@@ -364,6 +378,26 @@ function layoutHtml(title: string, body: string): string {
       border-top: 1px solid #e6d5c3;
       margin: 28px 0;
     }
+
+    /* パンくずリスト */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #b08968;
+      margin-bottom: 20px;
+    }
+    .breadcrumb a {
+      color: #9c6644;
+      text-decoration: none;
+    }
+    .breadcrumb a:hover {
+      color: #7f5539;
+      text-decoration: underline;
+    }
+    .breadcrumb .sep { color: #d4c4b0; }
+    .breadcrumb .current { color: #5a3e28; font-weight: 600; }
 
     .doc-error {
       text-align: center;
