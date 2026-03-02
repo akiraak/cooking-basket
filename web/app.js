@@ -23,6 +23,16 @@ const suggestionsDropdown = document.getElementById('suggestions-dropdown');
 let suggestDebounceTimer = null;
 let selectedSuggestionIndex = -1;
 
+// 具材提案モーダル
+const ingredientsOverlay = document.getElementById('ingredients-overlay');
+const ingredientsTitle = document.getElementById('ingredients-title');
+const ingredientsLoading = document.getElementById('ingredients-loading');
+const ingredientsError = document.getElementById('ingredients-error');
+const ingredientsList = document.getElementById('ingredients-list');
+const ingredientsActions = document.getElementById('ingredients-actions');
+const ingredientsAdd = document.getElementById('ingredients-add');
+const ingredientsSkip = document.getElementById('ingredients-skip');
+
 // 確認ダイアログ
 const confirmOverlay = document.getElementById('confirm-overlay');
 const confirmTitle = document.getElementById('confirm-title');
@@ -226,6 +236,7 @@ async function addDish(name) {
     dishes.unshift(res.data);
     updateDishSelect();
     render();
+    openIngredientsModal(res.data.id, res.data.name);
   }
 }
 
@@ -460,6 +471,99 @@ modal.addEventListener('click', (e) => {
   if (e.target !== modalInput && !suggestionsDropdown.contains(e.target)) {
     hideSuggestions();
   }
+});
+
+// 具材提案モーダル
+let ingredientsDishId = null;
+
+function openIngredientsModal(dishId, dishName) {
+  ingredientsDishId = dishId;
+  ingredientsTitle.textContent = `「${dishName}」の具材を検索中...`;
+  ingredientsLoading.style.display = '';
+  ingredientsError.style.display = 'none';
+  ingredientsList.style.display = 'none';
+  ingredientsActions.style.display = 'none';
+  ingredientsOverlay.classList.add('active');
+  fetchIngredients(dishId, dishName);
+}
+
+function closeIngredientsModal() {
+  ingredientsOverlay.classList.remove('active');
+  ingredientsDishId = null;
+}
+
+async function fetchIngredients(dishId, dishName) {
+  try {
+    const res = await api('POST', `/${dishId}/suggest-ingredients`, {}, DISH_API);
+    if (res.success && res.data.ingredients.length > 0) {
+      ingredientsTitle.textContent = `「${dishName}」の具材`;
+      ingredientsLoading.style.display = 'none';
+      renderIngredients(res.data.ingredients);
+    } else {
+      ingredientsTitle.textContent = `「${dishName}」の具材`;
+      ingredientsLoading.style.display = 'none';
+      ingredientsError.textContent = '具材が見つかりませんでした';
+      ingredientsError.style.display = '';
+      ingredientsActions.style.display = '';
+      ingredientsAdd.style.display = 'none';
+    }
+  } catch (err) {
+    ingredientsTitle.textContent = `「${dishName}」の具材`;
+    ingredientsLoading.style.display = 'none';
+    ingredientsError.textContent = `エラー: ${err.message || 'AI接続に失敗しました'}`;
+    ingredientsError.style.display = '';
+    ingredientsActions.style.display = '';
+    ingredientsAdd.style.display = 'none';
+  }
+}
+
+function renderIngredients(ingredients) {
+  let html = '';
+  ingredients.forEach((ing, i) => {
+    html += `
+      <label class="ingredient-item">
+        <input type="checkbox" data-index="${i}">
+        <span class="ingredient-name">${escapeHtml(ing.name)}</span>
+        <span class="ingredient-category">${escapeHtml(ing.category)}</span>
+      </label>
+    `;
+  });
+  ingredientsList.innerHTML = html;
+  ingredientsList.style.display = '';
+  ingredientsActions.style.display = '';
+  ingredientsAdd.style.display = '';
+}
+
+async function addSelectedIngredients() {
+  const boxes = ingredientsList.querySelectorAll('input[type="checkbox"]:checked');
+  if (boxes.length === 0) {
+    closeIngredientsModal();
+    return;
+  }
+
+  ingredientsAdd.disabled = true;
+  ingredientsAdd.textContent = '追加中...';
+
+  for (const box of boxes) {
+    const name = box.closest('.ingredient-item').querySelector('.ingredient-name').textContent;
+    const res = await api('POST', '', { name });
+    if (res.success) {
+      items.unshift(res.data);
+      await api('POST', `/${ingredientsDishId}/items`, { itemId: res.data.id }, DISH_API);
+    }
+  }
+
+  await loadDishes();
+  render();
+  ingredientsAdd.disabled = false;
+  ingredientsAdd.textContent = '追加';
+  closeIngredientsModal();
+}
+
+ingredientsAdd.addEventListener('click', addSelectedIngredients);
+ingredientsSkip.addEventListener('click', closeIngredientsModal);
+ingredientsOverlay.addEventListener('click', (e) => {
+  if (e.target === ingredientsOverlay) closeIngredientsModal();
 });
 
 // 画面回転ロック（対応ブラウザのみ）

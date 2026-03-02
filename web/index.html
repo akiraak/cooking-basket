@@ -49,6 +49,22 @@
     </div>
   </div>
 
+  <!-- 具材提案モーダル -->
+  <div class="modal-overlay" id="ingredients-overlay">
+    <div class="modal ingredients-modal">
+      <div class="modal-title" id="ingredients-title">具材を検索中...</div>
+      <div id="ingredients-loading" class="ingredients-loading">
+        <div class="spinner"></div>
+      </div>
+      <div id="ingredients-error" class="ingredients-error" style="display:none"></div>
+      <div id="ingredients-list" class="ingredients-list" style="display:none"></div>
+      <div id="ingredients-actions" class="modal-actions" style="display:none">
+        <button class="modal-btn modal-cancel" id="ingredients-skip">スキップ</button>
+        <button class="modal-btn modal-ok" id="ingredients-add">追加</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 確認ダイアログ -->
   <div class="modal-overlay" id="confirm-overlay">
     <div class="modal">
