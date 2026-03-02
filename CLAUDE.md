@@ -58,6 +58,7 @@ xcodebuild test -scheme LifeStream -destination 'platform=iOS Simulator,name=iPh
 - `DONE.md` には完了日を `YYYY-MM-DD` 形式で付けて記録する
 - 新しいタスクが発生したら `TODO.md` の適切なセクションに追加する
 - タスクの実施前に `TODO.md` を確認し、優先度の高いものから着手する
+- コミット時に `TODO.md` を確認し、実装した機能に対応するタスクがあれば `DONE.md` に移動する
 
 ## ファイル構成のルール
 
