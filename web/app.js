@@ -168,10 +168,8 @@ function createItemEl(item) {
     <div class="item-info">
       <div class="item-name">${escapeHtml(item.name)}</div>
     </div>
-    <button class="btn-delete">&times;</button>
   `;
   li.querySelector('input[type="checkbox"]').addEventListener('change', () => toggleCheck(item));
-  li.querySelector('.btn-delete').addEventListener('click', () => removeItem(item.id));
   li.querySelector('.item-info').addEventListener('click', () => openEditModal(item));
   return li;
 }
