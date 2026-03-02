@@ -135,7 +135,7 @@ h1 {
   accent-color: #fb923c;
 }
 
-.item-info { flex: 1; min-width: 0; }
+.item-info { flex: 1; min-width: 0; cursor: pointer; }
 
 .item-name {
   font-size: 15px;

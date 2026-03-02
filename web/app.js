@@ -27,7 +27,8 @@ const confirmCancel = document.getElementById('confirm-cancel');
 
 let items = [];
 let dishes = [];
-let modalMode = null; // 'item' | 'dish'
+let modalMode = null; // 'item' | 'dish' | 'edit'
+let editingItem = null; // 編集中のアイテム
 let confirmResolve = null;
 
 // API 通信
@@ -135,6 +136,7 @@ function createItemEl(item) {
   `;
   li.querySelector('input[type="checkbox"]').addEventListener('change', () => toggleCheck(item));
   li.querySelector('.btn-delete').addEventListener('click', () => removeItem(item.id));
+  li.querySelector('.item-info').addEventListener('click', () => openEditModal(item));
   return li;
 }
 
@@ -262,19 +264,41 @@ confirmOverlay.addEventListener('click', (e) => {
 // モーダル
 function openModal(mode, presetDishId) {
   modalMode = mode;
+  editingItem = null;
   modalInput.value = '';
   if (mode === 'item') {
     modalTitle.textContent = 'アイテムを追加';
     modalInput.placeholder = 'アイテム名';
     modalDishRow.style.display = '';
     modalDishSelect.value = presetDishId || '';
+    modalOk.textContent = '追加';
   } else {
     modalTitle.textContent = '料理を追加';
     modalInput.placeholder = '料理名';
     modalDishRow.style.display = 'none';
+    modalOk.textContent = '追加';
   }
   modalOverlay.classList.add('active');
   setTimeout(() => modalInput.focus(), 100);
+}
+
+// アイテム編集モーダル
+function openEditModal(item) {
+  modalMode = 'edit';
+  editingItem = item;
+  modalTitle.textContent = 'アイテムを編集';
+  modalInput.placeholder = 'アイテム名';
+  modalInput.value = item.name;
+  modalDishRow.style.display = '';
+  modalOk.textContent = '保存';
+
+  // 現在の料理を選択
+  const itemDishMap = buildItemDishMap();
+  const dishIds = itemDishMap[item.id] || [];
+  modalDishSelect.value = dishIds.length > 0 ? dishIds[0] : '';
+
+  modalOverlay.classList.add('active');
+  setTimeout(() => { modalInput.focus(); modalInput.select(); }, 100);
 }
 
 function closeModal() {
@@ -285,13 +309,45 @@ function closeModal() {
 function submitModal() {
   const name = modalInput.value.trim();
   if (!name) return;
-  if (modalMode === 'item') {
+  if (modalMode === 'edit') {
+    const dishId = modalDishSelect.value || null;
+    updateItemEdit(editingItem, name, dishId);
+  } else if (modalMode === 'item') {
     const dishId = modalDishSelect.value || null;
     addItem(name, dishId);
   } else {
     addDish(name);
   }
   closeModal();
+}
+
+// アイテム編集
+async function updateItemEdit(item, newName, newDishId) {
+  // 名前を更新
+  const res = await api('PUT', `/${item.id}`, { name: newName });
+  if (res.success) {
+    item.name = newName;
+  }
+
+  // 現在の料理を取得
+  const itemDishMap = buildItemDishMap();
+  const currentDishIds = itemDishMap[item.id] || [];
+  const currentDishId = currentDishIds.length > 0 ? String(currentDishIds[0]) : null;
+
+  // 料理の紐付けを更新
+  if (currentDishId !== newDishId) {
+    // 旧料理から解除
+    if (currentDishId) {
+      await api('DELETE', `/${currentDishId}/items/${item.id}`, null, DISH_API);
+    }
+    // 新料理に紐付け
+    if (newDishId) {
+      await api('POST', `/${newDishId}/items`, { itemId: item.id }, DISH_API);
+    }
+    await loadDishes();
+  }
+
+  render();
 }
 
 // イベント
