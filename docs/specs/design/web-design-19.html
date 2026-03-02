@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>19. Dark + Lavender (Elegant)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #100e14; color: #c8c4d0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 16px; line-height: 1.6; padding: 20px; padding-bottom: 130px; }
+  a { color: #c4b5fd; text-decoration: none; }
+  .back { display: inline-block; margin-bottom: 20px; font-size: 14px; font-weight: 300; }
+  h1 { font-size: 24px; font-weight: 300; margin-bottom: 24px; color: #ede9fe; letter-spacing: 1px; }
+  .dish-group { margin-bottom: 20px; padding: 16px; border: 1px solid #201c2e; border-radius: 8px; }
+  .dish-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #1c1828; }
+  .dish-name { font-size: 16px; font-weight: 400; color: #c4b5fd; flex: 1; letter-spacing: 0.5px; }
+  .dish-btn { background: none; border: 1px solid #2d2640; color: #c4b5fd; width: 28px; height: 28px; border-radius: 6px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .item { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+  .item + .item { border-top: 1px solid #18151f; }
+  .item input[type="checkbox"] { accent-color: #c4b5fd; width: 17px; height: 17px; flex-shrink: 0; }
+  .item-name { flex: 1; font-size: 15px; font-weight: 300; }
+  .item-del { background: none; border: none; color: #3d3550; font-size: 16px; cursor: pointer; padding: 0 4px; }
+  .ungrouped { margin-bottom: 20px; padding: 16px; border: 1px solid #201c2e; border-radius: 8px; }
+  .ungrouped-title { font-size: 12px; color: #5b5270; margin-bottom: 10px; letter-spacing: 1px; font-weight: 300; }
+  .fab-container { position: fixed; bottom: 28px; right: 28px; display: flex; flex-direction: column; gap: 14px; }
+  .fab { width: 52px; height: 52px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #0e0c12; }
+  .fab-dish { background: #c4b5fd; }
+  .fab-item { background: #a78bfa; }
+</style>
+</head>
+<body>
+<a href="../../" class="back">← 戻る</a>
+<h1>買い物リスト</h1>
+
+<div class="dish-group">
+  <div class="dish-header">
+    <span class="dish-name">グラタン</span>
+    <button class="dish-btn">+</button>
+    <button class="dish-btn">×</button>
+  </div>
+  <div class="item"><input type="checkbox"><span class="item-name">牛乳</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">チーズ</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">マカロニ</span><button class="item-del">×</button></div>
+</div>
+
+<div class="dish-group">
+  <div class="dish-header">
+    <span class="dish-name">カレー</span>
+    <button class="dish-btn">+</button>
+    <button class="dish-btn">×</button>
+  </div>
+  <div class="item"><input type="checkbox"><span class="item-name">玉ねぎ</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">じゃがいも</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">カレールー</span><button class="item-del">×</button></div>
+</div>
+
+<div class="ungrouped">
+  <div class="ungrouped-title">その他</div>
+  <div class="item"><input type="checkbox"><span class="item-name">ティッシュ</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">洗剤</span><button class="item-del">×</button></div>
+</div>
+
+<div class="fab-container">
+  <button class="fab fab-dish" title="料理を追加">🍳</button>
+  <button class="fab fab-item" title="アイテムを追加">+</button>
+</div>
+</body>
+</html>

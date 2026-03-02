@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06. Dark + Red</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; color: #d4d4d4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 16px; line-height: 1.5; padding: 16px; padding-bottom: 120px; }
+  a { color: #f87171; text-decoration: none; }
+  .back { display: inline-block; margin-bottom: 16px; font-size: 14px; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 20px; color: #fff; }
+  .dish-group { margin-bottom: 16px; padding: 12px 0; border-bottom: 2px solid #1f1f1f; }
+  .dish-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .dish-name { font-size: 17px; font-weight: 700; color: #f87171; flex: 1; }
+  .dish-btn { background: none; border: 1px solid #333; color: #f87171; width: 28px; height: 28px; border-radius: 4px; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+  .item input[type="checkbox"] { accent-color: #f87171; width: 18px; height: 18px; flex-shrink: 0; }
+  .item-name { flex: 1; font-size: 15px; }
+  .item-del { background: none; border: none; color: #444; font-size: 18px; cursor: pointer; padding: 0 4px; }
+  .ungrouped { margin-bottom: 16px; padding: 12px 0; }
+  .ungrouped-title { font-size: 13px; color: #666; margin-bottom: 8px; }
+  .fab-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 12px; }
+  .fab { width: 52px; height: 52px; border-radius: 50%; border: none; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; }
+  .fab-dish { background: #dc2626; }
+  .fab-item { background: #b91c1c; }
+</style>
+</head>
+<body>
+<a href="../../" class="back">← 戻る</a>
+<h1>買い物リスト</h1>
+
+<div class="dish-group">
+  <div class="dish-header">
+    <span class="dish-name">グラタン</span>
+    <button class="dish-btn">+</button>
+    <button class="dish-btn">×</button>
+  </div>
+  <div class="item"><input type="checkbox"><span class="item-name">牛乳</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">チーズ</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">マカロニ</span><button class="item-del">×</button></div>
+</div>
+
+<div class="dish-group">
+  <div class="dish-header">
+    <span class="dish-name">カレー</span>
+    <button class="dish-btn">+</button>
+    <button class="dish-btn">×</button>
+  </div>
+  <div class="item"><input type="checkbox"><span class="item-name">玉ねぎ</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">じゃがいも</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">カレールー</span><button class="item-del">×</button></div>
+</div>
+
+<div class="ungrouped">
+  <div class="ungrouped-title">その他</div>
+  <div class="item"><input type="checkbox"><span class="item-name">ティッシュ</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">洗剤</span><button class="item-del">×</button></div>
+</div>
+
+<div class="fab-container">
+  <button class="fab fab-dish" title="料理を追加">🍳</button>
+  <button class="fab fab-item" title="アイテムを追加">+</button>
+</div>
+</body>
+</html>

@@ -29,4 +29,8 @@ title: 仕様書一覧
     <a href="{{ site.baseurl }}/specs/design/design-warm-index.html">Warm Earth バリエーション一覧</a>
     <span class="doc-file">20パターン・プレビュー付き</span>
   </li>
+  <li class="doc-item">
+    <a href="{{ site.baseurl }}/specs/design/web-design-index.html">Web クライアント デザイン案一覧</a>
+    <span class="doc-file">20パターン・プレビュー付き</span>
+  </li>
 </ul>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>12. Dark Slate + Indigo (Airy)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f1219; color: #c7d2e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 17px; line-height: 1.7; padding: 24px; padding-bottom: 140px; }
+  a { color: #818cf8; text-decoration: none; }
+  .back { display: inline-block; margin-bottom: 24px; font-size: 15px; }
+  h1 { font-size: 26px; font-weight: 300; margin-bottom: 32px; color: #e2e8f0; }
+  .dish-group { margin-bottom: 28px; padding: 20px; background: #161b27; border-radius: 12px; }
+  .dish-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .dish-name { font-size: 18px; font-weight: 500; color: #818cf8; flex: 1; }
+  .dish-btn { background: #1e2536; border: none; color: #818cf8; width: 34px; height: 34px; border-radius: 8px; font-size: 17px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .item { display: flex; align-items: center; gap: 14px; padding: 12px 0; }
+  .item + .item { border-top: 1px solid #1e2536; }
+  .item input[type="checkbox"] { accent-color: #818cf8; width: 20px; height: 20px; flex-shrink: 0; }
+  .item-name { flex: 1; font-size: 16px; }
+  .item-del { background: none; border: none; color: #3b4563; font-size: 18px; cursor: pointer; padding: 0 6px; }
+  .ungrouped { margin-bottom: 28px; padding: 20px; background: #161b27; border-radius: 12px; }
+  .ungrouped-title { font-size: 14px; color: #4b5877; margin-bottom: 12px; }
+  .fab-container { position: fixed; bottom: 28px; right: 28px; display: flex; flex-direction: column; gap: 14px; }
+  .fab { width: 56px; height: 56px; border-radius: 50%; border: none; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; }
+  .fab-dish { background: #6366f1; }
+  .fab-item { background: #4f46e5; }
+</style>
+</head>
+<body>
+<a href="../../" class="back">← 戻る</a>
+<h1>買い物リスト</h1>
+
+<div class="dish-group">
+  <div class="dish-header">
+    <span class="dish-name">グラタン</span>
+    <button class="dish-btn">+</button>
+    <button class="dish-btn">×</button>
+  </div>
+  <div class="item"><input type="checkbox"><span class="item-name">牛乳</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">チーズ</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">マカロニ</span><button class="item-del">×</button></div>
+</div>
+
+<div class="dish-group">
+  <div class="dish-header">
+    <span class="dish-name">カレー</span>
+    <button class="dish-btn">+</button>
+    <button class="dish-btn">×</button>
+  </div>
+  <div class="item"><input type="checkbox"><span class="item-name">玉ねぎ</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">じゃがいも</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">カレールー</span><button class="item-del">×</button></div>
+</div>
+
+<div class="ungrouped">
+  <div class="ungrouped-title">その他</div>
+  <div class="item"><input type="checkbox"><span class="item-name">ティッシュ</span><button class="item-del">×</button></div>
+  <div class="item"><input type="checkbox"><span class="item-name">洗剤</span><button class="item-del">×</button></div>
+</div>
+
+<div class="fab-container">
+  <button class="fab fab-dish" title="料理を追加">🍳</button>
+  <button class="fab fab-item" title="アイテムを追加">+</button>
+</div>
+</body>
+</html>

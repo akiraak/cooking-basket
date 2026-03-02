@@ -1,59 +1,48 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f5f5f5;
-  color: #333;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #1c1c1c;
+  color: #d4d4d4;
+  font-size: 16px;
+  line-height: 1.5;
   -webkit-text-size-adjust: 100%;
 }
 
 .container {
-  max-width: 480px;
-  margin: 0 auto;
-  padding: 16px;
-  padding-bottom: 100px;
+  padding: 12px 0 120px;
 }
 
 h1 {
-  text-align: center;
-  margin-bottom: 16px;
-  font-size: 1.4rem;
-}
-
-/* アクションバー */
-.actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 13px;
-  color: #888;
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
 }
 
 /* 料理グループ */
 .dish-group {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  background: #242424;
+  padding: 14px;
+  border-left: 3px solid #fb923c;
 }
 
 .dish-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: #e8f0fe;
-  border-radius: 10px 10px 0 0;
-  border: 1px solid #d0dff0;
-  border-bottom: none;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.dish-header-empty {
+  margin-bottom: 0;
 }
 
 .dish-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1a73e8;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fb923c;
+  flex: 1;
 }
 
 .dish-actions {
@@ -64,111 +53,94 @@ h1 {
 
 .btn-add-to-dish {
   background: none;
-  border: none;
-  color: #1a73e8;
-  font-size: 20px;
-  font-weight: 700;
+  border: 1px solid #444;
+  color: #fb923c;
+  width: 28px;
+  height: 28px;
+  font-size: 15px;
   cursor: pointer;
-  padding: 2px 6px;
-}
-
-.btn-add-to-dish:active {
-  color: #005ecb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-delete-dish {
   background: none;
-  border: none;
-  color: #aac4e8;
-  font-size: 18px;
+  border: 1px solid #444;
+  color: #555;
+  width: 28px;
+  height: 28px;
+  font-size: 15px;
   cursor: pointer;
-  padding: 2px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn-delete-dish:active {
-  color: #ff3b30;
-}
+.btn-delete-dish:active { color: #f87171; }
 
-.dish-header-empty {
-  border-radius: 10px;
-  border-bottom: 1px solid #d0dff0;
-}
-
-.dish-items {
-  list-style: none;
-  border: 1px solid #d0dff0;
-  border-top: none;
-  border-radius: 0 0 10px 10px;
-  overflow: hidden;
-}
+.dish-items { list-style: none; }
 
 .dish-items .list-item {
-  border-radius: 0;
   margin-bottom: 0;
-  box-shadow: none;
-  border-bottom: 1px solid #f0f0f0;
+  background: none;
+  padding: 8px 0;
+  border-bottom: 1px solid #333;
 }
 
-.dish-items .list-item:last-child {
-  border-bottom: none;
-}
-
-/* 未分類 */
-.ungrouped-label {
-  font-size: 12px;
-  color: #999;
-  padding: 8px 4px 4px;
-  text-align: center;
-}
-
-.ungrouped-items {
-  list-style: none;
-}
+.dish-items .list-item:last-child { border-bottom: none; }
 
 /* リストアイテム */
+.ungrouped-items { list-style: none; }
+
 .list-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px;
-  background: #fff;
-  border-radius: 10px;
-  margin-bottom: 6px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  padding: 8px 0;
+  background: none;
+}
+
+.list-item + .list-item { border-top: 1px solid #333; }
+
+.ungrouped-items .list-item:first-child { border-top: none; }
+
+.ungrouped-items {
+  background: #242424;
+  padding: 14px;
+  border-left: 3px solid #555;
+  margin-bottom: 16px;
 }
 
 .list-item input[type="checkbox"] {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   cursor: pointer;
   flex-shrink: 0;
+  accent-color: #fb923c;
 }
 
-.item-info {
-  flex: 1;
-  min-width: 0;
-}
+.item-info { flex: 1; min-width: 0; }
 
 .item-name {
   font-size: 15px;
   word-break: break-word;
+  color: #d4d4d4;
 }
 
 .btn-delete {
   background: none;
   border: none;
-  color: #ccc;
-  font-size: 20px;
+  color: #555;
+  font-size: 18px;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 0 4px;
   flex-shrink: 0;
 }
 
-.btn-delete:active {
-  color: #ff3b30;
-}
+.btn-delete:active { color: #f87171; }
 
-/* FAB ボタン */
+/* FAB */
 .fab-group {
   position: fixed;
   bottom: 24px;
@@ -180,150 +152,108 @@ h1 {
 }
 
 .fab {
-  width: 52px;
-  height: 52px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  transition: transform 0.15s;
+  font-size: 20px;
+  color: #000;
 }
 
-.fab:active {
-  transform: scale(0.92);
-}
-
-.fab-item {
-  background: #007aff;
-  color: #fff;
-}
-
-.fab-dish {
-  background: #fff;
-  color: #1a73e8;
-  border: 1px solid #d0dff0;
-}
+.fab:active { opacity: 0.8; }
+.fab-item { background: #f97316; }
+.fab-dish { background: #fb923c; }
 
 /* モーダル */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 200;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s;
+  transition: opacity 0.15s;
 }
 
-.modal-overlay.active {
-  opacity: 1;
-  pointer-events: auto;
-}
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
 
 .modal {
-  background: #fff;
-  border-radius: 16px;
+  background: #242424;
+  border-radius: 12px;
   padding: 24px;
   width: 320px;
   max-width: 90vw;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  border: 1px solid #333;
 }
 
 .modal-title {
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   margin-bottom: 16px;
   text-align: center;
+  color: #fff;
 }
 
 .modal-input {
   width: 100%;
   padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
+  border: 1px solid #444;
+  border-radius: 6px;
   font-size: 16px;
   margin-bottom: 12px;
+  background: #1c1c1c;
+  color: #d4d4d4;
 }
 
-.modal-input:focus {
-  outline: none;
-  border-color: #007aff;
-}
+.modal-input:focus { outline: none; border-color: #fb923c; }
 
-.modal-dish-row {
-  margin-bottom: 12px;
-}
-
-.modal-label {
-  display: block;
-  font-size: 13px;
-  color: #888;
-  margin-bottom: 4px;
-}
+.modal-dish-row { margin-bottom: 12px; }
+.modal-label { display: block; font-size: 13px; color: #777; margin-bottom: 4px; }
 
 .modal-select {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
+  border: 1px solid #444;
+  border-radius: 6px;
   font-size: 15px;
-  background: #fff;
+  background: #1c1c1c;
+  color: #d4d4d4;
 }
 
-.modal-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-}
+.modal-actions { display: flex; gap: 8px; margin-top: 4px; }
 
 .modal-btn {
   flex: 1;
   padding: 12px;
   border: none;
-  border-radius: 10px;
+  border-radius: 6px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.modal-cancel {
-  background: #f0f0f0;
-  color: #666;
-}
-
-.modal-ok {
-  background: #007aff;
-  color: #fff;
-}
-
-.modal-ok:active {
-  background: #005ecb;
-}
-
-.modal-danger {
-  background: #ff3b30;
-  color: #fff;
-}
-
-.modal-danger:active {
-  background: #d63029;
-}
+.modal-cancel { background: #333; color: #999; }
+.modal-ok { background: #fb923c; color: #000; }
+.modal-ok:active { opacity: 0.8; }
+.modal-danger { background: #f87171; color: #000; }
+.modal-danger:active { opacity: 0.8; }
 
 .confirm-message {
   font-size: 14px;
-  color: #666;
+  color: #888;
   text-align: center;
   margin-bottom: 16px;
   white-space: pre-line;
 }
 
-/* 横向き防止: モバイルのlandscape時にコンテンツを逆回転して縦表示を維持 */
+/* 横向き防止 */
 @media screen and (orientation: landscape) and (max-height: 500px) {
   html {
     transform: rotate(-90deg);
@@ -337,10 +267,9 @@ h1 {
   }
 }
 
-/* 空メッセージ */
 .empty {
   text-align: center;
-  color: #aaa;
+  color: #555;
   padding: 40px 0;
   font-size: 15px;
 }
