@@ -1,0 +1,11 @@
+node_modules
+server/node_modules
+server/dist
+*.db
+*.db-shm
+*.db-wal
+.git
+.claude
+.vscode
+.env
+data

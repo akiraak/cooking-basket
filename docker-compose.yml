@@ -1,0 +1,19 @@
+services:
+  life-stream:
+    build: .
+    container_name: life-stream
+    restart: unless-stopped
+    environment:
+      - PORT=3002
+      - DB_PATH=/app/data/shopping.db
+      - TZ=America/Los_Angeles
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./data:/app/data
+    networks:
+      - n8n_default
+
+networks:
+  n8n_default:
+    external: true
