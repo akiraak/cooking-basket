@@ -7,6 +7,7 @@ import { shoppingRouter } from './routes/shopping';
 import { adminRouter } from './routes/admin';
 import { claudeRouter } from './routes/claude';
 import { recipesRouter } from './routes/recipes';
+import { dishesRouter } from './routes/dishes';
 import { docsRouter } from './routes/docs';
 import { initDatabase } from './database';
 
@@ -32,6 +33,7 @@ app.use('/api/shopping', shoppingRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/claude', claudeRouter);
 app.use('/api/recipes', recipesRouter);
+app.use('/api/dishes', dishesRouter);
 app.use('/docs', docsRouter);
 
 // エラーハンドリング

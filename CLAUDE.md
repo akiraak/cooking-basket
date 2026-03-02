@@ -22,6 +22,10 @@ xcodebuild -scheme LifeStream -destination 'platform=iOS Simulator,name=iPhone 1
 xcodebuild test -scheme LifeStream -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
+## Git ルール
+
+- `git push` はユーザーから明示的に指示があった場合のみ実行する（勝手に push しない）
+
 ## コーディング規約
 
 ### 共通

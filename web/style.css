@@ -15,57 +15,13 @@ body {
   max-width: 480px;
   margin: 0 auto;
   padding: 16px;
+  padding-bottom: 100px;
 }
 
 h1 {
   text-align: center;
   margin-bottom: 16px;
   font-size: 1.4rem;
-}
-
-/* フォーム */
-#add-form {
-  margin-bottom: 12px;
-}
-
-.form-row {
-  display: flex;
-  gap: 8px;
-}
-
-#item-name {
-  flex: 1;
-  padding: 10px 12px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 16px;
-}
-
-/* ボタン */
-.btn {
-  padding: 10px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.btn-add {
-  background: #007aff;
-  color: #fff;
-}
-
-.btn-add:active {
-  background: #005ecb;
-}
-
-.btn-danger {
-  background: none;
-  color: #ff3b30;
-  font-size: 13px;
-  padding: 4px 0;
 }
 
 /* アクションバー */
@@ -78,11 +34,78 @@ h1 {
   color: #888;
 }
 
-/* リスト */
-#shopping-list {
+/* 料理グループ */
+.dish-group {
+  margin-bottom: 12px;
+}
+
+.dish-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #e8f0fe;
+  border-radius: 10px 10px 0 0;
+  border: 1px solid #d0dff0;
+  border-bottom: none;
+}
+
+.dish-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a73e8;
+}
+
+.btn-delete-dish {
+  background: none;
+  border: none;
+  color: #aac4e8;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.btn-delete-dish:active {
+  color: #ff3b30;
+}
+
+.dish-header-empty {
+  border-radius: 10px;
+  border-bottom: 1px solid #d0dff0;
+}
+
+.dish-items {
+  list-style: none;
+  border: 1px solid #d0dff0;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  overflow: hidden;
+}
+
+.dish-items .list-item {
+  border-radius: 0;
+  margin-bottom: 0;
+  box-shadow: none;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dish-items .list-item:last-child {
+  border-bottom: none;
+}
+
+/* 未分類 */
+.ungrouped-label {
+  font-size: 12px;
+  color: #999;
+  padding: 8px 4px 4px;
+  text-align: center;
+}
+
+.ungrouped-items {
   list-style: none;
 }
 
+/* リストアイテム */
 .list-item {
   display: flex;
   align-items: center;
@@ -123,6 +146,144 @@ h1 {
 
 .btn-delete:active {
   color: #ff3b30;
+}
+
+/* FAB ボタン */
+.fab-group {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 100;
+}
+
+.fab {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: transform 0.15s;
+}
+
+.fab:active {
+  transform: scale(0.92);
+}
+
+.fab-item {
+  background: #007aff;
+  color: #fff;
+}
+
+.fab-dish {
+  background: #fff;
+  color: #1a73e8;
+  border: 1px solid #d0dff0;
+}
+
+/* モーダル */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  width: 320px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: #007aff;
+}
+
+.modal-dish-row {
+  margin-bottom: 12px;
+}
+
+.modal-label {
+  display: block;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+.modal-select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 15px;
+  background: #fff;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modal-cancel {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.modal-ok {
+  background: #007aff;
+  color: #fff;
+}
+
+.modal-ok:active {
+  background: #005ecb;
 }
 
 /* 横向き防止: モバイルのlandscape時にコンテンツを逆回転して縦表示を維持 */

@@ -9,6 +9,7 @@ export function getDatabase(): Database.Database {
   if (!db) {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
   }
   return db;
 }
@@ -25,5 +26,25 @@ export function initDatabase(): void {
       updated_at TEXT DEFAULT (datetime('now'))
     )
   `);
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS dishes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS dish_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dish_id INTEGER NOT NULL,
+      item_id INTEGER NOT NULL,
+      FOREIGN KEY (dish_id) REFERENCES dishes(id) ON DELETE CASCADE,
+      FOREIGN KEY (item_id) REFERENCES shopping_items(id) ON DELETE CASCADE,
+      UNIQUE(dish_id, item_id)
+    )
+  `);
+
   console.log('Database initialized');
 }

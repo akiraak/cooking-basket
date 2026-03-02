@@ -13,21 +13,42 @@
       <a href="/admin/" style="color:#007aff;font-size:13px;text-decoration:none">管理画面</a>
     </div>
 
-    <form id="add-form">
-      <div class="form-row">
-        <input type="text" id="item-name" placeholder="アイテム名" required autofocus>
-        <button type="submit" class="btn btn-add">追加</button>
-      </div>
-    </form>
-
     <div class="actions">
       <span id="item-count">0 件</span>
     </div>
 
-    <ul id="shopping-list"></ul>
+    <div id="shopping-list"></div>
 
     <div id="empty-message" class="empty" style="display:none">
       リストは空です
+    </div>
+  </div>
+
+  <!-- FAB -->
+  <div class="fab-group">
+    <button class="fab fab-dish" id="fab-dish" title="料理を追加">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h18M5 17h14a2 2 0 0 0 2-2 8 8 0 0 0-16 0h0"/><line x1="12" y1="20" x2="12" y2="17"/></svg>
+    </button>
+    <button class="fab fab-item" id="fab-item" title="アイテムを追加">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </div>
+
+  <!-- モーダル -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal" id="modal">
+      <div class="modal-title" id="modal-title"></div>
+      <input type="text" class="modal-input" id="modal-input" placeholder="">
+      <div class="modal-dish-row" id="modal-dish-row" style="display:none">
+        <label class="modal-label">料理</label>
+        <select class="modal-select" id="modal-dish-select">
+          <option value="">未分類</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-cancel" id="modal-cancel">キャンセル</button>
+        <button class="modal-btn modal-ok" id="modal-ok">追加</button>
+      </div>
     </div>
   </div>
 

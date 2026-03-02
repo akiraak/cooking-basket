@@ -1,0 +1,88 @@
+import { Router, Request, Response } from 'express';
+import {
+  getAllDishes,
+  getDish,
+  createDish,
+  deleteDish,
+  linkItemToDish,
+  unlinkItemFromDish,
+} from '../services/dish-service';
+
+export const dishesRouter = Router();
+
+// 全料理取得
+dishesRouter.get('/', (_req: Request, res: Response) => {
+  try {
+    const dishes = getAllDishes();
+    res.json({ success: true, data: dishes, error: null });
+  } catch (err) {
+    res.status(500).json({ success: false, data: null, error: String(err) });
+  }
+});
+
+// 料理追加
+dishesRouter.post('/', (req: Request, res: Response) => {
+  try {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      res.status(400).json({ success: false, data: null, error: 'name は必須です' });
+      return;
+    }
+    const dish = createDish(name.trim());
+    res.status(201).json({ success: true, data: dish, error: null });
+  } catch (err) {
+    res.status(500).json({ success: false, data: null, error: String(err) });
+  }
+});
+
+// 料理削除
+dishesRouter.delete('/:id', (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const deleted = deleteDish(id);
+    if (!deleted) {
+      res.status(404).json({ success: false, data: null, error: '料理が見つかりません' });
+      return;
+    }
+    res.json({ success: true, data: null, error: null });
+  } catch (err) {
+    res.status(500).json({ success: false, data: null, error: String(err) });
+  }
+});
+
+// 料理に食材をリンク
+dishesRouter.post('/:id/items', (req: Request, res: Response) => {
+  try {
+    const dishId = Number(req.params.id);
+    const { itemId } = req.body;
+    if (!itemId) {
+      res.status(400).json({ success: false, data: null, error: 'itemId は必須です' });
+      return;
+    }
+    const linked = linkItemToDish(dishId, Number(itemId));
+    if (!linked) {
+      res.status(400).json({ success: false, data: null, error: 'リンクに失敗しました' });
+      return;
+    }
+    const dish = getDish(dishId);
+    res.json({ success: true, data: dish, error: null });
+  } catch (err) {
+    res.status(500).json({ success: false, data: null, error: String(err) });
+  }
+});
+
+// 料理から食材をリンク解除
+dishesRouter.delete('/:id/items/:itemId', (req: Request, res: Response) => {
+  try {
+    const dishId = Number(req.params.id);
+    const itemId = Number(req.params.itemId);
+    const unlinked = unlinkItemFromDish(dishId, itemId);
+    if (!unlinked) {
+      res.status(404).json({ success: false, data: null, error: 'リンクが見つかりません' });
+      return;
+    }
+    res.json({ success: true, data: null, error: null });
+  } catch (err) {
+    res.status(500).json({ success: false, data: null, error: String(err) });
+  }
+});
