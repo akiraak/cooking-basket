@@ -154,19 +154,17 @@ function render() {
     header.querySelector('.btn-delete-dish').addEventListener('click', () => removeDish(dish.id));
     group.appendChild(header);
 
-    if (dishItems.length > 0) {
-      const ul = document.createElement('ul');
-      ul.className = 'dish-items';
-      dishItems.forEach(item => {
-        ul.appendChild(createItemEl(item));
-      });
-      group.appendChild(ul);
-    }
+    const ul = document.createElement('ul');
+    ul.className = 'dish-items';
+    dishItems.forEach(item => {
+      ul.appendChild(createItemEl(item));
+    });
+    group.appendChild(ul);
     listEl.appendChild(group);
   });
 
-  // 料理に紐づかないアイテム
-  if (ungrouped.length > 0) {
+  // 料理に紐づかないアイテム（移動先として常に表示）
+  {
     const ul = document.createElement('ul');
     ul.className = 'ungrouped-items';
     ungrouped.forEach(item => {
@@ -217,35 +215,65 @@ function initSortable() {
     }));
   }
 
-  // 料理内アイテムの並べ替え
+  // アイテム移動時の処理（別リストから追加された時）
+  async function onItemAdd(evt) {
+    isDragging = false;
+    const itemId = Number(evt.item.dataset.itemId);
+    const fromUl = evt.from;
+    const toUl = evt.to;
+
+    // 移動元の料理から unlink
+    const fromGroup = fromUl.closest('.dish-group');
+    if (fromGroup) {
+      const fromDishId = Number(fromGroup.dataset.dishId);
+      await api('DELETE', `/${fromDishId}/items/${itemId}`, null, DISH_API);
+    }
+
+    // 移動先の料理に link
+    const toGroup = toUl.closest('.dish-group');
+    if (toGroup) {
+      const toDishId = Number(toGroup.dataset.dishId);
+      await api('POST', `/${toDishId}/items`, { itemId }, DISH_API);
+    }
+
+    // データを再読み込みして整合性を保つ
+    await loadDishes();
+    await loadItems();
+    render();
+  }
+
+  // 料理内アイテムの並べ替え（グループ間移動対応）
   listEl.querySelectorAll('.dish-items').forEach(ul => {
     const dishId = Number(ul.closest('.dish-group').dataset.dishId);
     sortableInstances.push(new Sortable(ul, {
       ...sortableOpts,
+      group: 'items',
       onEnd: async () => {
         isDragging = false;
         const ids = Array.from(ul.querySelectorAll('.list-item')).map(li => Number(li.dataset.itemId));
-        // ローカルの dish.items 順序も更新
         const dish = dishes.find(d => d.id === dishId);
         if (dish && dish.items) {
           const itemMap = new Map(dish.items.map(i => [i.id, i]));
           dish.items = ids.map(id => itemMap.get(id)).filter(Boolean);
         }
         await api('PUT', `/${dishId}/items/reorder`, { orderedItemIds: ids }, DISH_API);
-      }
+      },
+      onAdd: onItemAdd,
     }));
   });
 
-  // 未分類アイテムの並べ替え
+  // 未分類アイテムの並べ替え（グループ間移動対応）
   const ungroupedUl = listEl.querySelector('.ungrouped-items');
-  if (ungroupedUl && ungroupedUl.children.length > 1) {
+  if (ungroupedUl) {
     sortableInstances.push(new Sortable(ungroupedUl, {
       ...sortableOpts,
+      group: 'items',
       onEnd: async () => {
         isDragging = false;
         const ids = Array.from(ungroupedUl.querySelectorAll('.list-item')).map(li => Number(li.dataset.itemId));
         await api('PUT', '/reorder', { orderedIds: ids });
-      }
+      },
+      onAdd: onItemAdd,
     }));
   }
 }
