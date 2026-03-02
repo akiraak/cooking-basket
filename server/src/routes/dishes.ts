@@ -131,8 +131,9 @@ dishesRouter.post('/:id/suggest-ingredients', async (req: Request, res: Response
       return;
     }
 
-    // DBにキャッシュがあればそれを返す
-    if (dish.ingredients_json) {
+    // DBにキャッシュがあればそれを返す（forceで再取得可能）
+    const force = req.body.force === true;
+    if (!force && dish.ingredients_json) {
       const ingredients = JSON.parse(dish.ingredients_json);
       const recipes = dish.recipes_json ? JSON.parse(dish.recipes_json) : [];
       res.json({

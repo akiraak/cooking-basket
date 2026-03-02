@@ -30,14 +30,17 @@ const ingredientsCache = new Map();
 
 // 具材提案モーダル
 const ingredientsOverlay = document.getElementById('ingredients-overlay');
+const ingredientsHeader = document.getElementById('ingredients-header');
 const ingredientsTitle = document.getElementById('ingredients-title');
+const ingredientsTitleLoading = document.getElementById('ingredients-title-loading');
 const ingredientsLoading = document.getElementById('ingredients-loading');
 const ingredientsError = document.getElementById('ingredients-error');
 const ingredientsList = document.getElementById('ingredients-list');
 const ingredientsRecipes = document.getElementById('ingredients-recipes');
-const ingredientsActions = document.getElementById('ingredients-actions');
+const ingredientsAddRow = document.getElementById('ingredients-add-row');
 const ingredientsAdd = document.getElementById('ingredients-add');
 const ingredientsSkip = document.getElementById('ingredients-skip');
+const ingredientsRefresh = document.getElementById('ingredients-refresh');
 
 // 確認ダイアログ
 const confirmOverlay = document.getElementById('confirm-overlay');
@@ -538,11 +541,11 @@ function isAnyModalOpen() {
 }
 
 // バックグラウンド具材検索
-async function fetchIngredientsInBackground(dishId, dishName) {
+async function fetchIngredientsInBackground(dishId, dishName, force = false) {
   loadingIngredientsDishes.add(dishId);
   render();
   try {
-    const res = await api('POST', `/${dishId}/suggest-ingredients`, {}, DISH_API);
+    const res = await api('POST', `/${dishId}/suggest-ingredients`, { force }, DISH_API);
     loadingIngredientsDishes.delete(dishId);
     if (res.success && res.data.ingredients.length > 0) {
       const recipes = res.data.recipes || [];
@@ -560,9 +563,50 @@ async function fetchIngredientsInBackground(dishId, dishName) {
   }
 }
 
+// モーダル内で再検索（force）
+async function fetchIngredientsForModal(dishId, dishName) {
+  loadingIngredientsDishes.add(dishId);
+  render();
+  try {
+    const res = await api('POST', `/${dishId}/suggest-ingredients`, { force: true }, DISH_API);
+    loadingIngredientsDishes.delete(dishId);
+    if (res.success && res.data.ingredients.length > 0) {
+      const recipes = res.data.recipes || [];
+      ingredientsCache.set(dishId, { dishName, ingredients: res.data.ingredients, recipes });
+      render();
+      // モーダルがまだ開いていてこの料理なら結果を表示
+      if (ingredientsDishId === dishId) {
+        ingredientsLoading.style.display = 'none';
+        const dish = dishes.find(d => d.id === dishId);
+        const existingNames = new Set((dish && dish.items || []).map(i => i.name));
+        const filtered = res.data.ingredients.filter(ing => !existingNames.has(ing.name));
+        renderIngredients(filtered);
+        renderRecipes(recipes);
+      }
+    } else {
+      render();
+      if (ingredientsDishId === dishId) {
+        ingredientsLoading.style.display = 'none';
+        ingredientsError.textContent = '具材が見つかりませんでした';
+        ingredientsError.style.display = '';
+      }
+    }
+  } catch (err) {
+    loadingIngredientsDishes.delete(dishId);
+    render();
+    if (ingredientsDishId === dishId) {
+      ingredientsLoading.style.display = 'none';
+      ingredientsError.textContent = `エラー: ${err.message || 'AI接続に失敗しました'}`;
+      ingredientsError.style.display = '';
+    }
+  }
+}
+
 function openIngredientsModalWithResults(dishId, dishName, ingredients, recipes) {
   ingredientsDishId = dishId;
   ingredientsTitle.textContent = `「${dishName}」`;
+  ingredientsTitleLoading.style.display = 'none';
+  ingredientsHeader.style.display = '';
   ingredientsLoading.style.display = 'none';
   ingredientsError.style.display = 'none';
   // 料理に既に追加されているアイテム名を取得して除外
@@ -580,11 +624,13 @@ let ingredientsDishId = null;
 
 function openIngredientsModal(dishId, dishName) {
   ingredientsDishId = dishId;
-  ingredientsTitle.textContent = `「${dishName}」の具材を検索中...`;
+  ingredientsHeader.style.display = 'none';
+  ingredientsTitleLoading.textContent = '具材を検索中...';
+  ingredientsTitleLoading.style.display = '';
   ingredientsLoading.style.display = '';
   ingredientsError.style.display = 'none';
   ingredientsList.style.display = 'none';
-  ingredientsActions.style.display = 'none';
+  ingredientsAddRow.style.display = 'none';
   ingredientsOverlay.classList.add('active');
   updateBodyScroll();
   fetchIngredients(dishId, dishName);
@@ -594,6 +640,9 @@ function closeIngredientsModal() {
   ingredientsOverlay.classList.remove('active');
   updateBodyScroll();
   ingredientsDishId = null;
+  ingredientsHeader.style.display = 'none';
+  ingredientsTitleLoading.style.display = 'none';
+  ingredientsAddRow.style.display = 'none';
   if (ingredientsRecipes) ingredientsRecipes.style.display = 'none';
 }
 
@@ -601,24 +650,26 @@ async function fetchIngredients(dishId, dishName) {
   try {
     const res = await api('POST', `/${dishId}/suggest-ingredients`, {}, DISH_API);
     if (res.success && res.data.ingredients.length > 0) {
-      ingredientsTitle.textContent = `「${dishName}」の具材`;
+      ingredientsTitleLoading.style.display = 'none';
+      ingredientsHeader.style.display = '';
+      ingredientsTitle.textContent = `「${dishName}」`;
       ingredientsLoading.style.display = 'none';
       renderIngredients(res.data.ingredients);
     } else {
-      ingredientsTitle.textContent = `「${dishName}」の具材`;
+      ingredientsTitleLoading.style.display = 'none';
+      ingredientsHeader.style.display = '';
+      ingredientsTitle.textContent = `「${dishName}」`;
       ingredientsLoading.style.display = 'none';
       ingredientsError.textContent = '具材が見つかりませんでした';
       ingredientsError.style.display = '';
-      ingredientsActions.style.display = '';
-      ingredientsAdd.style.display = 'none';
     }
   } catch (err) {
-    ingredientsTitle.textContent = `「${dishName}」の具材`;
+    ingredientsTitleLoading.style.display = 'none';
+    ingredientsHeader.style.display = '';
+    ingredientsTitle.textContent = `「${dishName}」`;
     ingredientsLoading.style.display = 'none';
     ingredientsError.textContent = `エラー: ${err.message || 'AI接続に失敗しました'}`;
     ingredientsError.style.display = '';
-    ingredientsActions.style.display = '';
-    ingredientsAdd.style.display = 'none';
   }
 }
 
@@ -629,11 +680,19 @@ function renderIngredients(ingredients) {
   });
   ingredientsList.innerHTML = html;
   ingredientsList.style.display = '';
-  ingredientsActions.style.display = '';
-  ingredientsAdd.style.display = '';
+  ingredientsAddRow.style.display = '';
+
+  function updateAddBtnState() {
+    const hasSelected = ingredientsList.querySelector('.ingredient-chip.selected');
+    ingredientsAdd.classList.toggle('active', !!hasSelected);
+  }
+  updateAddBtnState();
 
   ingredientsList.querySelectorAll('.ingredient-chip').forEach(chip => {
-    chip.addEventListener('click', () => chip.classList.toggle('selected'));
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('selected');
+      updateAddBtnState();
+    });
   });
 }
 
@@ -681,7 +740,7 @@ async function addSelectedIngredients() {
   }
 
   ingredientsAdd.disabled = true;
-  ingredientsAdd.textContent = '追加中...';
+  ingredientsAdd.textContent = '追加中…';
 
   // 同じ料理に既にある名前を取得
   const dish = dishes.find(d => d.id === ingredientsDishId);
@@ -706,6 +765,19 @@ async function addSelectedIngredients() {
 
 ingredientsAdd.addEventListener('click', addSelectedIngredients);
 ingredientsSkip.addEventListener('click', closeIngredientsModal);
+ingredientsRefresh.addEventListener('click', () => {
+  const dishId = ingredientsDishId;
+  const cached = ingredientsCache.get(dishId);
+  if (!dishId || !cached) return;
+  ingredientsCache.delete(dishId);
+  // モーダル内をローディング状態に
+  ingredientsList.style.display = 'none';
+  ingredientsAddRow.style.display = 'none';
+  if (ingredientsRecipes) ingredientsRecipes.style.display = 'none';
+  ingredientsError.style.display = 'none';
+  ingredientsLoading.style.display = '';
+  fetchIngredientsForModal(dishId, cached.dishName);
+});
 ingredientsOverlay.addEventListener('click', (e) => {
   if (e.target === ingredientsOverlay) closeIngredientsModal();
 });
