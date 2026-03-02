@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { errorHandler } from './middleware/error-handler';
 import { shoppingRouter } from './routes/shopping';
@@ -15,13 +16,23 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const CACHE_VERSION = Date.now().toString();
 
 // ミドルウェア
 app.use(cors());
 app.use(express.json());
 
+// index.html にキャッシュバージョンを埋め込んで返す
+const webDir = path.join(__dirname, '../../web');
+const indexHtml = fs.readFileSync(path.join(webDir, 'index.html'), 'utf-8')
+  .replace(/__CACHE_VERSION__/g, CACHE_VERSION);
+
+app.get('/', (_req, res) => {
+  res.type('html').send(indexHtml);
+});
+
 // 静的ファイル配信 (Web クライアント)
-app.use(express.static(path.join(__dirname, '../../web')));
+app.use(express.static(webDir));
 
 // ヘルスチェック
 app.get('/api/health', (_req, res) => {
