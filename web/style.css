@@ -56,6 +56,26 @@ h1 {
   color: #1a73e8;
 }
 
+.dish-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-add-to-dish {
+  background: none;
+  border: none;
+  color: #1a73e8;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.btn-add-to-dish:active {
+  color: #005ecb;
+}
+
 .btn-delete-dish {
   background: none;
   border: none;
@@ -284,6 +304,23 @@ h1 {
 
 .modal-ok:active {
   background: #005ecb;
+}
+
+.modal-danger {
+  background: #ff3b30;
+  color: #fff;
+}
+
+.modal-danger:active {
+  background: #d63029;
+}
+
+.confirm-message {
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  margin-bottom: 16px;
+  white-space: pre-line;
 }
 
 /* 横向き防止: モバイルのlandscape時にコンテンツを逆回転して縦表示を維持 */

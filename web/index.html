@@ -13,10 +13,6 @@
       <a href="/admin/" style="color:#007aff;font-size:13px;text-decoration:none">管理画面</a>
     </div>
 
-    <div class="actions">
-      <span id="item-count">0 件</span>
-    </div>
-
     <div id="shopping-list"></div>
 
     <div id="empty-message" class="empty" style="display:none">
@@ -48,6 +44,18 @@
       <div class="modal-actions">
         <button class="modal-btn modal-cancel" id="modal-cancel">キャンセル</button>
         <button class="modal-btn modal-ok" id="modal-ok">追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 確認ダイアログ -->
+  <div class="modal-overlay" id="confirm-overlay">
+    <div class="modal">
+      <div class="modal-title" id="confirm-title"></div>
+      <div class="confirm-message" id="confirm-message"></div>
+      <div class="modal-actions">
+        <button class="modal-btn modal-cancel" id="confirm-cancel">キャンセル</button>
+        <button class="modal-btn modal-danger" id="confirm-ok">削除</button>
       </div>
     </div>
   </div>

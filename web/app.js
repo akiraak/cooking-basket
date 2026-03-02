@@ -2,7 +2,6 @@ const API = '/api/shopping';
 const DISH_API = '/api/dishes';
 
 const listEl = document.getElementById('shopping-list');
-const countEl = document.getElementById('item-count');
 const emptyEl = document.getElementById('empty-message');
 
 // FAB
@@ -19,9 +18,17 @@ const modalDishSelect = document.getElementById('modal-dish-select');
 const modalOk = document.getElementById('modal-ok');
 const modalCancel = document.getElementById('modal-cancel');
 
+// 確認ダイアログ
+const confirmOverlay = document.getElementById('confirm-overlay');
+const confirmTitle = document.getElementById('confirm-title');
+const confirmMessage = document.getElementById('confirm-message');
+const confirmOk = document.getElementById('confirm-ok');
+const confirmCancel = document.getElementById('confirm-cancel');
+
 let items = [];
 let dishes = [];
 let modalMode = null; // 'item' | 'dish'
+let confirmResolve = null;
 
 // API 通信
 async function api(method, path = '', body = null, base = API) {
@@ -82,8 +89,12 @@ function render() {
     header.className = dishItems.length > 0 ? 'dish-header' : 'dish-header dish-header-empty';
     header.innerHTML = `
       <span class="dish-name">${escapeHtml(dish.name)}</span>
-      <button class="btn-delete-dish" title="料理を削除">&times;</button>
+      <div class="dish-actions">
+        <button class="btn-add-to-dish" title="アイテムを追加">+</button>
+        <button class="btn-delete-dish" title="料理を削除">&times;</button>
+      </div>
     `;
+    header.querySelector('.btn-add-to-dish').addEventListener('click', () => openModal('item', dish.id));
     header.querySelector('.btn-delete-dish').addEventListener('click', () => removeDish(dish.id));
     group.appendChild(header);
 
@@ -98,15 +109,8 @@ function render() {
     listEl.appendChild(group);
   });
 
-  // 未分類アイテム
+  // 料理に紐づかないアイテム
   if (ungrouped.length > 0) {
-    if (dishes.length > 0) {
-      const divider = document.createElement('div');
-      divider.className = 'ungrouped-label';
-      divider.textContent = '未分類';
-      listEl.appendChild(divider);
-    }
-
     const ul = document.createElement('ul');
     ul.className = 'ungrouped-items';
     ungrouped.forEach(item => {
@@ -115,7 +119,6 @@ function render() {
     listEl.appendChild(ul);
   }
 
-  countEl.textContent = `${unchecked.length} 件`;
   emptyEl.style.display = (unchecked.length === 0 && dishes.length === 0) ? '' : 'none';
 }
 
@@ -209,6 +212,10 @@ async function addDish(name) {
 }
 
 async function removeDish(id) {
+  const dish = dishes.find(d => d.id === id);
+  const name = dish ? dish.name : '';
+  const ok = await showConfirm('料理を削除', `「${name}」を削除しますか？\nアイテムは未分類に移動します。`);
+  if (!ok) return;
   const res = await api('DELETE', `/${id}`, null, DISH_API);
   if (res.success) {
     dishes = dishes.filter(d => d.id !== id);
@@ -217,15 +224,39 @@ async function removeDish(id) {
   }
 }
 
+// 確認ダイアログ
+function showConfirm(title, message) {
+  return new Promise(resolve => {
+    confirmTitle.textContent = title;
+    confirmMessage.textContent = message;
+    confirmOverlay.classList.add('active');
+    confirmResolve = resolve;
+  });
+}
+
+function closeConfirm(result) {
+  confirmOverlay.classList.remove('active');
+  if (confirmResolve) {
+    confirmResolve(result);
+    confirmResolve = null;
+  }
+}
+
+confirmOk.addEventListener('click', () => closeConfirm(true));
+confirmCancel.addEventListener('click', () => closeConfirm(false));
+confirmOverlay.addEventListener('click', (e) => {
+  if (e.target === confirmOverlay) closeConfirm(false);
+});
+
 // モーダル
-function openModal(mode) {
+function openModal(mode, presetDishId) {
   modalMode = mode;
   modalInput.value = '';
   if (mode === 'item') {
     modalTitle.textContent = 'アイテムを追加';
     modalInput.placeholder = 'アイテム名';
     modalDishRow.style.display = '';
-    modalDishSelect.value = '';
+    modalDishSelect.value = presetDishId || '';
   } else {
     modalTitle.textContent = '料理を追加';
     modalInput.placeholder = '料理名';
