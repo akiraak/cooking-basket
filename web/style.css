@@ -393,6 +393,29 @@ body.modal-open { overflow: hidden; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(251,146,60,0.5);
+  padding-bottom: 2px;
+}
+
+.ingredients-header-title::after {
+  content: ' ✎';
+  font-size: 13px;
+  color: #888;
+}
+
+.ingredients-title-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: #1c1c1c;
+  border: 1px solid #fb923c;
+  border-radius: 6px;
+  padding: 4px 8px;
+  text-align: center;
+  outline: none;
 }
 
 .ingredients-header-btn {

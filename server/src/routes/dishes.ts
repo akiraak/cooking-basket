@@ -7,6 +7,7 @@ import {
   linkItemToDish,
   unlinkItemFromDish,
   getDishSuggestions,
+  updateDish,
   updateDishInfo,
   reorderDishes,
   reorderDishItems,
@@ -118,6 +119,26 @@ dishesRouter.post('/', (req: Request, res: Response) => {
     }
     const dish = createDish(name.trim());
     res.status(201).json({ success: true, data: dish, error: null });
+  } catch (err) {
+    res.status(500).json({ success: false, data: null, error: String(err) });
+  }
+});
+
+// 料理名更新
+dishesRouter.put('/:id', (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      res.status(400).json({ success: false, data: null, error: 'name は必須です' });
+      return;
+    }
+    const dish = updateDish(id, name.trim());
+    if (!dish) {
+      res.status(404).json({ success: false, data: null, error: '料理が見つかりません' });
+      return;
+    }
+    res.json({ success: true, data: dish, error: null });
   } catch (err) {
     res.status(500).json({ success: false, data: null, error: String(err) });
   }

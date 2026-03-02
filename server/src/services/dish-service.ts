@@ -95,6 +95,12 @@ export function unlinkItemFromDish(dishId: number, itemId: number): boolean {
   return result.changes > 0;
 }
 
+export function updateDish(id: number, name: string): any {
+  const db = getDatabase();
+  db.prepare('UPDATE dishes SET name = ? WHERE id = ?').run(name, id);
+  return getDish(id);
+}
+
 export function updateDishInfo(id: number, ingredients: unknown[], recipes: unknown[]): void {
   const db = getDatabase();
   db.prepare('UPDATE dishes SET ingredients_json = ?, recipes_json = ? WHERE id = ?')

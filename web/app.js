@@ -32,6 +32,7 @@ const ingredientsCache = new Map();
 const ingredientsOverlay = document.getElementById('ingredients-overlay');
 const ingredientsHeader = document.getElementById('ingredients-header');
 const ingredientsTitle = document.getElementById('ingredients-title');
+const ingredientsTitleInput = document.getElementById('ingredients-title-input');
 const ingredientsTitleLoading = document.getElementById('ingredients-title-loading');
 const ingredientsLoading = document.getElementById('ingredients-loading');
 const ingredientsError = document.getElementById('ingredients-error');
@@ -729,7 +730,7 @@ async function fetchIngredientsForModal(dishId, dishName) {
 
 function openIngredientsModalWithResults(dishId, dishName, ingredients, recipes) {
   ingredientsDishId = dishId;
-  ingredientsTitle.textContent = `「${dishName}」`;
+  ingredientsTitle.textContent = dishName;
   ingredientsTitleLoading.style.display = 'none';
   ingredientsHeader.style.display = '';
   ingredientsLoading.style.display = 'none';
@@ -761,6 +762,8 @@ function closeIngredientsModal() {
   updateBodyScroll();
   ingredientsDishId = null;
   ingredientsHeader.style.display = 'none';
+  ingredientsTitleInput.style.display = 'none';
+  ingredientsTitle.style.display = '';
   ingredientsTitleLoading.style.display = 'none';
   if (ingredientsRecipes) ingredientsRecipes.style.display = 'none';
   ingredientsRefreshRow.style.display = 'none';
@@ -773,13 +776,13 @@ async function fetchIngredients(dishId, dishName) {
     if (res.success && res.data.ingredients.length > 0) {
       ingredientsTitleLoading.style.display = 'none';
       ingredientsHeader.style.display = '';
-      ingredientsTitle.textContent = `「${dishName}」`;
+      ingredientsTitle.textContent = dishName;
       ingredientsLoading.style.display = 'none';
       renderIngredients(res.data.ingredients);
     } else {
       ingredientsTitleLoading.style.display = 'none';
       ingredientsHeader.style.display = '';
-      ingredientsTitle.textContent = `「${dishName}」`;
+      ingredientsTitle.textContent = dishName;
       ingredientsLoading.style.display = 'none';
       ingredientsError.textContent = '具材が見つかりませんでした';
       ingredientsError.style.display = '';
@@ -787,7 +790,7 @@ async function fetchIngredients(dishId, dishName) {
   } catch (err) {
     ingredientsTitleLoading.style.display = 'none';
     ingredientsHeader.style.display = '';
-    ingredientsTitle.textContent = `「${dishName}」`;
+    ingredientsTitle.textContent = dishName;
     ingredientsLoading.style.display = 'none';
     ingredientsError.textContent = `エラー: ${err.message || 'AI接続に失敗しました'}`;
     ingredientsError.style.display = '';
@@ -913,6 +916,56 @@ function renderRecipes(recipes, ingredients) {
     });
   });
 }
+
+// 料理名タップで編集
+ingredientsTitle.addEventListener('click', () => {
+  const dish = dishes.find(d => d.id === ingredientsDishId);
+  if (!dish) return;
+  ingredientsTitle.style.display = 'none';
+  ingredientsTitleInput.value = dish.name;
+  ingredientsTitleInput.style.display = '';
+  ingredientsTitleInput.focus();
+  ingredientsTitleInput.select();
+});
+
+async function commitDishNameEdit() {
+  ingredientsTitleInput.style.display = 'none';
+  ingredientsTitle.style.display = '';
+  const newName = ingredientsTitleInput.value.trim();
+  if (!newName || !ingredientsDishId) return;
+  const dish = dishes.find(d => d.id === ingredientsDishId);
+  if (!dish || dish.name === newName) return;
+
+  // API で名前を更新
+  const res = await api('PUT', `/${ingredientsDishId}`, { name: newName }, DISH_API);
+  if (!res.success) return;
+
+  // タイトル更新
+  ingredientsTitle.textContent = newName;
+
+  // キャッシュ削除 → レシピ再取得
+  ingredientsCache.delete(ingredientsDishId);
+  await loadDishes();
+  render();
+
+  // モーダル内をローディングにしてレシピ再取得
+  ingredientsList.style.display = 'none';
+  if (ingredientsRecipes) ingredientsRecipes.style.display = 'none';
+  ingredientsRefreshRow.style.display = 'none';
+  ingredientsError.style.display = 'none';
+  ingredientsLoading.style.display = '';
+  fetchIngredientsForModal(ingredientsDishId, newName);
+}
+
+ingredientsTitleInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); commitDishNameEdit(); }
+  if (e.key === 'Escape') {
+    ingredientsTitleInput.style.display = 'none';
+    ingredientsTitle.style.display = '';
+  }
+});
+
+ingredientsTitleInput.addEventListener('blur', () => commitDishNameEdit());
 
 ingredientsSkip.addEventListener('click', closeIngredientsModal);
 ingredientsRefresh.addEventListener('click', () => {
