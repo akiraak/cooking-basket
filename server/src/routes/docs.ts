@@ -141,9 +141,7 @@ function renderListPage(files: { file: string; name: string; title: string; type
     <div class="layout">
       <aside class="sidebar">
         <h3>メニュー</h3>
-        <a href="/">トップページ</a>
         <a href="/docs/" class="active">仕様書一覧</a>
-        <a href="/admin/">管理画面</a>
       </aside>
       <div class="main">
         <nav class="breadcrumb">
