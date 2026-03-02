@@ -80,6 +80,38 @@ export function initDatabase(): void {
     database.exec('ALTER TABLE dishes ADD COLUMN recipes_json TEXT');
   }
 
+  // position カラム追加（マイグレーション）
+  if (!columnNames.includes('position')) {
+    database.exec('ALTER TABLE dishes ADD COLUMN position INTEGER');
+    // 既存データに position を割り当て（created_at DESC 順）
+    const dishRows = database.prepare('SELECT id FROM dishes ORDER BY created_at DESC').all() as { id: number }[];
+    const updateDish = database.prepare('UPDATE dishes SET position = ? WHERE id = ?');
+    dishRows.forEach((row, i) => updateDish.run(i, row.id));
+  }
+
+  const itemColumns = database.prepare("PRAGMA table_info(shopping_items)").all() as { name: string }[];
+  if (!itemColumns.map(c => c.name).includes('position')) {
+    database.exec('ALTER TABLE shopping_items ADD COLUMN position INTEGER');
+    const itemRows = database.prepare('SELECT id FROM shopping_items ORDER BY checked ASC, created_at DESC').all() as { id: number }[];
+    const updateItem = database.prepare('UPDATE shopping_items SET position = ? WHERE id = ?');
+    itemRows.forEach((row, i) => updateItem.run(i, row.id));
+  }
+
+  const diColumns = database.prepare("PRAGMA table_info(dish_items)").all() as { name: string }[];
+  if (!diColumns.map(c => c.name).includes('position')) {
+    database.exec('ALTER TABLE dish_items ADD COLUMN position INTEGER');
+    const diRows = database.prepare(
+      'SELECT di.id, di.dish_id FROM dish_items di JOIN shopping_items si ON si.id = di.item_id ORDER BY di.dish_id, si.created_at DESC'
+    ).all() as { id: number; dish_id: number }[];
+    const updateDi = database.prepare('UPDATE dish_items SET position = ? WHERE id = ?');
+    let currentDish = -1;
+    let pos = 0;
+    diRows.forEach(row => {
+      if (row.dish_id !== currentDish) { currentDish = row.dish_id; pos = 0; }
+      updateDi.run(pos++, row.id);
+    });
+  }
+
   // 既存の料理を料理履歴にシード（初回のみ）
   const dishHistoryCount = (database.prepare(
     'SELECT COUNT(*) as count FROM dish_history'

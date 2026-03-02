@@ -8,6 +8,8 @@ import {
   unlinkItemFromDish,
   getDishSuggestions,
   updateDishInfo,
+  reorderDishes,
+  reorderDishItems,
 } from '../services/dish-service';
 import { askGemini } from '../services/gemini-service';
 
@@ -77,6 +79,21 @@ dishesRouter.get('/', (_req: Request, res: Response) => {
   try {
     const dishes = getAllDishes();
     res.json({ success: true, data: dishes, error: null });
+  } catch (err) {
+    res.status(500).json({ success: false, data: null, error: String(err) });
+  }
+});
+
+// 料理並べ替え (/:id より先に定義)
+dishesRouter.put('/reorder', (req: Request, res: Response) => {
+  try {
+    const { orderedIds } = req.body;
+    if (!Array.isArray(orderedIds)) {
+      res.status(400).json({ success: false, data: null, error: 'orderedIds は配列で指定してください' });
+      return;
+    }
+    reorderDishes(orderedIds);
+    res.json({ success: true, data: null, error: null });
   } catch (err) {
     res.status(500).json({ success: false, data: null, error: String(err) });
   }
@@ -181,6 +198,22 @@ dishesRouter.post('/:id/items', (req: Request, res: Response) => {
     }
     const dish = getDish(dishId);
     res.json({ success: true, data: dish, error: null });
+  } catch (err) {
+    res.status(500).json({ success: false, data: null, error: String(err) });
+  }
+});
+
+// 料理内アイテム並べ替え
+dishesRouter.put('/:id/items/reorder', (req: Request, res: Response) => {
+  try {
+    const dishId = Number(req.params.id);
+    const { orderedItemIds } = req.body;
+    if (!Array.isArray(orderedItemIds)) {
+      res.status(400).json({ success: false, data: null, error: 'orderedItemIds は配列で指定してください' });
+      return;
+    }
+    reorderDishItems(dishId, orderedItemIds);
+    res.json({ success: true, data: null, error: null });
   } catch (err) {
     res.status(500).json({ success: false, data: null, error: String(err) });
   }

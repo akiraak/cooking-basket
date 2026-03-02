@@ -22,7 +22,7 @@ export interface DishItem {
 
 export function getAllDishes(): DishWithItems[] {
   const db = getDatabase();
-  const dishes = db.prepare('SELECT * FROM dishes ORDER BY created_at DESC').all() as Dish[];
+  const dishes = db.prepare('SELECT * FROM dishes ORDER BY position ASC, created_at DESC').all() as Dish[];
   return dishes.map(dish => ({
     ...dish,
     items: getItemsForDish(dish.id),
@@ -38,6 +38,9 @@ export function getDish(id: number): DishWithItems | null {
 
 export function createDish(name: string): DishWithItems {
   const db = getDatabase();
+  // 既存の position をシフト（先頭に追加するため）
+  db.prepare('UPDATE dishes SET position = position + 1').run();
+
   // 同名の最新料理からAI情報を引き継ぐ
   const prev = db.prepare(
     'SELECT ingredients_json, recipes_json FROM dishes WHERE name = ? COLLATE NOCASE AND ingredients_json IS NOT NULL ORDER BY created_at DESC LIMIT 1'
@@ -45,13 +48,13 @@ export function createDish(name: string): DishWithItems {
 
   if (prev) {
     const result = db.prepare(
-      'INSERT INTO dishes (name, ingredients_json, recipes_json) VALUES (?, ?, ?)'
+      'INSERT INTO dishes (name, ingredients_json, recipes_json, position) VALUES (?, ?, ?, 0)'
     ).run(name, prev.ingredients_json, prev.recipes_json);
     const dish = db.prepare('SELECT * FROM dishes WHERE id = ?').get(result.lastInsertRowid) as Dish;
     recordDishHistory(name);
     return { ...dish, items: [] };
   } else {
-    const result = db.prepare('INSERT INTO dishes (name) VALUES (?)').run(name);
+    const result = db.prepare('INSERT INTO dishes (name, position) VALUES (?, 0)').run(name);
     const dish = db.prepare('SELECT * FROM dishes WHERE id = ?').get(result.lastInsertRowid) as Dish;
     recordDishHistory(name);
     return { ...dish, items: [] };
@@ -71,14 +74,15 @@ export function getItemsForDish(dishId: number): DishItem[] {
     FROM shopping_items si
     JOIN dish_items di ON di.item_id = si.id
     WHERE di.dish_id = ?
-    ORDER BY si.created_at DESC
+    ORDER BY di.position ASC, si.created_at DESC
   `).all(dishId) as DishItem[];
 }
 
 export function linkItemToDish(dishId: number, itemId: number): boolean {
   const db = getDatabase();
   try {
-    db.prepare('INSERT OR IGNORE INTO dish_items (dish_id, item_id) VALUES (?, ?)').run(dishId, itemId);
+    db.prepare('UPDATE dish_items SET position = position + 1 WHERE dish_id = ?').run(dishId);
+    db.prepare('INSERT OR IGNORE INTO dish_items (dish_id, item_id, position) VALUES (?, ?, 0)').run(dishId, itemId);
     return true;
   } catch {
     return false;
@@ -95,6 +99,22 @@ export function updateDishInfo(id: number, ingredients: unknown[], recipes: unkn
   const db = getDatabase();
   db.prepare('UPDATE dishes SET ingredients_json = ?, recipes_json = ? WHERE id = ?')
     .run(JSON.stringify(ingredients), JSON.stringify(recipes), id);
+}
+
+export function reorderDishes(orderedIds: number[]): void {
+  const db = getDatabase();
+  const stmt = db.prepare('UPDATE dishes SET position = ? WHERE id = ?');
+  db.transaction(() => {
+    orderedIds.forEach((id, index) => stmt.run(index, id));
+  })();
+}
+
+export function reorderDishItems(dishId: number, orderedItemIds: number[]): void {
+  const db = getDatabase();
+  const stmt = db.prepare('UPDATE dish_items SET position = ? WHERE dish_id = ? AND item_id = ?');
+  db.transaction(() => {
+    orderedItemIds.forEach((itemId, index) => stmt.run(index, dishId, itemId));
+  })();
 }
 
 export interface DishSuggestion {

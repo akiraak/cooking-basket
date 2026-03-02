@@ -6,6 +6,7 @@ import {
   deleteItem,
   deleteCheckedItems,
   getSuggestions,
+  reorderItems,
 } from '../services/shopping-service';
 
 export const shoppingRouter = Router();
@@ -34,6 +35,21 @@ shoppingRouter.get('/suggestions', (req: Request, res: Response) => {
   const limit = query ? 10 : 3;
   const suggestions = getSuggestions(query, limit);
   res.json({ success: true, data: suggestions, error: null });
+});
+
+// 並べ替え (/:id より先に定義)
+shoppingRouter.put('/reorder', (req: Request, res: Response) => {
+  try {
+    const { orderedIds } = req.body;
+    if (!Array.isArray(orderedIds)) {
+      res.status(400).json({ success: false, data: null, error: 'orderedIds は配列で指定してください' });
+      return;
+    }
+    reorderItems(orderedIds);
+    res.json({ success: true, data: null, error: null });
+  } catch (err) {
+    res.status(500).json({ success: false, data: null, error: String(err) });
+  }
 });
 
 // チェック済み一括削除 (/:id より先に定義)

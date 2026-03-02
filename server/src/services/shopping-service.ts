@@ -27,13 +27,14 @@ export interface PurchaseSuggestion {
 
 export function getAllItems(): ShoppingItem[] {
   const db = getDatabase();
-  return db.prepare('SELECT * FROM shopping_items ORDER BY checked ASC, created_at DESC').all() as ShoppingItem[];
+  return db.prepare('SELECT * FROM shopping_items ORDER BY checked ASC, position ASC, created_at DESC').all() as ShoppingItem[];
 }
 
 export function createItem(input: CreateItemInput): ShoppingItem {
   const db = getDatabase();
+  db.prepare('UPDATE shopping_items SET position = position + 1 WHERE checked = 0').run();
   const stmt = db.prepare(
-    'INSERT INTO shopping_items (name, category) VALUES (?, ?)'
+    'INSERT INTO shopping_items (name, category, position) VALUES (?, ?, 0)'
   );
   const result = stmt.run(input.name, input.category ?? '');
   return db.prepare('SELECT * FROM shopping_items WHERE id = ?').get(result.lastInsertRowid) as ShoppingItem;
@@ -88,6 +89,14 @@ export function getStats(): { total: number; checked: number; unchecked: number 
   const total = (db.prepare('SELECT COUNT(*) as count FROM shopping_items').get() as { count: number }).count;
   const checked = (db.prepare('SELECT COUNT(*) as count FROM shopping_items WHERE checked = 1').get() as { count: number }).count;
   return { total, checked, unchecked: total - checked };
+}
+
+export function reorderItems(orderedIds: number[]): void {
+  const db = getDatabase();
+  const stmt = db.prepare('UPDATE shopping_items SET position = ? WHERE id = ?');
+  db.transaction(() => {
+    orderedIds.forEach((id, index) => stmt.run(index, id));
+  })();
 }
 
 export function recordPurchase(itemName: string): void {

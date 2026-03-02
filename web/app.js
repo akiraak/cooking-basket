@@ -90,7 +90,10 @@ function buildItemDishMap() {
 }
 
 // 描画
+let isDragging = false;
+
 function render() {
+  if (isDragging) return;
   listEl.innerHTML = '';
   const unchecked = items.filter(i => !i.checked);
   const itemDishMap = buildItemDishMap();
@@ -113,10 +116,15 @@ function render() {
 
   // 料理グループを表示
   dishes.forEach(dish => {
-    const dishItems = grouped[dish.id] || [];
+    // dish.items の順序（position順）に従って並べ替え
+    const dishItemOrder = (dish.items || []).map(i => i.id);
+    const dishItems = (grouped[dish.id] || []).sort((a, b) =>
+      dishItemOrder.indexOf(a.id) - dishItemOrder.indexOf(b.id)
+    );
 
     const group = document.createElement('div');
     group.className = 'dish-group';
+    group.dataset.dishId = dish.id;
 
     const header = document.createElement('div');
     header.className = dishItems.length > 0 ? 'dish-header' : 'dish-header dish-header-empty';
@@ -168,6 +176,78 @@ function render() {
   }
 
   emptyEl.style.display = (unchecked.length === 0 && dishes.length === 0) ? '' : 'none';
+  initSortable();
+}
+
+// ドラッグ並べ替え
+let sortableInstances = [];
+
+function destroySortables() {
+  sortableInstances.forEach(s => s.destroy());
+  sortableInstances = [];
+}
+
+function initSortable() {
+  destroySortables();
+
+  const sortableOpts = {
+    animation: 150,
+    ghostClass: 'drag-ghost',
+    chosenClass: 'drag-chosen',
+    delay: 300,
+    delayOnTouchOnly: true,
+    touchStartThreshold: 5,
+    direction: 'vertical',
+    onStart: () => { isDragging = true; },
+  };
+
+  // 料理グループの並べ替え
+  if (listEl.querySelectorAll('.dish-group').length > 1) {
+    sortableInstances.push(new Sortable(listEl, {
+      ...sortableOpts,
+      handle: '.dish-header',
+      draggable: '.dish-group',
+      onEnd: async () => {
+        isDragging = false;
+        const ids = Array.from(listEl.querySelectorAll('.dish-group')).map(g => Number(g.dataset.dishId));
+        const dishMap = new Map(dishes.map(d => [d.id, d]));
+        dishes = ids.map(id => dishMap.get(id)).filter(Boolean);
+        await api('PUT', '/reorder', { orderedIds: ids }, DISH_API);
+      }
+    }));
+  }
+
+  // 料理内アイテムの並べ替え
+  listEl.querySelectorAll('.dish-items').forEach(ul => {
+    const dishId = Number(ul.closest('.dish-group').dataset.dishId);
+    sortableInstances.push(new Sortable(ul, {
+      ...sortableOpts,
+      onEnd: async () => {
+        isDragging = false;
+        const ids = Array.from(ul.querySelectorAll('.list-item')).map(li => Number(li.dataset.itemId));
+        // ローカルの dish.items 順序も更新
+        const dish = dishes.find(d => d.id === dishId);
+        if (dish && dish.items) {
+          const itemMap = new Map(dish.items.map(i => [i.id, i]));
+          dish.items = ids.map(id => itemMap.get(id)).filter(Boolean);
+        }
+        await api('PUT', `/${dishId}/items/reorder`, { orderedItemIds: ids }, DISH_API);
+      }
+    }));
+  });
+
+  // 未分類アイテムの並べ替え
+  const ungroupedUl = listEl.querySelector('.ungrouped-items');
+  if (ungroupedUl && ungroupedUl.children.length > 1) {
+    sortableInstances.push(new Sortable(ungroupedUl, {
+      ...sortableOpts,
+      onEnd: async () => {
+        isDragging = false;
+        const ids = Array.from(ungroupedUl.querySelectorAll('.list-item')).map(li => Number(li.dataset.itemId));
+        await api('PUT', '/reorder', { orderedIds: ids });
+      }
+    }));
+  }
 }
 
 function createItemEl(item) {
