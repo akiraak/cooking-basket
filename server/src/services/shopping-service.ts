@@ -97,10 +97,12 @@ export function recordPurchase(itemName: string): void {
 
 export function getSuggestions(query: string, limit: number = 10): PurchaseSuggestion[] {
   const db = getDatabase();
+  const excludeClause = 'AND item_name COLLATE NOCASE NOT IN (SELECT name COLLATE NOCASE FROM shopping_items WHERE checked = 0)';
   if (!query) {
     return db.prepare(`
       SELECT item_name AS name, COUNT(*) AS count
       FROM purchase_history
+      WHERE 1=1 ${excludeClause}
       GROUP BY item_name COLLATE NOCASE
       ORDER BY count DESC, MAX(purchased_at) DESC
       LIMIT ?
@@ -109,7 +111,7 @@ export function getSuggestions(query: string, limit: number = 10): PurchaseSugge
   return db.prepare(`
     SELECT item_name AS name, COUNT(*) AS count
     FROM purchase_history
-    WHERE item_name LIKE ? COLLATE NOCASE
+    WHERE item_name LIKE ? COLLATE NOCASE ${excludeClause}
     GROUP BY item_name COLLATE NOCASE
     ORDER BY count DESC, MAX(purchased_at) DESC
     LIMIT ?
