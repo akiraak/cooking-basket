@@ -58,6 +58,29 @@ export function initDatabase(): void {
       ON purchase_history(item_name COLLATE NOCASE)
   `);
 
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS dish_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dish_name TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_dish_history_name
+      ON dish_history(dish_name COLLATE NOCASE)
+  `);
+
+  // 既存の料理を料理履歴にシード（初回のみ）
+  const dishHistoryCount = (database.prepare(
+    'SELECT COUNT(*) as count FROM dish_history'
+  ).get() as { count: number }).count;
+  if (dishHistoryCount === 0) {
+    database.exec(`
+      INSERT INTO dish_history (dish_name, created_at)
+      SELECT name, created_at FROM dishes
+    `);
+  }
+
   // 既存のチェック済みアイテムを購入履歴にシード（初回のみ）
   const historyCount = (database.prepare(
     'SELECT COUNT(*) as count FROM purchase_history'

@@ -285,7 +285,7 @@ function openModal(mode, presetDishId) {
   }
   modalInput.focus();
   modalOverlay.classList.add('active');
-  if (mode === 'item') fetchSuggestions('');
+  if (mode === 'item' || mode === 'dish') fetchSuggestions('');
 }
 
 // アイテム編集モーダル
@@ -369,8 +369,9 @@ modalOverlay.addEventListener('click', (e) => {
 
 // サジェスト機能
 async function fetchSuggestions(query) {
+  const base = modalMode === 'dish' ? DISH_API : API;
   try {
-    const res = await api('GET', `/suggestions?q=${encodeURIComponent(query || '')}`);
+    const res = await api('GET', `/suggestions?q=${encodeURIComponent(query || '')}`, null, base);
     if (res.success && res.data.length > 0) {
       showSuggestions(res.data);
     } else {
@@ -416,7 +417,7 @@ function updateSuggestionSelection() {
 }
 
 modalInput.addEventListener('input', () => {
-  if (modalMode !== 'item') { hideSuggestions(); return; }
+  if (modalMode !== 'item' && modalMode !== 'dish') { hideSuggestions(); return; }
   clearTimeout(suggestDebounceTimer);
   const query = modalInput.value.trim();
   suggestDebounceTimer = setTimeout(() => fetchSuggestions(query), 200);

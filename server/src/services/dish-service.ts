@@ -38,6 +38,7 @@ export function createDish(name: string): DishWithItems {
   const db = getDatabase();
   const result = db.prepare('INSERT INTO dishes (name) VALUES (?)').run(name);
   const dish = db.prepare('SELECT * FROM dishes WHERE id = ?').get(result.lastInsertRowid) as Dish;
+  recordDishHistory(name);
   return { ...dish, items: [] };
 }
 
@@ -72,4 +73,37 @@ export function unlinkItemFromDish(dishId: number, itemId: number): boolean {
   const db = getDatabase();
   const result = db.prepare('DELETE FROM dish_items WHERE dish_id = ? AND item_id = ?').run(dishId, itemId);
   return result.changes > 0;
+}
+
+export interface DishSuggestion {
+  name: string;
+  count: number;
+}
+
+export function recordDishHistory(dishName: string): void {
+  const db = getDatabase();
+  db.prepare('INSERT INTO dish_history (dish_name) VALUES (?)').run(dishName);
+}
+
+export function getDishSuggestions(query: string, limit: number = 10): DishSuggestion[] {
+  const db = getDatabase();
+  const excludeClause = 'AND dish_name COLLATE NOCASE NOT IN (SELECT name COLLATE NOCASE FROM dishes)';
+  if (!query) {
+    return db.prepare(`
+      SELECT dish_name AS name, COUNT(*) AS count
+      FROM dish_history
+      WHERE 1=1 ${excludeClause}
+      GROUP BY dish_name COLLATE NOCASE
+      ORDER BY count DESC, MAX(created_at) DESC
+      LIMIT ?
+    `).all(limit) as DishSuggestion[];
+  }
+  return db.prepare(`
+    SELECT dish_name AS name, COUNT(*) AS count
+    FROM dish_history
+    WHERE dish_name LIKE ? COLLATE NOCASE ${excludeClause}
+    GROUP BY dish_name COLLATE NOCASE
+    ORDER BY count DESC, MAX(created_at) DESC
+    LIMIT ?
+  `).all(`${query}%`, limit) as DishSuggestion[];
 }

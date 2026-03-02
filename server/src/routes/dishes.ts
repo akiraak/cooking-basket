@@ -6,6 +6,7 @@ import {
   deleteDish,
   linkItemToDish,
   unlinkItemFromDish,
+  getDishSuggestions,
 } from '../services/dish-service';
 
 export const dishesRouter = Router();
@@ -18,6 +19,15 @@ dishesRouter.get('/', (_req: Request, res: Response) => {
   } catch (err) {
     res.status(500).json({ success: false, data: null, error: String(err) });
   }
+});
+
+// 料理名サジェスト (/:id より先に定義)
+dishesRouter.get('/suggestions', (req: Request, res: Response) => {
+  const q = req.query.q;
+  const query = (typeof q === 'string') ? q.trim() : '';
+  const limit = query ? 10 : 3;
+  const suggestions = getDishSuggestions(query, limit);
+  res.json({ success: true, data: suggestions, error: null });
 });
 
 // 料理追加
