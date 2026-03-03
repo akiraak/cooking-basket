@@ -2,6 +2,9 @@
 
 スマホ向けの買い物リスト Web アプリ。料理を登録すると AI が具材とレシピを提案してくれます。
 
+**アプリ**: https://life.chobi.me/
+**インストールガイド**: https://akiraak.github.io/life-stream-claude/
+
 ## 主な機能
 
 - **買い物リスト** — アイテムの追加・チェック・削除
