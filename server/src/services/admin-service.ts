@@ -152,7 +152,7 @@ export function getAllDishHistory(limit: number = 500) {
   `).all(limit);
 }
 
-// --- Saved Recipes (all users) ---
+// --- Cooking Recipes (all users) ---
 
 export function getAllSavedRecipesAdmin() {
   const db = getDatabase();

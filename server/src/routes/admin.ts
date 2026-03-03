@@ -106,13 +106,13 @@ adminRouter.get('/dish-history', (req: Request, res: Response) => {
   res.json({ success: true, data: history, error: null });
 });
 
-// 保存済みレシピ一覧
+// 料理レシピ一覧
 adminRouter.get('/saved-recipes', (_req: Request, res: Response) => {
   const recipes = getAllSavedRecipesAdmin();
   res.json({ success: true, data: recipes, error: null });
 });
 
-// 保存済みレシピ削除
+// 料理レシピ削除
 adminRouter.delete('/saved-recipes/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const deleted = deleteSavedRecipeAdmin(id);

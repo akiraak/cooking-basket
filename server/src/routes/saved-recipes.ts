@@ -8,7 +8,7 @@ import {
 
 export const savedRecipesRouter = Router();
 
-// GET /api/saved-recipes — 全保存レシピ取得
+// GET /api/saved-recipes — 全料理レシピ取得
 savedRecipesRouter.get('/', (req: Request, res: Response) => {
   try {
     const recipes = getAllSavedRecipes(req.userId!);
@@ -18,7 +18,7 @@ savedRecipesRouter.get('/', (req: Request, res: Response) => {
   }
 });
 
-// GET /api/saved-recipes/:id — 個別取得
+// GET /api/saved-recipes/:id — 料理レシピ個別取得
 savedRecipesRouter.get('/:id', (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
@@ -33,7 +33,7 @@ savedRecipesRouter.get('/:id', (req: Request, res: Response) => {
   }
 });
 
-// POST /api/saved-recipes — レシピ保存
+// POST /api/saved-recipes — 料理レシピ保存
 savedRecipesRouter.post('/', (req: Request, res: Response) => {
   try {
     const { dishName, title, summary, steps, ingredients, sourceDishId } = req.body;
@@ -55,7 +55,7 @@ savedRecipesRouter.post('/', (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/saved-recipes/:id — レシピ削除
+// DELETE /api/saved-recipes/:id — 料理レシピ削除
 savedRecipesRouter.delete('/:id', (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);

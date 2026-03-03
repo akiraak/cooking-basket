@@ -200,7 +200,7 @@ const Pages = {
   'dish-items':       { title: '料理-食材リンク',  render: renderDishItems },
   'purchase-history': { title: '購入履歴',         render: renderPurchaseHistory },
   'dish-history':     { title: '料理履歴',         render: renderDishHistory },
-  'saved-recipes':    { title: '保存済レシピ',     render: renderSavedRecipes },
+  'saved-recipes':    { title: '料理レシピ',         render: renderSavedRecipes },
   system:             { title: 'システム情報',     render: renderSystem },
 };
 
