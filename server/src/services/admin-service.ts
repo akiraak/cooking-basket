@@ -61,7 +61,12 @@ export function deleteUser(userId: number): boolean {
 export function getAllShoppingItems() {
   const db = getDatabase();
   return db.prepare(`
-    SELECT si.*, u.email
+    SELECT si.*, u.email,
+      (SELECT GROUP_CONCAT(d.name, ', ')
+       FROM dish_items di
+       JOIN dishes d ON di.dish_id = d.id AND d.active = 1
+       WHERE di.item_id = si.id AND di.user_id = si.user_id
+      ) as dish_names
     FROM shopping_items si
     JOIN users u ON si.user_id = u.id
     ORDER BY si.created_at DESC
@@ -109,21 +114,6 @@ export function deleteDish(id: number): boolean {
   const db = getDatabase();
   const result = db.prepare('DELETE FROM dishes WHERE id = ?').run(id);
   return result.changes > 0;
-}
-
-// --- Dish Items (all users) ---
-
-export function getAllDishItems() {
-  const db = getDatabase();
-  return db.prepare(`
-    SELECT di.id, di.user_id, di.dish_id, di.item_id, di.position,
-           d.name as dish_name, si.name as item_name, u.email
-    FROM dish_items di
-    JOIN dishes d ON di.dish_id = d.id
-    JOIN shopping_items si ON di.item_id = si.id
-    JOIN users u ON di.user_id = u.id
-    ORDER BY di.id DESC
-  `).all();
 }
 
 // --- Purchase History ---

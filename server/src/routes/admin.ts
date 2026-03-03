@@ -8,7 +8,6 @@ import {
   deleteShoppingItem,
   getAllDishes,
   deleteDish,
-  getAllDishItems,
   getAllPurchaseHistory,
   getAllDishHistory,
   getAllSavedRecipesAdmin,
@@ -84,12 +83,6 @@ adminRouter.delete('/dishes/:id', (req: Request, res: Response) => {
     return;
   }
   res.json({ success: true, data: null, error: null });
-});
-
-// 料理-食材リンク一覧
-adminRouter.get('/dish-items', (_req: Request, res: Response) => {
-  const items = getAllDishItems();
-  res.json({ success: true, data: items, error: null });
 });
 
 // 購入履歴

@@ -197,7 +197,6 @@ const Pages = {
   users:              { title: 'ユーザー管理',     render: renderUsers },
   dishes:             { title: '料理',             render: renderDishes },
   'saved-recipes':    { title: '料理レシピ',       render: renderSavedRecipes },
-  'dish-items':       { title: '料理-食材リンク',  render: renderDishItems },
   'dish-history':     { title: '料理履歴',         render: renderDishHistory },
   shopping:           { title: '買い物アイテム',   render: renderShopping },
   'purchase-history': { title: '購入履歴',         render: renderPurchaseHistory },
@@ -319,6 +318,7 @@ async function renderShopping() {
       { key: 'email', label: 'ユーザー' },
       { key: 'name', label: '名前' },
       { key: 'category', label: 'カテゴリ' },
+      { key: 'dish_names', label: '料理', render: r => r.dish_names || '' },
       { key: 'checked', label: '状態', render: r =>
         r.checked
           ? '<span class="badge badge-success">購入済</span>'
@@ -327,7 +327,7 @@ async function renderShopping() {
       { key: 'created_at', label: '作成日', render: r => formatDate(r.created_at) },
     ],
     data: res.data,
-    searchFields: ['name', 'category', 'email'],
+    searchFields: ['name', 'category', 'email', 'dish_names'],
     actions: [
       { key: 'delete', label: '削除', class: 'btn-danger', onClick: async (row) => {
         if (await showConfirm(`「${row.name}」を削除しますか？`)) {
@@ -374,29 +374,6 @@ async function renderDishes() {
         }
       }}
     ]
-  });
-}
-
-// ============================================================
-// Dish Items (links)
-// ============================================================
-async function renderDishItems() {
-  const area = document.getElementById('content-area');
-  area.innerHTML = '<div class="loading-text">読み込み中...</div>';
-
-  const res = await api('GET', `${API}/dish-items`);
-  if (!res.success) return;
-
-  renderDataTable(area, {
-    columns: [
-      { key: 'id', label: 'ID', width: '60px' },
-      { key: 'email', label: 'ユーザー' },
-      { key: 'dish_name', label: '料理名' },
-      { key: 'item_name', label: 'アイテム名' },
-      { key: 'position', label: '順序', width: '60px' },
-    ],
-    data: res.data,
-    searchFields: ['dish_name', 'item_name', 'email'],
   });
 }
 

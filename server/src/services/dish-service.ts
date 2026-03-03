@@ -64,7 +64,12 @@ export function createDish(userId: number, name: string): DishWithItems {
 export function deleteDish(userId: number, id: number): boolean {
   const db = getDatabase();
   const result = db.prepare('UPDATE dishes SET active = 0 WHERE id = ? AND user_id = ?').run(id, userId);
-  return result.changes > 0;
+  if (result.changes > 0) {
+    // 料理-食材リンクを削除
+    db.prepare('DELETE FROM dish_items WHERE dish_id = ? AND user_id = ?').run(id, userId);
+    return true;
+  }
+  return false;
 }
 
 export function getItemsForDish(userId: number, dishId: number): DishItem[] {
