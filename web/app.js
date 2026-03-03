@@ -311,11 +311,21 @@ function render() {
         <button class="btn-delete-dish" title="料理を削除">&times;</button>
       </div>
     `;
-    header.querySelector('.dish-name').addEventListener('click', () => {
+    header.querySelector('.dish-name').addEventListener('click', async () => {
       if (loadingIngredientsDishes.has(dish.id)) return;
       const cached = ingredientsCache.get(dish.id);
       if (cached) {
         openIngredientsModalWithResults(dish.id, cached.dishName, cached.ingredients, cached.recipes);
+        // recipeStates がなければ API から取得して更新
+        if (!cached.recipeStates || cached.recipeStates.length === 0) {
+          const res = await api('POST', `/${dish.id}/suggest-ingredients`, { force: false }, DISH_API);
+          if (res.success && res.data.recipeStates) {
+            cached.recipeStates = res.data.recipeStates;
+            if (ingredientsDishId === dish.id) {
+              renderRecipes(cached.recipes, cached.ingredients);
+            }
+          }
+        }
       } else {
         fetchIngredientsInBackground(dish.id, dish.name);
       }
