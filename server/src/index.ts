@@ -11,6 +11,7 @@ import { adminRouter } from './routes/admin';
 import { claudeRouter } from './routes/claude';
 import { recipesRouter } from './routes/recipes';
 import { dishesRouter } from './routes/dishes';
+import { savedRecipesRouter } from './routes/saved-recipes';
 import { docsRouter } from './routes/docs';
 import { initDatabase } from './database';
 import { cleanupExpiredTokens } from './services/auth-service';
@@ -51,6 +52,7 @@ app.use('/api/admin', requireAuth, requireAdmin, adminRouter);
 app.use('/api/claude', requireAuth, claudeRouter);
 app.use('/api/recipes', requireAuth, recipesRouter);
 app.use('/api/dishes', requireAuth, dishesRouter);
+app.use('/api/saved-recipes', requireAuth, savedRecipesRouter);
 app.use('/docs', docsRouter);
 
 // エラーハンドリング

@@ -1,5 +1,6 @@
 const API = '/api/shopping';
 const DISH_API = '/api/dishes';
+const SAVED_RECIPE_API = '/api/saved-recipes';
 
 // 認証状態管理
 function getAuthToken() { return localStorage.getItem('auth_token'); }
@@ -202,7 +203,8 @@ let confirmResolve = null;
 function updateBodyScroll() {
   const anyOpen = modalOverlay.classList.contains('active')
     || ingredientsOverlay.classList.contains('active')
-    || confirmOverlay.classList.contains('active');
+    || confirmOverlay.classList.contains('active')
+    || document.getElementById('recipe-book-overlay').classList.contains('active');
   document.body.classList.toggle('modal-open', anyOpen);
 }
 
@@ -815,7 +817,8 @@ modal.addEventListener('click', (e) => {
 function isAnyModalOpen() {
   return modalOverlay.classList.contains('active')
     || ingredientsOverlay.classList.contains('active')
-    || confirmOverlay.classList.contains('active');
+    || confirmOverlay.classList.contains('active')
+    || document.getElementById('recipe-book-overlay').classList.contains('active');
 }
 
 // バックグラウンド具材検索
@@ -1107,6 +1110,7 @@ function renderRecipes(recipes, ingredients) {
         <div class="recipe-card-title">${escapeHtml(r.title)}</div>
         <div class="recipe-card-summary">${highlightIngredients(r.summary, ingredientNames, addedNames)}</div>
         ${stepsHtml ? `<div class="recipe-detail-toggle" data-target="recipe-steps-${i}">▶ 詳細を見る</div>${stepsHtml}` : ''}
+        <button class="recipe-save-btn" data-recipe-index="${i}">保存</button>
       </div>
     `;
   });
@@ -1155,6 +1159,43 @@ function renderRecipes(recipes, ingredients) {
         });
         await addItem(name, ingredientsDishId);
         renderExtraIngredients(ingredientsDishId);
+      }
+    });
+  });
+
+  // レシピ保存ボタン
+  ingredientsRecipes.querySelectorAll('.recipe-save-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const index = Number(btn.dataset.recipeIndex);
+      const recipe = recipes[index];
+      if (!recipe) return;
+      btn.disabled = true;
+      btn.textContent = '保存中...';
+      try {
+        const dishId = ingredientsDishId;
+        const cached = ingredientsCache.get(dishId);
+        const dishName = cached ? cached.dishName : '';
+        const res = await api('POST', '', {
+          dishName,
+          title: recipe.title,
+          summary: recipe.summary,
+          steps: recipe.steps || [],
+          ingredients: ingredients || [],
+          sourceDishId: dishId,
+        }, SAVED_RECIPE_API);
+        if (res.success) {
+          btn.textContent = '保存済み';
+          btn.classList.add('saved');
+          showToast('レシピを保存しました');
+        } else {
+          btn.textContent = '保存';
+          btn.disabled = false;
+          showToast('保存に失敗しました');
+        }
+      } catch {
+        btn.textContent = '保存';
+        btn.disabled = false;
+        showToast('保存に失敗しました');
       }
     });
   });
@@ -1237,6 +1278,127 @@ extraSearchBtn.addEventListener('click', searchWithExtraIngredients);
 if (screen.orientation && screen.orientation.lock) {
   screen.orientation.lock('portrait').catch(() => {});
 }
+
+// レシピブック
+let savedRecipes = [];
+
+async function loadSavedRecipes() {
+  const res = await api('GET', '', null, SAVED_RECIPE_API);
+  if (res.success) {
+    savedRecipes = res.data;
+  }
+}
+
+function openRecipeBook() {
+  loadSavedRecipes().then(() => renderRecipeBook());
+  document.getElementById('recipe-book-overlay').classList.add('active');
+  updateBodyScroll();
+}
+
+function closeRecipeBook() {
+  document.getElementById('recipe-book-overlay').classList.remove('active');
+  updateBodyScroll();
+}
+
+function renderRecipeBook() {
+  const list = document.getElementById('recipe-book-list');
+  const empty = document.getElementById('recipe-book-empty');
+
+  if (savedRecipes.length === 0) {
+    list.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  let html = '';
+  savedRecipes.forEach(sr => {
+    const steps = JSON.parse(sr.steps_json);
+
+    let stepsHtml = '';
+    if (steps.length > 0) {
+      stepsHtml = `<ol class="recipe-steps" id="saved-recipe-steps-${sr.id}">`;
+      steps.forEach(s => { stepsHtml += `<li>${escapeHtml(s)}</li>`; });
+      stepsHtml += '</ol>';
+    }
+
+    html += `
+      <div class="recipe-book-entry" data-recipe-id="${sr.id}">
+        <div class="recipe-book-dish-name">${escapeHtml(sr.dish_name)}</div>
+        <div class="recipe-card">
+          <div class="recipe-card-title">${escapeHtml(sr.title)}</div>
+          <div class="recipe-card-summary">${escapeHtml(sr.summary)}</div>
+          ${stepsHtml ? `<div class="recipe-detail-toggle" data-target="saved-recipe-steps-${sr.id}">▶ 詳細を見る</div>${stepsHtml}` : ''}
+          <div class="recipe-book-actions">
+            <button class="recipe-book-add-btn" data-recipe-id="${sr.id}">買い物リストに追加</button>
+            <button class="recipe-book-delete-btn" data-recipe-id="${sr.id}">削除</button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  list.innerHTML = html;
+
+  // 詳細トグル
+  list.querySelectorAll('.recipe-detail-toggle').forEach(toggle => {
+    toggle.addEventListener('click', () => {
+      const steps = document.getElementById(toggle.dataset.target);
+      if (steps) {
+        const isOpen = steps.classList.toggle('open');
+        toggle.textContent = isOpen ? '▼ 閉じる' : '▶ 詳細を見る';
+      }
+    });
+  });
+
+  // 買い物リストに追加
+  list.querySelectorAll('.recipe-book-add-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const recipeId = Number(btn.dataset.recipeId);
+      const sr = savedRecipes.find(r => r.id === recipeId);
+      if (!sr) return;
+      const ingredients = JSON.parse(sr.ingredients_json);
+      btn.disabled = true;
+      btn.textContent = '追加中...';
+
+      // 料理を追加
+      const dishRes = await api('POST', '', { name: sr.dish_name }, DISH_API);
+      if (dishRes.success) {
+        const dish = dishRes.data;
+        // 各食材をアイテムとして追加し、料理にリンク
+        for (const ing of ingredients) {
+          await addItem(ing.name, dish.id);
+        }
+        await loadDishes();
+        render();
+        showToast(`「${sr.dish_name}」の食材を追加しました`);
+      }
+      btn.textContent = '追加済み';
+    });
+  });
+
+  // 削除
+  list.querySelectorAll('.recipe-book-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const recipeId = Number(btn.dataset.recipeId);
+      const sr = savedRecipes.find(r => r.id === recipeId);
+      if (!sr) return;
+      const ok = await showConfirm('レシピを削除', `「${sr.title}」を削除しますか？`);
+      if (!ok) return;
+      const res = await api('DELETE', `/${recipeId}`, null, SAVED_RECIPE_API);
+      if (res.success) {
+        savedRecipes = savedRecipes.filter(r => r.id !== recipeId);
+        renderRecipeBook();
+        showToast('レシピを削除しました');
+      }
+    });
+  });
+}
+
+document.getElementById('header-recipe-book').addEventListener('click', openRecipeBook);
+document.getElementById('recipe-book-close').addEventListener('click', closeRecipeBook);
+document.getElementById('recipe-book-overlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('recipe-book-overlay')) closeRecipeBook();
+});
 
 // 初期化: 認証状態チェック
 if (isAuthenticated()) {

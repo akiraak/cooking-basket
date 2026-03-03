@@ -150,5 +150,26 @@ export function initDatabase(): void {
     // カラムが既に存在する場合は無視
   }
 
+  // マイグレーション: saved_recipes テーブル追加
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS saved_recipes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        dish_name TEXT NOT NULL,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        steps_json TEXT NOT NULL,
+        ingredients_json TEXT NOT NULL,
+        source_dish_id INTEGER,
+        created_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    database.exec('CREATE INDEX IF NOT EXISTS idx_saved_recipes_user ON saved_recipes(user_id)');
+  } catch {
+    // テーブルが既に存在する場合は無視
+  }
+
   console.log('Database initialized');
 }
