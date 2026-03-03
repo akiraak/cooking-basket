@@ -350,16 +350,19 @@ async function renderDishes() {
       { key: 'id', label: 'ID', width: '60px' },
       { key: 'email', label: 'ユーザー' },
       { key: 'name', label: '料理名' },
-      { key: 'ingredients_json', label: '具材', render: r =>
-        r.ingredients_json ? '<span class="badge badge-success">あり</span>' : '<span class="badge badge-neutral">なし</span>'
-      },
-      { key: 'recipes_json', label: 'レシピ', render: r =>
-        r.recipes_json ? '<span class="badge badge-success">あり</span>' : '<span class="badge badge-neutral">なし</span>'
+      { key: 'item_names', label: '食材', render: r => {
+        if (!r.item_names) return '<span class="badge badge-neutral">なし</span>';
+        const items = r.item_names.split(', ');
+        return `<span class="toggle-detail" data-id="items-${r.id}">▶ ${items.length}件</span>`
+          + `<div class="detail-content" id="items-${r.id}" style="display:none">${items.map(i => escapeHtml(i)).join('<br>')}</div>`;
+      }},
+      { key: 'active', label: '状態', width: '60px', render: r =>
+        r.active ? '<span class="badge badge-success">有効</span>' : '<span class="badge badge-neutral">完了</span>'
       },
       { key: 'created_at', label: '作成日', render: r => formatDate(r.created_at) },
     ],
     data: res.data,
-    searchFields: ['name', 'email'],
+    searchFields: ['name', 'email', 'item_names'],
     actions: [
       { key: 'delete', label: '削除', class: 'btn-danger', onClick: async (row) => {
         if (await showConfirm(`料理「${row.name}」を削除しますか？`)) {
@@ -369,6 +372,19 @@ async function renderDishes() {
         }
       }}
     ]
+  });
+
+  // 折りたたみトグル
+  area.querySelectorAll('.toggle-detail').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => {
+      const target = document.getElementById(el.dataset.id);
+      if (target) {
+        const open = target.style.display !== 'none';
+        target.style.display = open ? 'none' : 'block';
+        el.textContent = (open ? '▶' : '▼') + el.textContent.slice(1);
+      }
+    });
   });
 }
 

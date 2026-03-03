@@ -97,7 +97,11 @@ export function deleteShoppingItem(id: number): boolean {
 export function getAllDishes() {
   const db = getDatabase();
   return db.prepare(`
-    SELECT d.*, u.email
+    SELECT d.*, u.email,
+      (SELECT GROUP_CONCAT(si.name, ', ')
+       FROM shopping_items si
+       WHERE si.dish_id = d.id
+      ) as item_names
     FROM dishes d
     JOIN users u ON d.user_id = u.id
     ORDER BY d.created_at DESC

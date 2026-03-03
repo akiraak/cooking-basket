@@ -273,6 +273,21 @@ td input[type="text"]:focus {
   color: #64748b;
 }
 
+.toggle-detail {
+  color: #3b82f6;
+  font-size: 13px;
+}
+
+.detail-content {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #f8fafc;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.6;
+}
+
 /* Buttons */
 .btn {
   padding: 6px 14px;
