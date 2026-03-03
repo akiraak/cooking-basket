@@ -203,6 +203,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: fixed;
 }
 
 th {
@@ -220,6 +221,8 @@ th {
 td {
   padding: 10px 12px;
   border-bottom: 1px solid #f1f5f9;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
