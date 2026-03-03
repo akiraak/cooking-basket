@@ -1245,7 +1245,7 @@ ingredientsTitle.addEventListener('click', () => {
   ingredientsTitleInput.value = dish.name;
   ingredientsTitleInput.style.display = '';
   ingredientsTitleInput.focus();
-  ingredientsTitleInput.select();
+  ingredientsTitleInput.setSelectionRange(ingredientsTitleInput.value.length, ingredientsTitleInput.value.length);
 });
 
 async function commitDishNameEdit() {
