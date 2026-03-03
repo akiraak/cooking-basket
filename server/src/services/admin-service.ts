@@ -152,6 +152,24 @@ export function getAllDishHistory(limit: number = 500) {
   `).all(limit);
 }
 
+// --- Saved Recipes (all users) ---
+
+export function getAllSavedRecipesAdmin() {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT sr.*, u.email
+    FROM saved_recipes sr
+    JOIN users u ON sr.user_id = u.id
+    ORDER BY sr.created_at DESC
+  `).all();
+}
+
+export function deleteSavedRecipeAdmin(id: number): boolean {
+  const db = getDatabase();
+  const result = db.prepare('DELETE FROM saved_recipes WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
 // --- System Info ---
 
 export function getSystemInfo() {
@@ -164,7 +182,7 @@ export function getSystemInfo() {
     dbSizeBytes = stat.size;
   } catch {}
 
-  const tables = ['users', 'shopping_items', 'dishes', 'dish_items', 'magic_link_tokens', 'purchase_history', 'dish_history'];
+  const tables = ['users', 'shopping_items', 'dishes', 'dish_items', 'magic_link_tokens', 'purchase_history', 'dish_history', 'saved_recipes'];
   const tableCounts: Record<string, number> = {};
   for (const table of tables) {
     tableCounts[table] = (db.prepare(`SELECT COUNT(*) as c FROM ${table}`).get() as any).c;

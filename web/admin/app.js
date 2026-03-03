@@ -200,6 +200,7 @@ const Pages = {
   'dish-items':       { title: '料理-食材リンク',  render: renderDishItems },
   'purchase-history': { title: '購入履歴',         render: renderPurchaseHistory },
   'dish-history':     { title: '料理履歴',         render: renderDishHistory },
+  'saved-recipes':    { title: '保存済レシピ',     render: renderSavedRecipes },
   system:             { title: 'システム情報',     render: renderSystem },
 };
 
@@ -440,6 +441,39 @@ async function renderDishHistory() {
     ],
     data: res.data,
     searchFields: ['dish_name', 'email'],
+  });
+}
+
+// ============================================================
+// Saved Recipes
+// ============================================================
+async function renderSavedRecipes() {
+  const area = document.getElementById('content-area');
+  area.innerHTML = '<div class="loading-text">読み込み中...</div>';
+
+  const res = await api('GET', `${API}/saved-recipes`);
+  if (!res.success) return;
+
+  renderDataTable(area, {
+    columns: [
+      { key: 'id', label: 'ID', width: '60px' },
+      { key: 'email', label: 'ユーザー' },
+      { key: 'dish_name', label: '料理名' },
+      { key: 'title', label: 'レシピ名' },
+      { key: 'summary', label: '概要' },
+      { key: 'created_at', label: '保存日', render: r => formatDate(r.created_at) },
+    ],
+    data: res.data,
+    searchFields: ['dish_name', 'title', 'email', 'summary'],
+    actions: [
+      { key: 'delete', label: '削除', class: 'btn-danger', onClick: async (row) => {
+        if (await showConfirm(`レシピ「${row.title}」を削除しますか？`)) {
+          const r = await api('DELETE', `${API}/saved-recipes/${row.id}`);
+          if (r.success) { showToast('削除しました'); renderSavedRecipes(); }
+          else showToast('削除に失敗しました', 'error');
+        }
+      }}
+    ]
   });
 }
 

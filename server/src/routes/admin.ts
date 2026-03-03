@@ -11,6 +11,8 @@ import {
   getAllDishItems,
   getAllPurchaseHistory,
   getAllDishHistory,
+  getAllSavedRecipesAdmin,
+  deleteSavedRecipeAdmin,
   getSystemInfo,
 } from '../services/admin-service';
 
@@ -102,6 +104,23 @@ adminRouter.get('/dish-history', (req: Request, res: Response) => {
   const limit = Number(req.query.limit) || 500;
   const history = getAllDishHistory(limit);
   res.json({ success: true, data: history, error: null });
+});
+
+// 保存済みレシピ一覧
+adminRouter.get('/saved-recipes', (_req: Request, res: Response) => {
+  const recipes = getAllSavedRecipesAdmin();
+  res.json({ success: true, data: recipes, error: null });
+});
+
+// 保存済みレシピ削除
+adminRouter.delete('/saved-recipes/:id', (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const deleted = deleteSavedRecipeAdmin(id);
+  if (!deleted) {
+    res.status(404).json({ success: false, data: null, error: 'レシピが見つかりません' });
+    return;
+  }
+  res.json({ success: true, data: null, error: null });
 });
 
 // システム情報

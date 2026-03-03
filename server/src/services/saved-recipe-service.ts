@@ -59,3 +59,24 @@ export function deleteSavedRecipe(userId: number, id: number): boolean {
   ).run(id, userId);
   return result.changes > 0;
 }
+
+// AI レシピ取得時に自動保存（既存の同タイトルは上書き）
+export function autoSaveRecipes(
+  userId: number,
+  dishName: string,
+  dishId: number,
+  recipes: { title: string; summary: string; steps: string[] }[],
+  ingredients: { name: string; category: string }[]
+): void {
+  const db = getDatabase();
+  // この料理の既存レシピを削除して最新に置き換え
+  db.prepare('DELETE FROM saved_recipes WHERE user_id = ? AND source_dish_id = ?').run(userId, dishId);
+  const stmt = db.prepare(
+    `INSERT INTO saved_recipes (user_id, dish_name, title, summary, steps_json, ingredients_json, source_dish_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  );
+  const ingredientsJson = JSON.stringify(ingredients);
+  for (const r of recipes) {
+    stmt.run(userId, dishName, r.title, r.summary || '', JSON.stringify(r.steps || []), ingredientsJson, dishId);
+  }
+}

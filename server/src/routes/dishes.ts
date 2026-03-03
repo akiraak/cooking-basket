@@ -14,6 +14,7 @@ import {
   reorderDishItems,
 } from '../services/dish-service';
 import { askGemini } from '../services/gemini-service';
+import { autoSaveRecipes } from '../services/saved-recipe-service';
 
 interface Ingredient {
   name: string;
@@ -197,6 +198,11 @@ dishesRouter.post('/:id/suggest-ingredients', async (req: Request, res: Response
     const raw = await askGemini(prompt);
     const info = parseDishInfo(raw);
     updateDishInfo(req.userId!, dish.id, info.ingredients, info.recipes);
+
+    // レシピを自動保存
+    if (info.recipes.length > 0) {
+      autoSaveRecipes(req.userId!, dish.name, dish.id, info.recipes, info.ingredients);
+    }
 
     res.json({
       success: true,
