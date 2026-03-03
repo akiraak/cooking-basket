@@ -227,6 +227,8 @@ function updateBodyScroll() {
 }
 
 // API 通信（認証ヘッダー付き）
+let appVersion = null;
+
 async function api(method, path = '', body = null, base = API) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getAuthToken();
@@ -234,6 +236,15 @@ async function api(method, path = '', body = null, base = API) {
   const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(base + path, opts);
+  // バージョンチェック: サーバー再起動時に自動リロード
+  const serverVersion = res.headers.get('X-App-Version');
+  if (serverVersion) {
+    if (appVersion && appVersion !== serverVersion) {
+      location.reload();
+      return;
+    }
+    appVersion = serverVersion;
+  }
   // 401 の場合はログインページへ
   if (res.status === 401) {
     logout();

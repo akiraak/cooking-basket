@@ -38,6 +38,12 @@ app.get('/', (_req, res) => {
 // 静的ファイル配信 (Web クライアント)
 app.use(express.static(webDir));
 
+// 全APIレスポンスにバージョンヘッダーを付与
+app.use('/api', (_req, res, next) => {
+  res.setHeader('X-App-Version', CACHE_VERSION);
+  next();
+});
+
 // ヘルスチェック
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok' }, error: null });
