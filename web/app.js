@@ -19,6 +19,9 @@ const appContent = document.getElementById('app-content');
 function showLoginPage() {
   loginPage.style.display = '';
   appContent.style.display = 'none';
+  // メアド入力画面に戻す
+  loginForm.style.display = '';
+  loginSent.style.display = 'none';
 }
 
 function showApp() {
@@ -77,7 +80,7 @@ loginSubmitBtn.addEventListener('click', async () => {
     loginError.style.display = '';
   } finally {
     loginSubmitBtn.disabled = false;
-    loginSubmitBtn.textContent = 'ログインリンクを送信';
+    loginSubmitBtn.textContent = 'ログインコードを送信';
   }
 });
 
