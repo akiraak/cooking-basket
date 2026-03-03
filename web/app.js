@@ -37,6 +37,10 @@ const loginForm = document.getElementById('login-form');
 const loginSent = document.getElementById('login-sent');
 const loginSentMessage = document.getElementById('login-sent-message');
 const loginRetryBtn = document.getElementById('login-retry');
+const otpInput = document.getElementById('otp-input');
+const otpSubmitBtn = document.getElementById('otp-submit');
+const otpError = document.getElementById('otp-error');
+let loginEmail = ''; // OTPコード送信時に使うメールアドレス
 
 loginSubmitBtn.addEventListener('click', async () => {
   const email = loginEmailInput.value.trim();
@@ -57,9 +61,13 @@ loginSubmitBtn.addEventListener('click', async () => {
     });
     const data = await res.json();
     if (data.success) {
+      loginEmail = email;
       loginForm.style.display = 'none';
-      loginSentMessage.textContent = `${email} にログインリンクを送信しました。メールを確認してリンクをクリックしてください。`;
+      loginSentMessage.textContent = `${email} にログインコードを送信しました。`;
       loginSent.style.display = '';
+      otpInput.value = '';
+      otpError.style.display = 'none';
+      otpInput.focus();
     } else {
       loginError.textContent = data.error || 'エラーが発生しました';
       loginError.style.display = '';
@@ -82,6 +90,46 @@ loginRetryBtn.addEventListener('click', () => {
   loginForm.style.display = '';
   loginEmailInput.value = '';
   loginEmailInput.focus();
+});
+
+// OTPコード送信
+otpSubmitBtn.addEventListener('click', async () => {
+  const code = otpInput.value.trim();
+  if (!code || code.length !== 6) {
+    otpError.textContent = '6桁のコードを入力してください';
+    otpError.style.display = '';
+    return;
+  }
+  otpError.style.display = 'none';
+  otpSubmitBtn.disabled = true;
+  otpSubmitBtn.textContent = '確認中...';
+
+  try {
+    const res = await fetch('/api/auth/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: loginEmail, code }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      localStorage.setItem('auth_token', data.data.token);
+      localStorage.setItem('auth_email', data.data.email);
+      showApp();
+    } else {
+      otpError.textContent = data.error || 'コードが無効です';
+      otpError.style.display = '';
+    }
+  } catch {
+    otpError.textContent = 'サーバーに接続できません';
+    otpError.style.display = '';
+  } finally {
+    otpSubmitBtn.disabled = false;
+    otpSubmitBtn.textContent = 'ログイン';
+  }
+});
+
+otpInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') otpSubmitBtn.click();
 });
 
 // ログアウトボタン

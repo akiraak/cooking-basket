@@ -143,5 +143,12 @@ export function initDatabase(): void {
     database.prepare("INSERT OR REPLACE INTO _meta (key, value) VALUES ('schema_version', ?)").run(String(SCHEMA_VERSION));
   }
 
+  // マイグレーション: OTPコード用カラム追加
+  try {
+    database.exec('ALTER TABLE magic_link_tokens ADD COLUMN code TEXT');
+  } catch {
+    // カラムが既に存在する場合は無視
+  }
+
   console.log('Database initialized');
 }

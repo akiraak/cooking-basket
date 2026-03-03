@@ -2,10 +2,9 @@ import { Router, Request, Response, NextFunction } from 'express';
 import {
   findOrCreateUser,
   createMagicLinkToken,
-  verifyMagicLinkToken,
+  verifyOtpCode,
   generateJwt,
-  getMagicLinkUrl,
-  sendMagicLinkEmail,
+  sendOtpEmail,
 } from '../services/auth-service';
 import { requireAuth } from '../middleware/auth';
 
@@ -21,10 +20,9 @@ authRouter.post('/login', async (req: Request, res: Response, next: NextFunction
     }
 
     const user = findOrCreateUser(email.trim().toLowerCase());
-    const token = createMagicLinkToken(user.id);
-    const url = getMagicLinkUrl(token);
+    const { code } = createMagicLinkToken(user.id);
 
-    await sendMagicLinkEmail(email.trim(), url);
+    await sendOtpEmail(email.trim(), code);
 
     res.json({ success: true, data: { message: 'ログインリンクを送信しました' }, error: null });
   } catch (err) {
@@ -32,17 +30,17 @@ authRouter.post('/login', async (req: Request, res: Response, next: NextFunction
   }
 });
 
-// GET /api/auth/verify?token=xxx - トークン検証 → JWT 返却
-authRouter.get('/verify', (req: Request, res: Response) => {
-  const { token } = req.query;
-  if (!token || typeof token !== 'string') {
-    res.status(400).json({ success: false, data: null, error: 'トークンが必要です' });
+// POST /api/auth/verify-code - OTPコード検証 → JWT 返却
+authRouter.post('/verify-code', (req: Request, res: Response) => {
+  const { email, code } = req.body;
+  if (!email || !code || typeof email !== 'string' || typeof code !== 'string') {
+    res.status(400).json({ success: false, data: null, error: 'メールアドレスとコードが必要です' });
     return;
   }
 
-  const user = verifyMagicLinkToken(token);
+  const user = verifyOtpCode(email.trim().toLowerCase(), code.trim());
   if (!user) {
-    res.status(401).json({ success: false, data: null, error: 'リンクが無効または期限切れです' });
+    res.status(401).json({ success: false, data: null, error: 'コードが無効または期限切れです' });
     return;
   }
 

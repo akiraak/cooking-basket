@@ -24,6 +24,12 @@
       </div>
       <div id="login-sent" style="display:none">
         <p class="login-sent-message" id="login-sent-message"></p>
+        <div class="otp-section">
+          <p class="otp-desc">メールに届いた6桁のコードを入力してください。</p>
+          <input type="text" class="otp-input" id="otp-input" placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code">
+          <button class="login-btn" id="otp-submit">ログイン</button>
+          <div class="login-error" id="otp-error" style="display:none"></div>
+        </div>
         <button class="login-retry-btn" id="login-retry">別のメールアドレスで試す</button>
       </div>
     </div>
