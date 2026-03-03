@@ -435,6 +435,64 @@ body.modal-open { overflow: hidden; }
 
 
 
+/* 追加素材セクション */
+.extra-ingredients-section {
+  border-top: 1px dashed #444;
+  padding-top: 12px;
+  margin-top: 4px;
+  margin-bottom: 12px;
+}
+
+.extra-ingredients-label {
+  font-size: 13px;
+  color: #777;
+  margin-bottom: 8px;
+}
+
+.extra-ingredients-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.extra-ingredient-chip {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px dashed #fb923c;
+  background: #2a2a2a;
+  color: #fb923c;
+  font-size: 14px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.extra-ingredient-chip::before {
+  content: '+ ';
+}
+
+.extra-search-btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: #fb923c;
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.extra-search-btn:active {
+  opacity: 0.8;
+}
+
+.extra-search-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .ingredients-refresh-btn {
   display: block;
   width: 100%;

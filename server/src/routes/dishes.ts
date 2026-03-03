@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { jsonrepair } from 'jsonrepair';
 import {
   getAllDishes,
   getDish,
@@ -30,9 +31,14 @@ interface DishInfo {
   recipes: Recipe[];
 }
 
-function buildDishInfoPrompt(dishName: string): string {
-  return `あなたは料理の専門家です。「${dishName}」について以下の情報をJSON形式で返してください。
+function buildDishInfoPrompt(dishName: string, extraIngredients?: string[]): string {
+  const extraSection = extraIngredients && extraIngredients.length > 0
+    ? `\nユーザーが以下の食材を使いたいと指定しています：${extraIngredients.join('、')}
+上記の食材をすべて活用したレシピにしてください。具材リストにも上記の食材を含めてください。\n`
+    : '';
 
+  return `あなたは料理の専門家です。「${dishName}」について以下の情報をJSON形式で返してください。
+${extraSection}
 1. 必要な具材リスト（一般的な調味料は含めない、主要な食材のみ）
 2. おすすめレシピを3つ（タイトル、概要、手順）
 
@@ -55,7 +61,8 @@ function buildDishInfoPrompt(dishName: string): string {
 function parseDishInfo(raw: string): DishInfo {
   try {
     const cleaned = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleaned);
+    const repaired = jsonrepair(cleaned);
+    const parsed = JSON.parse(repaired);
     // 新形式: { ingredients, recipes }
     if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.ingredients)) {
       return {
@@ -169,8 +176,11 @@ dishesRouter.post('/:id/suggest-ingredients', async (req: Request, res: Response
       return;
     }
 
+    // extraIngredients がある場合は強制再取得
+    const extraIngredients: string[] = Array.isArray(req.body.extraIngredients) ? req.body.extraIngredients : [];
+    const force = req.body.force === true || extraIngredients.length > 0;
+
     // DBにキャッシュがあればそれを返す（forceで再取得可能）
-    const force = req.body.force === true;
     if (!force && dish.ingredients_json) {
       const ingredients = JSON.parse(dish.ingredients_json);
       const recipes = dish.recipes_json ? JSON.parse(dish.recipes_json) : [];
@@ -183,7 +193,7 @@ dishesRouter.post('/:id/suggest-ingredients', async (req: Request, res: Response
     }
 
     // Gemini呼び出し → DB保存
-    const prompt = buildDishInfoPrompt(dish.name);
+    const prompt = buildDishInfoPrompt(dish.name, extraIngredients.length > 0 ? extraIngredients : undefined);
     const raw = await askGemini(prompt);
     const info = parseDishInfo(raw);
     updateDishInfo(dish.id, info.ingredients, info.recipes);

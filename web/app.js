@@ -42,6 +42,11 @@ const ingredientsSkip = document.getElementById('ingredients-skip');
 const ingredientsRefresh = document.getElementById('ingredients-refresh');
 const ingredientsRefreshRow = document.getElementById('ingredients-refresh-row');
 
+// 追加素材セクション
+const extraIngredientsSection = document.getElementById('extra-ingredients-section');
+const extraIngredientsChips = document.getElementById('extra-ingredients-chips');
+const extraSearchBtn = document.getElementById('extra-search-btn');
+
 // 確認ダイアログ
 const confirmOverlay = document.getElementById('confirm-overlay');
 const confirmTitle = document.getElementById('confirm-title');
@@ -707,6 +712,7 @@ async function fetchIngredientsForModal(dishId, dishName) {
       if (ingredientsDishId === dishId) {
         ingredientsLoading.style.display = 'none';
         renderIngredients(res.data.ingredients);
+        renderExtraIngredients(dishId);
         renderRecipes(recipes, res.data.ingredients);
       }
     } else {
@@ -736,6 +742,7 @@ function openIngredientsModalWithResults(dishId, dishName, ingredients, recipes)
   ingredientsLoading.style.display = 'none';
   ingredientsError.style.display = 'none';
   renderIngredients(ingredients);
+  renderExtraIngredients(dishId);
   renderRecipes(recipes || [], ingredients);
   ingredientsOverlay.classList.add('active');
   updateBodyScroll();
@@ -757,6 +764,91 @@ function openIngredientsModal(dishId, dishName) {
   fetchIngredients(dishId, dishName);
 }
 
+// 追加素材: 料理グループの食材のうちAI食材リストにないもの
+function getExtraIngredients(dishId) {
+  const dish = dishes.find(d => d.id === dishId);
+  if (!dish || !dish.items || dish.items.length === 0) return [];
+  const cached = ingredientsCache.get(dishId);
+  if (!cached || !cached.ingredients) return [];
+  const aiNames = new Set(cached.ingredients.map(i => i.name));
+  return dish.items.filter(item => !item.checked && !aiNames.has(item.name)).map(item => item.name);
+}
+
+function renderExtraIngredients(dishId) {
+  const extras = getExtraIngredients(dishId);
+  if (extras.length === 0) {
+    extraIngredientsSection.style.display = 'none';
+    return;
+  }
+  extraIngredientsSection.style.display = '';
+  extraIngredientsChips.innerHTML = extras.map(name =>
+    `<span class="extra-ingredient-chip">${escapeHtml(name)}</span>`
+  ).join('');
+  extraSearchBtn.disabled = false;
+  extraSearchBtn.textContent = 'この素材でレシピを再検索';
+}
+
+async function searchWithExtraIngredients() {
+  const dishId = ingredientsDishId;
+  const cached = ingredientsCache.get(dishId);
+  if (!dishId || !cached) return;
+  const extras = getExtraIngredients(dishId);
+  if (extras.length === 0) return;
+
+  // 選択済みの全食材（AI食材 + 追加食材）を送る
+  const dish = dishes.find(d => d.id === dishId);
+  const allSelectedNames = (dish && dish.items || []).map(i => i.name);
+
+  extraSearchBtn.disabled = true;
+  extraSearchBtn.textContent = 'レシピを検索中...';
+  showToast(`「${cached.dishName}」のレシピを再検索中...`);
+  loadingIngredientsDishes.add(dishId);
+  render();
+
+  // レシピ部分をローディングにする
+  if (ingredientsRecipes) ingredientsRecipes.style.display = 'none';
+  ingredientsRefreshRow.style.display = 'none';
+  ingredientsLoading.style.display = '';
+
+  try {
+    const res = await api('POST', `/${dishId}/suggest-ingredients`, {
+      force: true,
+      extraIngredients: allSelectedNames,
+    }, DISH_API);
+    loadingIngredientsDishes.delete(dishId);
+    if (res.success && res.data.ingredients.length > 0) {
+      const recipes = res.data.recipes || [];
+      ingredientsCache.set(dishId, { dishName: cached.dishName, ingredients: res.data.ingredients, recipes });
+      render();
+      if (ingredientsDishId === dishId) {
+        ingredientsLoading.style.display = 'none';
+        renderIngredients(res.data.ingredients);
+        renderExtraIngredients(dishId);
+        renderRecipes(recipes, res.data.ingredients);
+      }
+    } else {
+      render();
+      if (ingredientsDishId === dishId) {
+        ingredientsLoading.style.display = 'none';
+        ingredientsError.textContent = '具材が見つかりませんでした';
+        ingredientsError.style.display = '';
+        extraSearchBtn.disabled = false;
+        extraSearchBtn.textContent = 'この素材でレシピを再検索';
+      }
+    }
+  } catch (err) {
+    loadingIngredientsDishes.delete(dishId);
+    render();
+    if (ingredientsDishId === dishId) {
+      ingredientsLoading.style.display = 'none';
+      ingredientsError.textContent = `エラー: ${err.message || 'AI接続に失敗しました'}`;
+      ingredientsError.style.display = '';
+      extraSearchBtn.disabled = false;
+      extraSearchBtn.textContent = 'この素材でレシピを再検索';
+    }
+  }
+}
+
 function closeIngredientsModal() {
   ingredientsOverlay.classList.remove('active');
   updateBodyScroll();
@@ -767,6 +859,7 @@ function closeIngredientsModal() {
   ingredientsTitleLoading.style.display = 'none';
   if (ingredientsRecipes) ingredientsRecipes.style.display = 'none';
   ingredientsRefreshRow.style.display = 'none';
+  extraIngredientsSection.style.display = 'none';
 }
 
 async function fetchIngredients(dishId, dishName) {
@@ -799,7 +892,7 @@ async function fetchIngredients(dishId, dishName) {
 
 function renderIngredients(ingredients) {
   const dish = ingredientsDishId ? dishes.find(d => d.id === ingredientsDishId) : null;
-  const existingNames = new Set((dish && dish.items || []).map(i => i.name));
+  const existingNames = new Set((dish && dish.items || []).filter(i => !i.checked).map(i => i.name));
 
   let html = '<div class="ingredients-hint">素材をタップすると追加されます</div>';
   ingredients.forEach(ing => {
@@ -822,6 +915,7 @@ function renderIngredients(ingredients) {
           items = items.filter(i => i.id !== dishItem.id);
           await loadDishes();
           render();
+          renderExtraIngredients(ingredientsDishId);
           // レシピ内の同名食材も未追加状態に戻す
           ingredientsRecipes.querySelectorAll(`.recipe-ingredient[data-name="${CSS.escape(name)}"]`).forEach(el => {
             el.classList.remove('added');
@@ -831,6 +925,7 @@ function renderIngredients(ingredients) {
         // 追加
         chip.classList.add('selected');
         await addItem(name, ingredientsDishId);
+        renderExtraIngredients(ingredientsDishId);
         // レシピ内の同名食材も追加済みに
         ingredientsRecipes.querySelectorAll(`.recipe-ingredient[data-name="${CSS.escape(name)}"]`).forEach(el => {
           el.classList.add('added');
@@ -851,7 +946,7 @@ function renderRecipes(recipes, ingredients) {
   // 具材名リストと既に追加済みの名前を取得
   const ingredientNames = (ingredients || []).map(ing => ing.name);
   const dish = ingredientsDishId ? dishes.find(d => d.id === ingredientsDishId) : null;
-  const addedNames = new Set((dish && dish.items || []).map(i => i.name));
+  const addedNames = new Set((dish && dish.items || []).filter(i => !i.checked).map(i => i.name));
 
   let html = '<div class="recipes-title">レシピ</div>';
   recipes.forEach((r, i) => {
@@ -902,6 +997,7 @@ function renderRecipes(recipes, ingredients) {
           items = items.filter(i => i.id !== dishItem.id);
           await loadDishes();
           render();
+          renderExtraIngredients(ingredientsDishId);
         }
       } else {
         // 追加
@@ -912,6 +1008,7 @@ function renderRecipes(recipes, ingredients) {
           el.classList.add('selected');
         });
         await addItem(name, ingredientsDishId);
+        renderExtraIngredients(ingredientsDishId);
       }
     });
   });
@@ -952,6 +1049,7 @@ async function commitDishNameEdit() {
   ingredientsList.style.display = 'none';
   if (ingredientsRecipes) ingredientsRecipes.style.display = 'none';
   ingredientsRefreshRow.style.display = 'none';
+  extraIngredientsSection.style.display = 'none';
   ingredientsError.style.display = 'none';
   ingredientsLoading.style.display = '';
   fetchIngredientsForModal(ingredientsDishId, newName);
@@ -977,6 +1075,7 @@ ingredientsRefresh.addEventListener('click', () => {
   ingredientsList.style.display = 'none';
   if (ingredientsRecipes) ingredientsRecipes.style.display = 'none';
   ingredientsRefreshRow.style.display = 'none';
+  extraIngredientsSection.style.display = 'none';
   ingredientsError.style.display = 'none';
   ingredientsLoading.style.display = '';
   fetchIngredientsForModal(dishId, cached.dishName);
@@ -984,6 +1083,9 @@ ingredientsRefresh.addEventListener('click', () => {
 ingredientsOverlay.addEventListener('click', (e) => {
   if (e.target === ingredientsOverlay) closeIngredientsModal();
 });
+
+// 追加素材で再検索
+extraSearchBtn.addEventListener('click', searchWithExtraIngredients);
 
 // 画面回転ロック（対応ブラウザのみ）
 if (screen.orientation && screen.orientation.lock) {
