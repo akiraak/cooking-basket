@@ -206,6 +206,7 @@ const Pages = {
   'monetization':     { title: 'マネタイズ検討',   render: renderMonetization, parent: 'docs' },
   'native-app':       { title: 'ネイティブアプリ技術検討', render: renderNativeApp, parent: 'docs' },
   'remote-dev':       { title: 'リモート開発環境検討', render: renderRemoteDev, parent: 'docs' },
+  'react-native-plan': { title: 'React Native 開発計画', render: renderReactNativePlan, parent: 'docs' },
 };
 
 // ============================================================
@@ -499,6 +500,7 @@ function renderDocs() {
     { hash: 'monetization', icon: '&#128176;', title: 'マネタイズ検討', desc: '収益モデル比較、競合価格帯、推奨プラン、ロードマップ' },
     { hash: 'native-app', icon: '&#128241;', title: 'ネイティブアプリ技術検討', desc: 'iPhone/Android アプリ化の技術比較・推奨アプローチ・コスト試算' },
     { hash: 'remote-dev', icon: '&#128225;', title: 'リモート開発環境検討', desc: 'WSL2 + Claude Code をスマホから外出先で操作する方法の比較' },
+    { hash: 'react-native-plan', icon: '&#128241;', title: 'React Native 開発計画', desc: 'Expo + TypeScript でのネイティブアプリ開発計画・画面設計・フェーズ管理' },
   ];
 
   const area = document.getElementById('content-area');
@@ -1768,6 +1770,291 @@ function renderRemoteDev() {
 
   let html = '<a href="#docs" class="back-link">&larr; ドキュメント一覧</a>';
   html += '<div class="info-section-title" style="font-size:18px;margin-bottom:20px;">リモート開発環境検討 — スマホから WSL2 + Claude Code を操作（2026-03）</div>';
+  for (const s of sections) {
+    html += `<div class="info-section"><div class="info-section-title">${s.title}</div>${s.content}</div>`;
+  }
+  area.innerHTML = html;
+}
+
+// ============================================================
+// React Native Development Plan
+// ============================================================
+function renderReactNativePlan() {
+  const area = document.getElementById('content-area');
+
+  const sections = [
+    {
+      title: '1. プロジェクト概要',
+      content: `
+        <table>
+          <thead><tr><th>項目</th><th>内容</th></tr></thead>
+          <tbody>
+            <tr><td><strong>目的</strong></td><td>既存 PWA（Vanilla JS）を React Native で iPhone/Android ネイティブアプリ化</td></tr>
+            <tr><td><strong>フレームワーク</strong></td><td>Expo (Managed Workflow) + TypeScript</td></tr>
+            <tr><td><strong>ディレクトリ</strong></td><td><code>mobile/</code>（リポジトリルート直下に新設）</td></tr>
+            <tr><td><strong>バックエンド</strong></td><td>既存 basket.chobi.me をそのまま利用（変更なし）</td></tr>
+            <tr><td><strong>認証</strong></td><td>Magic Link (OTP) + JWT（既存 API）+ Google Sign-In + Apple Sign-In</td></tr>
+            <tr><td><strong>対象 OS</strong></td><td>iOS 16+ / Android 10+</td></tr>
+          </tbody>
+        </table>
+      `
+    },
+    {
+      title: '2. 技術スタック',
+      content: `
+        <table>
+          <thead><tr><th>カテゴリ</th><th>ライブラリ</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td><strong>フレームワーク</strong></td><td>Expo SDK 52+</td><td>ビルド・開発環境</td></tr>
+            <tr><td><strong>ルーティング</strong></td><td>Expo Router (v4)</td><td>ファイルベースルーティング</td></tr>
+            <tr><td><strong>状態管理</strong></td><td>Zustand</td><td>軽量ストア（Auth / Shopping / Recipe）</td></tr>
+            <tr><td><strong>HTTP</strong></td><td>Axios</td><td>API クライアント + JWT インターセプタ</td></tr>
+            <tr><td><strong>ドラッグ&ドロップ</strong></td><td>react-native-draggable-flatlist</td><td>リスト並び替え</td></tr>
+            <tr><td><strong>トークン保存</strong></td><td>expo-secure-store</td><td>JWT の安全な保存</td></tr>
+            <tr><td><strong>Google認証</strong></td><td>expo-auth-session</td><td>Google Sign-In</td></tr>
+            <tr><td><strong>Apple認証</strong></td><td>expo-apple-authentication</td><td>Apple Sign-In（iOS 必須）</td></tr>
+            <tr><td><strong>通知</strong></td><td>expo-notifications</td><td>プッシュ通知</td></tr>
+            <tr><td><strong>UI</strong></td><td>React Native Paper / 自作</td><td>マテリアルデザインベース</td></tr>
+          </tbody>
+        </table>
+      `
+    },
+    {
+      title: '3. 画面一覧',
+      content: `
+        <table>
+          <thead><tr><th>#</th><th>画面</th><th>パス</th><th>説明</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><strong>ログイン</strong></td><td><code>app/(auth)/login</code></td><td>メールアドレス入力 → Magic Link 送信</td></tr>
+            <tr><td>2</td><td><strong>OTP 入力</strong></td><td><code>app/(auth)/otp</code></td><td>6桁コード入力 → JWT 取得</td></tr>
+            <tr><td>3</td><td><strong>買い物リスト</strong></td><td><code>app/(tabs)/index</code></td><td>メイン画面。料理グループ表示、チェック、D&amp;D 並替え</td></tr>
+            <tr><td>4</td><td><strong>具材モーダル</strong></td><td><code>app/dish/[id]/ingredients</code></td><td>AI 提案具材の選択・一括追加</td></tr>
+            <tr><td>5</td><td><strong>レシピページ</strong></td><td><code>app/dish/[id]/recipe</code></td><td>レシピ表示、食材ハイライト、いいね</td></tr>
+            <tr><td>6</td><td><strong>アイテム追加/編集</strong></td><td><code>app/item/add</code></td><td>買い物アイテムの追加・編集フォーム</td></tr>
+            <tr><td>7</td><td><strong>料理追加</strong></td><td><code>app/dish/add</code></td><td>料理名入力 → AI 具材検索をバックグラウンド実行</td></tr>
+            <tr><td>8</td><td><strong>レシピブック</strong></td><td><code>app/(tabs)/recipes</code></td><td>みんなのレシピ / 自分のレシピ（タブ切替）</td></tr>
+          </tbody>
+        </table>
+      `
+    },
+    {
+      title: '4. ディレクトリ構成',
+      content: `
+        <pre style="background:#1e1e2e;color:#cdd6f4;padding:16px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.6">mobile/
+├── app/                    # Expo Router ページ
+│   ├── (auth)/
+│   │   ├── login.tsx
+│   │   └── otp.tsx
+│   ├── (tabs)/
+│   │   ├── _layout.tsx     # タブナビゲーション
+│   │   ├── index.tsx       # 買い物リスト
+│   │   └── recipes.tsx     # レシピブック
+│   ├── dish/
+│   │   └── [id]/
+│   │       ├── ingredients.tsx
+│   │       └── recipe.tsx
+│   ├── item/
+│   │   └── add.tsx
+│   └── _layout.tsx         # ルートレイアウト
+├── src/
+│   ├── api/
+│   │   └── client.ts       # Axios + JWT インターセプタ
+│   ├── stores/
+│   │   ├── auth.ts         # Zustand Auth ストア
+│   │   ├── shopping.ts     # Zustand Shopping ストア
+│   │   └── recipe.ts       # Zustand Recipe ストア
+│   ├── components/
+│   │   ├── DishGroup.tsx
+│   │   ├── ShoppingItem.tsx
+│   │   ├── RecipeCard.tsx
+│   │   └── HighlightedText.tsx
+│   ├── hooks/
+│   │   └── useAuth.ts
+│   └── theme/
+│       └── index.ts
+├── assets/
+├── app.json
+├── package.json
+└── tsconfig.json</pre>
+      `
+    },
+    {
+      title: '5. 状態管理（Zustand）',
+      content: `
+        <table>
+          <thead><tr><th>ストア</th><th>主要ステート</th><th>主要アクション</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Auth Store</strong></td>
+              <td>token, email, isAuthenticated</td>
+              <td>login(), verifyOtp(), logout(), googleSignIn(), appleSignIn()</td>
+            </tr>
+            <tr>
+              <td><strong>Shopping Store</strong></td>
+              <td>dishes[], items[], loading</td>
+              <td>fetchList(), addDish(), addItem(), toggleCheck(), reorder(), moveToDish()</td>
+            </tr>
+            <tr>
+              <td><strong>Recipe Store</strong></td>
+              <td>recipes[], myRecipes[], search, page</td>
+              <td>fetchRecipes(), toggleLike(), addToList(), searchRecipes(), loadMore()</td>
+            </tr>
+          </tbody>
+        </table>
+      `
+    },
+    {
+      title: '6. API クライアント設計',
+      content: `
+        <p>Axios インスタンスに JWT インターセプタを設定。401 レスポンスで自動ログアウト。</p>
+        <table>
+          <thead><tr><th>メソッド</th><th>エンドポイント</th><th>説明</th></tr></thead>
+          <tbody>
+            <tr><td>POST</td><td>/api/auth/send-otp</td><td>Magic Link 送信</td></tr>
+            <tr><td>POST</td><td>/api/auth/verify-otp</td><td>OTP 検証 → JWT 発行</td></tr>
+            <tr><td>POST</td><td>/api/auth/google</td><td>Google Sign-In トークン検証</td></tr>
+            <tr><td>GET</td><td>/api/shopping</td><td>買い物リスト取得</td></tr>
+            <tr><td>POST</td><td>/api/shopping</td><td>アイテム追加</td></tr>
+            <tr><td>PUT</td><td>/api/shopping/:id</td><td>アイテム更新</td></tr>
+            <tr><td>DELETE</td><td>/api/shopping/:id</td><td>アイテム削除</td></tr>
+            <tr><td>POST</td><td>/api/shopping/reorder</td><td>並び替え</td></tr>
+            <tr><td>POST</td><td>/api/dishes</td><td>料理追加（AI 具材検索）</td></tr>
+            <tr><td>PUT</td><td>/api/dishes/:id</td><td>料理更新</td></tr>
+            <tr><td>DELETE</td><td>/api/dishes/:id</td><td>料理削除（ソフトデリート）</td></tr>
+            <tr><td>GET</td><td>/api/dishes/:id/ingredients</td><td>AI 具材取得</td></tr>
+            <tr><td>GET</td><td>/api/dishes/:id/recipe</td><td>レシピ取得</td></tr>
+            <tr><td>POST</td><td>/api/recipes/:id/like</td><td>いいねトグル</td></tr>
+            <tr><td>GET</td><td>/api/recipes/liked</td><td>いいね済みレシピ一覧</td></tr>
+            <tr><td>GET</td><td>/api/recipes/all-liked</td><td>みんなのいいねレシピ</td></tr>
+          </tbody>
+        </table>
+      `
+    },
+    {
+      title: '7. 開発フェーズ',
+      content: `
+        <table>
+          <thead><tr><th>フェーズ</th><th>内容</th><th>期間目安</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-info">Phase 1</span></td>
+              <td><strong>基盤構築</strong> — Expo 初期化、Expo Router、認証フロー（Magic Link + JWT）、API クライアント</td>
+              <td>3〜4日</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-info">Phase 2</span></td>
+              <td><strong>買い物リスト</strong> — メイン画面、料理グループ表示、アイテム CRUD、チェック機能</td>
+              <td>3〜4日</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-info">Phase 3</span></td>
+              <td><strong>ドラッグ&amp;ドロップ</strong> — リスト内並替え、料理間のアイテム移動</td>
+              <td>2〜3日</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-info">Phase 4</span></td>
+              <td><strong>AI 具材提案</strong> — 料理追加 → バックグラウンド AI 検索 → 具材モーダル → 一括追加</td>
+              <td>2〜3日</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-info">Phase 5</span></td>
+              <td><strong>レシピ機能</strong> — レシピ表示、食材ハイライト、いいね、レシピブック（みんな/自分）</td>
+              <td>3〜4日</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-info">Phase 6</span></td>
+              <td><strong>Google / Apple 認証</strong> — expo-auth-session、expo-apple-authentication 統合</td>
+              <td>2〜3日</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-info">Phase 7</span></td>
+              <td><strong>プッシュ通知</strong> — expo-notifications、サーバ側トークン管理</td>
+              <td>1〜2日</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-info">Phase 8</span></td>
+              <td><strong>仕上げ</strong> — UI/UX 調整、アニメーション、パフォーマンス最適化、テスト</td>
+              <td>3〜4日</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-warning">Phase 9</span></td>
+              <td><strong>ストア提出</strong> — App Store / Google Play ストアへの申請・レビュー対応</td>
+              <td>1〜2週間</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin-top:12px;color:#94a3b8"><strong>合計見込:</strong> 約 3〜5 週間（Phase 1〜8 開発 + Phase 9 ストア審査）</p>
+      `
+    },
+    {
+      title: '8. ストア提出チェックリスト',
+      content: `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <h4 style="margin:0 0 8px">&#127822; Apple App Store</h4>
+            <ul style="margin:0;padding-left:20px;line-height:1.8">
+              <li>Apple Developer Program ($99/年) 登録</li>
+              <li>App Store Connect でアプリ情報入力</li>
+              <li>スクリーンショット（6.7" / 6.1" / iPad）</li>
+              <li>プライバシーポリシー URL</li>
+              <li>Apple Sign-In 実装（<strong>必須</strong>：ソーシャルログインがある場合）</li>
+              <li>App Review ガイドライン準拠確認</li>
+              <li>EAS Build で .ipa 作成 → TestFlight → 申請</li>
+            </ul>
+          </div>
+          <div>
+            <h4 style="margin:0 0 8px">&#129302; Google Play Store</h4>
+            <ul style="margin:0;padding-left:20px;line-height:1.8">
+              <li>Google Play Console ($25 一回) 登録</li>
+              <li>ストア掲載情報（説明文、スクショ）入力</li>
+              <li>コンテンツレーティング質問票</li>
+              <li>プライバシーポリシー URL</li>
+              <li>データセーフティセクション入力</li>
+              <li>EAS Build で .aab 作成 → 内部テスト → 申請</li>
+            </ul>
+          </div>
+        </div>
+      `
+    },
+    {
+      title: '9. 注意点・技術的課題',
+      content: `
+        <table>
+          <thead><tr><th>課題</th><th>詳細</th><th>対策</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Apple Sign-In 必須</strong></td>
+              <td>App Store ガイドライン上、サードパーティログイン（Google等）を提供する場合 Apple Sign-In も必須</td>
+              <td>expo-apple-authentication で実装。サーバ側に Apple ID トークン検証エンドポイント追加</td>
+            </tr>
+            <tr>
+              <td><strong>D&amp;D クロスリスト</strong></td>
+              <td>react-native-draggable-flatlist は単一リスト内の並替えのみ対応。料理間のアイテム移動は別実装が必要</td>
+              <td>長押し → 移動先料理をモーダルで選択する UX に変更。または react-native-gesture-handler でカスタム実装</td>
+            </tr>
+            <tr>
+              <td><strong>レシピ内食材ハイライト</strong></td>
+              <td>Web 版では innerHTML で &lt;span&gt; タグを挿入しているが、React Native の Text コンポーネントでは同じ手法が使えない</td>
+              <td>テキストをパースして Text コンポーネントをネストする HighlightedText カスタムコンポーネントを作成</td>
+            </tr>
+            <tr>
+              <td><strong>オフライン対応</strong></td>
+              <td>ネイティブアプリではオフライン時の動作が期待される</td>
+              <td>Phase 8 で AsyncStorage によるキャッシュ + オフラインキュー（楽観的更新）を検討</td>
+            </tr>
+            <tr>
+              <td><strong>PWA との共存</strong></td>
+              <td>ネイティブアプリリリース後も PWA は維持する（ブラウザ利用者向け）</td>
+              <td>バックエンド API は共有。Web/Mobile で別クライアント ID を使い分け</td>
+            </tr>
+          </tbody>
+        </table>
+      `
+    }
+  ];
+
+  let html = '';
+  html += '<div class="info-section-title" style="font-size:18px;margin-bottom:20px;">React Native 開発計画 — Expo + TypeScript ネイティブアプリ（2026-03）</div>';
   for (const s of sections) {
     html += `<div class="info-section"><div class="info-section-title">${s.title}</div>${s.content}</div>`;
   }
