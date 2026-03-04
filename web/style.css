@@ -815,6 +815,23 @@ body.modal-open { overflow: hidden; }
   line-height: 1.5;
 }
 
+.recipe-add-to-list-btn {
+  display: inline-block;
+  background: none;
+  border: 1px solid #fb923c;
+  color: #fb923c;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.recipe-add-to-list-btn:active {
+  background: #fb923c;
+  color: #1c1c1c;
+}
+
 .recipe-detail-toggle {
   font-size: 14px;
   color: #fb923c;

@@ -25,6 +25,7 @@ interface Recipe {
   title: string;
   summary: string;
   steps: string[];
+  ingredients: Ingredient[];
 }
 
 interface DishInfo {
@@ -40,20 +41,19 @@ function buildDishInfoPrompt(dishName: string, extraIngredients?: string[]): str
 
   return `あなたは料理の専門家です。「${dishName}」について以下の情報をJSON形式で返してください。
 ${extraSection}
-1. 必要な具材リスト（一般的な調味料は含めない、主要な食材のみ）
-2. おすすめレシピを3つ（タイトル、概要、手順）
+おすすめレシピを3つ提案してください。各レシピにはそのレシピで必要な具材リスト（一般的な調味料は含めない、主要な食材のみ）を含めてください。
 
 回答は以下のJSON形式のみで返してください。JSON以外のテキストは含めないでください:
 
 {
-  "ingredients": [
-    { "name": "具材名", "category": "野菜|肉類|魚介類|乳製品|穀類|その他" }
-  ],
   "recipes": [
     {
       "title": "レシピ名",
       "summary": "一行の概要説明",
-      "steps": ["手順1", "手順2", "手順3"]
+      "steps": ["手順1", "手順2", "手順3"],
+      "ingredients": [
+        { "name": "具材名", "category": "野菜|肉類|魚介類|乳製品|穀類|その他" }
+      ]
     }
   ]
 }`;
@@ -64,11 +64,32 @@ function parseDishInfo(raw: string): DishInfo {
     const cleaned = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
     const repaired = jsonrepair(cleaned);
     const parsed = JSON.parse(repaired);
-    // 新形式: { ingredients, recipes }
-    if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.ingredients)) {
+
+    if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.recipes)) {
+      const recipes = (parsed.recipes as Recipe[]).map(r => ({
+        ...r,
+        ingredients: Array.isArray(r.ingredients) ? r.ingredients : [],
+      }));
+      // レシピごとの食材をマージして全体の食材リストを生成
+      const ingredientMap = new Map<string, Ingredient>();
+      for (const r of recipes) {
+        for (const ing of r.ingredients) {
+          if (ing.name && !ingredientMap.has(ing.name)) {
+            ingredientMap.set(ing.name, ing);
+          }
+        }
+      }
+      // 旧形式の ingredients がトップレベルにある場合もマージ
+      if (Array.isArray(parsed.ingredients)) {
+        for (const ing of parsed.ingredients as Ingredient[]) {
+          if (ing.name && !ingredientMap.has(ing.name)) {
+            ingredientMap.set(ing.name, ing);
+          }
+        }
+      }
       return {
-        ingredients: parsed.ingredients as Ingredient[],
-        recipes: Array.isArray(parsed.recipes) ? parsed.recipes as Recipe[] : [],
+        ingredients: Array.from(ingredientMap.values()),
+        recipes,
       };
     }
     // 旧形式: 配列のみ（後方互換）

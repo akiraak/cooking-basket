@@ -583,7 +583,17 @@ async function toggleCheck(item) {
   const res = await api('PUT', `/${item.id}`, { checked: 1 });
   if (res.success) {
     items = items.filter(i => i.id !== item.id);
+    await loadDishes();
     render();
+    // 具材モーダルが開いていればレシピカードの状態も更新
+    if (ingredientsDishId && ingredientsOverlay.classList.contains('active')) {
+      const cached = ingredientsCache.get(ingredientsDishId);
+      if (cached) {
+        renderIngredients(cached.ingredients);
+        renderExtraIngredients(ingredientsDishId);
+        renderRecipes(cached.recipes || [], cached.ingredients);
+      }
+    }
   }
 }
 
@@ -1170,6 +1180,7 @@ function renderRecipes(recipes, ingredients) {
           ${savedId ? `<div><button class="recipe-like-btn${liked ? ' liked' : ''}" data-recipe-id="${savedId}">${liked ? '♥' : '♡'}</button>${likeCount > 0 ? `<span class="recipe-like-count">${likeCount}</span>` : ''}</div>` : ''}
         </div>
         <div class="recipe-card-summary">${highlightIngredients(r.summary, ingredientNames, addedNames)}</div>
+        <button class="recipe-add-to-list-btn" data-recipe-index="${i}">＋ リストに追加</button>
         ${stepsHtml ? `<div class="recipe-detail-toggle" data-target="recipe-steps-${i}">▶ 詳細を見る</div>${stepsHtml}` : ''}
       </div>
     `;
@@ -1219,6 +1230,47 @@ function renderRecipes(recipes, ingredients) {
         });
         await addItem(name, ingredientsDishId);
         renderExtraIngredients(ingredientsDishId);
+      }
+    });
+  });
+
+  // リストに追加ボタン
+  ingredientsRecipes.querySelectorAll('.recipe-add-to-list-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const idx = Number(btn.dataset.recipeIndex);
+      const recipe = recipes[idx];
+      if (!recipe) return;
+      // レシピ固有の食材があればそれを使用、なければ共通食材
+      const recipeIngredients = recipe.ingredients && recipe.ingredients.length > 0
+        ? recipe.ingredients
+        : ingredients;
+      if (!recipeIngredients || recipeIngredients.length === 0) {
+        showToast('食材情報がありません');
+        return;
+      }
+      let addedCount = 0;
+      for (const ing of recipeIngredients) {
+        // 同じ料理に同名アイテムが既にあればスキップ
+        const d = dishes.find(dd => dd.id === ingredientsDishId);
+        if (d && (d.items || []).some(it => it.name === ing.name && !it.checked)) continue;
+        const res = await api('POST', '', { name: ing.name });
+        if (res.success) {
+          items.unshift(res.data);
+          if (ingredientsDishId) {
+            await api('POST', `/${ingredientsDishId}/items`, { itemId: res.data.id }, DISH_API);
+          }
+          addedCount++;
+        }
+      }
+      if (addedCount > 0) {
+        await loadDishes();
+        render();
+        renderIngredients(ingredients);
+        renderExtraIngredients(ingredientsDishId);
+        renderRecipes(recipes, ingredients);
+        showToast(`食材${addedCount}件をリストに追加しました`);
+      } else {
+        showToast('追加する食材はありません');
       }
     });
   });
@@ -1458,8 +1510,15 @@ function appendRecipeCards(count) {
         </div>
       </div>
       <div class="recipe-card-summary">${highlightText(r.summary, query)}</div>
+      <button class="recipe-add-to-list-btn" data-recipe-id="${r.id}">＋ リストに追加</button>
       ${stepsHtml ? `<div class="recipe-detail-toggle" data-target="rp-steps-${idx}">▶ 詳細を見る</div>${stepsHtml}` : ''}
     `;
+
+    // リストに追加
+    const addBtn = card.querySelector('.recipe-add-to-list-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => addRecipeIngredientsToList(r));
+    }
 
     // 詳細展開トグル
     const toggle = card.querySelector('.recipe-detail-toggle');
@@ -1534,6 +1593,46 @@ document.querySelector('.recipe-page-modal').addEventListener('scroll', function
     appendRecipeCards(RECIPE_PAGE_SIZE);
   }
 });
+
+async function addRecipeIngredientsToList(recipe) {
+  let ingredients = [];
+  try { ingredients = JSON.parse(recipe.ingredients_json); } catch {}
+  if (ingredients.length === 0) {
+    showToast('食材情報がありません');
+    return;
+  }
+
+  // レシピ名で料理を作成
+  const dishName = recipe.title || recipe.dish_name;
+  const dishRes = await api('POST', '', { name: dishName }, DISH_API);
+  if (!dishRes.success) {
+    showToast('追加に失敗しました');
+    return;
+  }
+  const dish = dishRes.data;
+  dishes.unshift(dish);
+
+  // レシピのstepsに含まれる食材のみ追加
+  let steps = [];
+  try { steps = JSON.parse(recipe.steps_json); } catch {}
+  const stepsText = (recipe.summary || '') + ' ' + steps.join(' ');
+  const toAdd = ingredients.filter(ing => stepsText.includes(ing.name));
+
+  let addedCount = 0;
+  for (const ing of toAdd) {
+    const itemRes = await api('POST', '', { name: ing.name });
+    if (itemRes.success) {
+      items.unshift(itemRes.data);
+      await api('POST', `/${dish.id}/items`, { itemId: itemRes.data.id }, DISH_API);
+      addedCount++;
+    }
+  }
+
+  await loadDishes();
+  updateDishSelect();
+  render();
+  showToast(`「${dishName}」の食材${addedCount}件をリストに追加しました`);
+}
 
 function updateRecipePageTotalLikes() {
   let totalLikes = 0;

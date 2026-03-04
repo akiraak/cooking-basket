@@ -129,7 +129,7 @@ export function autoSaveRecipes(
   userId: number,
   dishName: string,
   dishId: number,
-  recipes: { title: string; summary: string; steps: string[] }[],
+  recipes: { title: string; summary: string; steps: string[]; ingredients?: { name: string; category: string }[] }[],
   ingredients: { name: string; category: string }[]
 ): void {
   const db = getDatabase();
@@ -157,10 +157,13 @@ export function autoSaveRecipes(
      VALUES (?, ?, ?, ?, ?, ?, ?)`
   );
   const likeStmt = db.prepare('INSERT OR IGNORE INTO recipe_likes (user_id, saved_recipe_id) VALUES (?, ?)');
-  const ingredientsJson = JSON.stringify(ingredients);
+  const fallbackIngredientsJson = JSON.stringify(ingredients);
 
   for (const r of recipes) {
-    const result = stmt.run(userId, dishName, r.title, r.summary || '', JSON.stringify(r.steps || []), ingredientsJson, dishId);
+    const recipeIngredientsJson = r.ingredients && r.ingredients.length > 0
+      ? JSON.stringify(r.ingredients)
+      : fallbackIngredientsJson;
+    const result = stmt.run(userId, dishName, r.title, r.summary || '', JSON.stringify(r.steps || []), recipeIngredientsJson, dishId);
     // タイトルマッチでいいねを復元
     const likers = likesByTitle.get(r.title);
     if (likers) {
