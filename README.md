@@ -1,29 +1,35 @@
 # Life Stream Claude
 
-スマホ向けの買い物リスト Web アプリ。料理を登録すると AI が具材とレシピを提案してくれます。
+スマホ向けの買い物リスト Web アプリ（PWA）。料理を登録すると AI が具材とレシピを提案してくれます。
 
 **アプリ**: https://life.chobi.me/
 **インストールガイド**: https://akiraak.github.io/life-stream-claude/
 
 ## 主な機能
 
-- **買い物リスト** — アイテムの追加・チェック・削除
-- **料理管理** — 料理を追加してアイテムをグループ化
-- **AI 具材提案** — 料理名から Gemini AI が必要な具材を自動提案、選択してリストに一括追加
-- **AI レシピ表示** — 料理ごとにおすすめレシピ3件を表示（手順の折りたたみ付き）
+- **買い物リスト** — アイテムの追加・チェック・並べ替え（ドラッグ&ドロップ）
+- **料理管理** — 料理を追加してアイテムをグループ化、料理間のドラッグ移動
+- **AI 具材提案** — 料理名から Gemini AI がレシピごとの具材を自動提案、タップでリストに追加
+- **AI レシピ表示** — 料理ごとにおすすめレシピ3件を表示（手順・食材付き）
+- **レシピ保存・いいね** — レシピにいいねを付けて保存、複数ユーザー間で共有
+- **みんなのレシピ / 自分のレシピ** — いいね数順のレシピブラウズ、検索・無限スクロール対応
+- **リストに追加** — レシピカードから食材を一括で買い物リストに追加
 - **サジェスト** — 過去の購入頻度をもとにアイテム名・料理名を補完
 - **AI データ引き継ぎ** — 同じ料理名なら前回の AI データを再利用、AI 再取得も可能
-- **管理画面** — データ一覧・編集・サーバ統計
+- **Magic Link 認証** — メールアドレスでログイン（OTP）、複数ユーザー対応
+- **PWA** — ホーム画面に追加してネイティブアプリのように使用可能
+- **管理画面** — ユーザー管理・データ一覧・サーバ統計
 
 ## アーキテクチャ
 
 ```
 ┌─────────────┐       HTTPS/REST        ┌──────────────────┐
 │  Web Client │  <──────────────────>    │  Server (Node.js) │
-│  (HTML/JS)  │       JSON              │  Express + SQLite  │
-│  モバイル最適化│                        │                    │
+│  (HTML/JS)  │       JSON + JWT        │  Express + SQLite  │
+│  PWA対応     │                        │                    │
 └─────────────┘                         ├──────────────────┤
                                         │  Gemini API       │ ← AI 具材・レシピ提案
+                                        │  Resend           │ ← Magic Link メール送信
                                         │  Claude Code CLI  │ ← レシピ推薦
                                         └──────────────────┘
 ```
@@ -34,8 +40,10 @@
 |--------|------|
 | サーバ | Node.js 20+, Express.js, TypeScript |
 | DB | SQLite (better-sqlite3, WAL モード) |
+| 認証 | Magic Link (OTP) + JWT |
+| メール | Resend |
 | AI | Google Gemini API (具材・レシピ), Claude Code CLI (レシピ推薦) |
-| Web | HTML / CSS / JavaScript (フレームワークなし, モバイルファースト) |
+| Web | HTML / CSS / JavaScript (フレームワークなし, モバイルファースト, PWA) |
 
 ## ディレクトリ構成
 
@@ -46,17 +54,24 @@ life-stream-claude/
 │   │   ├── index.ts        # エントリポイント
 │   │   ├── database.ts     # SQLite 初期化・マイグレーション
 │   │   ├── routes/
-│   │   │   ├── shopping.ts # 買い物リスト API
-│   │   │   ├── dishes.ts   # 料理 API + AI 具材提案
-│   │   │   ├── recipes.ts  # レシピ推薦 API
-│   │   │   ├── claude.ts   # Claude Code 汎用 API
-│   │   │   └── admin.ts    # 管理用 API
+│   │   │   ├── auth.ts           # 認証 API (Magic Link)
+│   │   │   ├── shopping.ts      # 買い物リスト API
+│   │   │   ├── dishes.ts        # 料理 API + AI 具材提案
+│   │   │   ├── saved-recipes.ts  # レシピ保存・いいね API
+│   │   │   ├── recipes.ts       # レシピ推薦 API
+│   │   │   ├── claude.ts        # Claude Code 汎用 API
+│   │   │   ├── admin.ts         # 管理用 API
+│   │   │   └── docs.ts          # ドキュメント表示
 │   │   ├── services/
-│   │   │   ├── shopping-service.ts  # 買い物リスト CRUD
-│   │   │   ├── dish-service.ts      # 料理 CRUD + AI データ管理
-│   │   │   ├── gemini-service.ts    # Gemini API 呼び出し
-│   │   │   └── claude-service.ts    # Claude CLI 呼び出し
+│   │   │   ├── auth-service.ts         # 認証・JWT・OTP・メール送信
+│   │   │   ├── shopping-service.ts     # 買い物リスト CRUD
+│   │   │   ├── dish-service.ts         # 料理 CRUD + AI データ管理
+│   │   │   ├── saved-recipe-service.ts # レシピ保存・いいね管理
+│   │   │   ├── gemini-service.ts       # Gemini API 呼び出し
+│   │   │   ├── claude-service.ts       # Claude CLI 呼び出し
+│   │   │   └── admin-service.ts        # 管理機能
 │   │   └── middleware/
+│   │       ├── auth.ts             # JWT 認証ミドルウェア
 │   │       └── error-handler.ts
 │   ├── package.json
 │   └── tsconfig.json
@@ -64,7 +79,9 @@ life-stream-claude/
 │   ├── index.html          # 買い物リスト画面
 │   ├── app.js
 │   ├── style.css
+│   ├── manifest.json       # PWA マニフェスト
 │   └── admin/              # 管理画面
+├── docs/                   # 仕様書・設計ドキュメント
 ├── CLAUDE.md               # Claude Code 開発ガイド
 ├── TODO.md / DONE.md       # タスク管理
 └── LICENSE                 # MIT
@@ -77,6 +94,7 @@ life-stream-claude/
 - Node.js 20+
 - npm
 - Google Gemini API キー
+- Resend API キー（メール認証用）
 
 ### インストール
 
@@ -94,7 +112,10 @@ cp server/.env.example server/.env
 | 変数 | デフォルト | 説明 |
 |------|-----------|------|
 | `PORT` | `3000` | サーバのリッスンポート |
-| `GEMINI_API_KEY` | — | Google Gemini API キー |
+| `JWT_SECRET` | — | JWT 署名用シークレット（32文字以上） |
+| `APP_URL` | — | アプリの URL（例: `https://your-domain.com`） |
+| `RESEND_API_KEY` | — | Resend API キー |
+| `EMAIL_FROM` | — | 送信元メールアドレス |
 
 ### 起動
 
@@ -115,6 +136,14 @@ npm start
 
 ## API エンドポイント
 
+### 認証
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| POST | `/api/auth/login` | Magic Link 送信 `{ email }` |
+| POST | `/api/auth/verify-code` | OTP 検証 `{ email, code }` |
+| GET | `/api/auth/me` | ログインユーザー情報 |
+
 ### 買い物リスト
 
 | メソッド | パス | 説明 |
@@ -123,18 +152,35 @@ npm start
 | POST | `/api/shopping` | アイテム追加 `{ name, category? }` |
 | PUT | `/api/shopping/:id` | アイテム更新 |
 | DELETE | `/api/shopping/:id` | アイテム削除 |
+| PUT | `/api/shopping/reorder` | 並べ替え |
+| DELETE | `/api/shopping/checked` | チェック済み一括削除 |
+| GET | `/api/shopping/suggestions?q=` | サジェスト |
 
 ### 料理
 
 | メソッド | パス | 説明 |
 |---------|------|------|
 | GET | `/api/dishes` | 全料理取得 |
+| POST | `/api/dishes` | 料理追加 |
+| PUT | `/api/dishes/:id` | 料理名更新 |
+| DELETE | `/api/dishes/:id` | 料理削除（ソフトデリート） |
+| PUT | `/api/dishes/reorder` | 並べ替え |
 | GET | `/api/dishes/suggestions?q=` | 料理名サジェスト |
-| POST | `/api/dishes` | 料理追加 (同名料理から AI データ引き継ぎ) |
-| DELETE | `/api/dishes/:id` | 料理削除 |
-| POST | `/api/dishes/:id/suggest-ingredients` | AI 具材・レシピ提案 (`{ force? }`) |
-| POST | `/api/dishes/:id/items` | 料理にアイテムをリンク |
+| POST | `/api/dishes/:id/suggest-ingredients` | AI 具材・レシピ提案 |
+| POST | `/api/dishes/:id/items` | アイテムリンク |
+| PUT | `/api/dishes/:id/items/reorder` | リンク内並べ替え |
 | DELETE | `/api/dishes/:id/items/:itemId` | リンク解除 |
+
+### レシピ
+
+| メソッド | パス | 説明 |
+|---------|------|------|
+| GET | `/api/saved-recipes` | 自分のレシピ一覧 |
+| GET | `/api/saved-recipes/shared` | みんなのレシピ一覧 |
+| GET | `/api/saved-recipes/:id` | レシピ詳細 |
+| POST | `/api/saved-recipes` | レシピ保存 |
+| PUT | `/api/saved-recipes/:id/like` | いいねトグル |
+| DELETE | `/api/saved-recipes/:id` | レシピ削除 |
 
 ### レスポンス形式
 

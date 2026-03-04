@@ -2,24 +2,17 @@
 
 ## プロジェクト概要
 
-Life Stream Claude は iPhone アプリ + サーバ構成のアプリケーション。
-サーバ側で Claude Code を実行し、AI 処理結果を iOS アプリに返す。
+料理買物リストの PWA（Progressive Web App）。
+料理を登録すると Gemini AI が具材とレシピを提案し、買い物リストに一括追加できる。
+Magic Link 認証で複数ユーザー対応。
 
 ## 開発コマンド
 
 ### サーバ (server/)
 ```bash
-npm run dev          # 開発サーバ起動 (ts-node + watch)
+npm run dev          # 開発サーバ起動 (ts-node + nodemon)
 npm run build        # TypeScript ビルド
-npm run start        # プロダクション起動
-npm test             # テスト実行
-npm run lint         # ESLint 実行
-```
-
-### iOS (ios/)
-```bash
-xcodebuild -scheme LifeStream -destination 'platform=iOS Simulator,name=iPhone 16' build
-xcodebuild test -scheme LifeStream -destination 'platform=iOS Simulator,name=iPhone 16'
+npm start            # プロダクション起動
 ```
 
 ## Git ルール
@@ -38,17 +31,17 @@ xcodebuild test -scheme LifeStream -destination 'platform=iOS Simulator,name=iPh
 - エラーハンドリングは try-catch で明示的に行う
 - ファイル命名: kebab-case (`claude-service.ts`)
 
-### Swift (iOS)
-- SwiftUI を使用 (UIKit は使わない)
-- MVVM パターンに従う
-- ファイル命名: PascalCase (`ChatView.swift`)
-- `@Observable` マクロを使用 (iOS 17+)
+### Web クライアント
+- フレームワークなしの Vanilla JS（モバイルファースト）
+- PWA 対応（manifest.json、Service Worker）
 
 ## アーキテクチャ上の注意
 
 - サーバと Claude Code の連携は `claude --print` (非対話モード) を使用する
-- iOS → サーバ間の通信は JSON over HTTPS
+- Web → サーバ間の通信は JSON over HTTPS (REST API)
 - API のレスポンスは `{ "success": bool, "data": any, "error": string? }` の形式で統一
+- 認証は Magic Link (OTP) + JWT
+- メール送信は Resend (noreply@chobi.me)
 - 環境変数は `.env` ファイルで管理 (Git にコミットしない)
 
 ## タスク管理ルール
@@ -63,5 +56,5 @@ xcodebuild test -scheme LifeStream -destination 'platform=iOS Simulator,name=iPh
 ## ファイル構成のルール
 
 - サーバのソースは `server/src/` 配下に置く
-- iOS のソースは `ios/LifeStream/` 配下に置く
-- 設定ファイルはそれぞれのルート (`server/`, `ios/`) に置く
+- Web クライアントは `web/` 配下に置く
+- 設定ファイルは `server/` に置く
