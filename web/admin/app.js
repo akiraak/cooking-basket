@@ -204,6 +204,7 @@ const Pages = {
   'icon-preview':     { title: 'アイコン候補',     render: renderIconPreview, parent: 'docs' },
   'app-name':         { title: 'アプリ名候補',     render: renderAppName, parent: 'docs' },
   'monetization':     { title: 'マネタイズ検討',   render: renderMonetization, parent: 'docs' },
+  'native-app':       { title: 'ネイティブアプリ技術検討', render: renderNativeApp, parent: 'docs' },
 };
 
 // ============================================================
@@ -495,6 +496,7 @@ function renderDocs() {
     { hash: 'icon-preview', icon: '&#127912;', title: 'アイコン候補', desc: 'ヘッダーアイコンの組み合わせ比較' },
     { hash: 'app-name', icon: '&#9998;', title: 'アプリ名候補', desc: 'アプリ名の候補一覧（決定：お料理バスケット）' },
     { hash: 'monetization', icon: '&#128176;', title: 'マネタイズ検討', desc: '収益モデル比較、競合価格帯、推奨プラン、ロードマップ' },
+    { hash: 'native-app', icon: '&#128241;', title: 'ネイティブアプリ技術検討', desc: 'iPhone/Android アプリ化の技術比較・推奨アプローチ・コスト試算' },
   ];
 
   const area = document.getElementById('content-area');
@@ -1008,6 +1010,376 @@ function renderMonetization() {
       </div>`;
   }
 
+  area.innerHTML = html;
+}
+
+// ============================================================
+// Native App Technical Investigation (ネイティブアプリ技術検討)
+// ============================================================
+function renderNativeApp() {
+  const area = document.getElementById('content-area');
+
+  const sections = [
+    {
+      title: '1. 現状の整理',
+      content: `
+        <table>
+          <thead><tr><th>項目</th><th>現状</th></tr></thead>
+          <tbody>
+            <tr><td><strong>アプリ形態</strong></td><td>PWA（Progressive Web App）— Vanilla JS、モバイルファースト設計</td></tr>
+            <tr><td><strong>manifest.json</strong></td><td>あり（standalone 表示、192/512px アイコン）</td></tr>
+            <tr><td><strong>Service Worker</strong></td><td><span class="badge badge-warning">未実装</span> — オフライン対応・プッシュ通知は未対応</td></tr>
+            <tr><td><strong>認証</strong></td><td>Magic Link (OTP) + JWT + Google Sign-In</td></tr>
+            <tr><td><strong>バックエンド</strong></td><td>Node.js + Express + SQLite（単一サーバ）</td></tr>
+            <tr><td><strong>AI 連携</strong></td><td>Gemini API（具材提案・レシピ生成）</td></tr>
+          </tbody>
+        </table>
+      `
+    },
+    {
+      title: '2. アプリ化の技術選択肢',
+      content: `
+        <table>
+          <thead><tr><th>アプローチ</th><th>概要</th><th>開発コスト</th><th>iOS</th><th>Android</th><th>適合度</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>A. PWA のまま</strong></td>
+              <td>現在のまま。ホーム画面追加で利用</td>
+              <td><span class="badge badge-success">なし</span></td>
+              <td>Safari から追加可能。プッシュ通知は iOS 16.4+ で対応</td>
+              <td>Chrome から追加可能。フル機能</td>
+              <td><span class="badge badge-success">★★★</span></td>
+            </tr>
+            <tr>
+              <td><strong>B. Capacitor</strong></td>
+              <td>既存 PWA を WebView でラップしてネイティブアプリ化</td>
+              <td><span class="badge badge-success">低（数日）</span></td>
+              <td>App Store 提出可能（ただし審査リスクあり）</td>
+              <td>Play Store 提出可能</td>
+              <td><span class="badge badge-success">★★★</span></td>
+            </tr>
+            <tr>
+              <td><strong>C. TWA（Android のみ）</strong></td>
+              <td>Trusted Web Activity で PWA を Play Store に公開</td>
+              <td><span class="badge badge-success">低（1〜2日）</span></td>
+              <td><span class="badge badge-neutral">非対応</span></td>
+              <td>Play Store 提出可能。Chrome エンジンで描画</td>
+              <td><span class="badge badge-warning">★★</span></td>
+            </tr>
+            <tr>
+              <td><strong>D. React Native</strong></td>
+              <td>JS/TS でネイティブ UI を構築。既存コード再利用は限定的</td>
+              <td><span class="badge badge-warning">中〜高（数ヶ月）</span></td>
+              <td>App Store 提出可能</td>
+              <td>Play Store 提出可能</td>
+              <td><span class="badge badge-warning">★★</span></td>
+            </tr>
+            <tr>
+              <td><strong>E. Flutter</strong></td>
+              <td>Dart でネイティブ UI を構築。既存コード再利用不可</td>
+              <td><span class="badge badge-warning">高（数ヶ月）</span></td>
+              <td>App Store 提出可能</td>
+              <td>Play Store 提出可能</td>
+              <td><span class="badge badge-neutral">★</span></td>
+            </tr>
+            <tr>
+              <td><strong>F. Swift / Kotlin ネイティブ</strong></td>
+              <td>各プラットフォーム専用開発</td>
+              <td><span class="badge badge-warning">最高（各数ヶ月×2）</span></td>
+              <td>App Store 提出可能</td>
+              <td>Play Store 提出可能</td>
+              <td><span class="badge badge-neutral">★</span></td>
+            </tr>
+          </tbody>
+        </table>
+      `
+    },
+    {
+      title: '3. 各アプローチの詳細評価',
+      content: `
+        <div class="info-section">
+          <div class="info-section-title">A. PWA のまま（現状維持 + 改善）</div>
+          <p><strong>やること：</strong>Service Worker 追加（オフライン対応・プッシュ通知）</p>
+          <table>
+            <thead><tr><th>メリット</th><th>デメリット</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>
+                  ・追加開発コストがほぼゼロ<br>
+                  ・コードベースが1つのまま<br>
+                  ・iOS 16.4+ でプッシュ通知対応済み<br>
+                  ・ストア審査不要、即時デプロイ
+                </td>
+                <td>
+                  ・App Store / Play Store に並ばない（発見性が低い）<br>
+                  ・「アプリ」として認識されにくい<br>
+                  ・iOS での一部制約（バックグラウンド同期など）
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="info-section">
+          <div class="info-section-title">B. Capacitor（推奨）</div>
+          <p><strong>やること：</strong>Capacitor CLI で iOS/Android プロジェクト生成 → 既存 web/ をバンドル</p>
+          <table>
+            <thead><tr><th>メリット</th><th>デメリット</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>
+                  ・既存 Vanilla JS コードをそのまま利用<br>
+                  ・ネイティブ API アクセス（プッシュ通知、カメラ等）<br>
+                  ・1つのコードベースで Web + iOS + Android<br>
+                  ・Web 開発者のスキルセットで対応可能<br>
+                  ・導入は数時間〜数日
+                </td>
+                <td>
+                  ・Apple ガイドライン 4.2「リパッケージ Web サイト」として審査リジェクトのリスク<br>
+                  ・ネイティブの操作感（遷移アニメーション等）は劣る<br>
+                  ・Xcode / Android Studio のセットアップが必要
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p><strong>Apple 審査対策：</strong>ネイティブ機能（プッシュ通知、ショートカット、ウィジェット等）を追加して「Web サイトのラップ以上」であることを示す</p>
+        </div>
+
+        <div class="info-section">
+          <div class="info-section-title">C. TWA（Trusted Web Activity）— Android 限定</div>
+          <p><strong>やること：</strong>Bubblewrap / PWABuilder で TWA パッケージ生成</p>
+          <table>
+            <thead><tr><th>メリット</th><th>デメリット</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>
+                  ・コード変更ゼロで Play Store 公開<br>
+                  ・Chrome エンジンで PWA そのままの体験<br>
+                  ・導入最速（1〜2日）
+                </td>
+                <td>
+                  ・Android 専用（iOS は非対応）<br>
+                  ・ネイティブ API アクセスは限定的<br>
+                  ・Chrome がインストールされていない場合は WebView にフォールバック
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="info-section">
+          <div class="info-section-title">D〜F. フルネイティブ系（React Native / Flutter / Swift・Kotlin）</div>
+          <table>
+            <thead><tr><th>メリット</th><th>デメリット</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>
+                  ・完全なネイティブ UI/UX<br>
+                  ・パフォーマンス最高<br>
+                  ・App Store 審査に強い
+                </td>
+                <td>
+                  ・既存コード再利用がほぼ不可（API 層のみ共通）<br>
+                  ・開発期間: 3〜6ヶ月（小規模チーム）<br>
+                  ・新しい言語/フレームワーク学習が必要（Flutter→Dart）<br>
+                  ・メンテナンスコストが Web + モバイルで倍増
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `
+    },
+    {
+      title: '4. コスト比較',
+      content: `
+        <table>
+          <thead><tr><th>項目</th><th>PWA</th><th>Capacitor</th><th>TWA</th><th>React Native</th><th>Flutter</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>初期開発</strong></td>
+              <td>0円</td>
+              <td>数万円分の工数</td>
+              <td>数万円分の工数</td>
+              <td>数十万〜数百万円</td>
+              <td>数十万〜数百万円</td>
+            </tr>
+            <tr>
+              <td><strong>Apple Developer 年会費</strong></td>
+              <td>不要</td>
+              <td>$99/年（約15,000円）</td>
+              <td>不要</td>
+              <td>$99/年</td>
+              <td>$99/年</td>
+            </tr>
+            <tr>
+              <td><strong>Google Play 登録料</strong></td>
+              <td>不要</td>
+              <td>$25（一回のみ）</td>
+              <td>$25（一回のみ）</td>
+              <td>$25</td>
+              <td>$25</td>
+            </tr>
+            <tr>
+              <td><strong>ストア手数料</strong></td>
+              <td>なし</td>
+              <td>15〜30%</td>
+              <td>15〜30%</td>
+              <td>15〜30%</td>
+              <td>15〜30%</td>
+            </tr>
+            <tr>
+              <td><strong>継続メンテナンス</strong></td>
+              <td>低</td>
+              <td>低〜中</td>
+              <td>低</td>
+              <td>中〜高</td>
+              <td>中〜高</td>
+            </tr>
+            <tr>
+              <td><strong>学習コスト</strong></td>
+              <td>なし</td>
+              <td>低（Capacitor CLI）</td>
+              <td>低（Bubblewrap）</td>
+              <td>中（React Native）</td>
+              <td>高（Dart 言語）</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin-top:12px;font-size:13px;color:#64748b;">※ ストア手数料は年間収益 $1M 以下の場合、Apple/Google ともに 15% の小規模事業者プログラムあり</p>
+      `
+    },
+    {
+      title: '5. 推奨アプローチ',
+      content: `
+        <div class="info-section" style="border-left: 4px solid #007aff;">
+          <div class="info-section-title" style="color: #007aff;">推奨: 段階的アプローチ（Phase 1 → 2 → 3）</div>
+
+          <div style="margin-bottom:16px;">
+            <strong>Phase 1: PWA 強化（今すぐ）</strong>
+            <ul style="margin:8px 0; padding-left:20px; line-height:1.8;">
+              <li>Service Worker 追加（オフラインキャッシュ）</li>
+              <li>Web Push 通知の実装</li>
+              <li>インストールバナー（beforeinstallprompt）の改善</li>
+              <li>コスト: <span class="badge badge-success">ゼロ</span>　期間: <span class="badge badge-info">1〜2週間</span></li>
+            </ul>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <strong>Phase 2: Android アプリ — TWA で Play Store 公開</strong>
+            <ul style="margin:8px 0; padding-left:20px; line-height:1.8;">
+              <li>Bubblewrap / PWABuilder で TWA パッケージ作成</li>
+              <li>Digital Asset Links 設定</li>
+              <li>Play Store に公開（発見性アップ）</li>
+              <li>コスト: <span class="badge badge-success">$25（一回）</span>　期間: <span class="badge badge-info">1〜2日</span></li>
+            </ul>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <strong>Phase 3: iOS アプリ — Capacitor でラップ</strong>
+            <ul style="margin:8px 0; padding-left:20px; line-height:1.8;">
+              <li>Capacitor で iOS プロジェクト生成</li>
+              <li>ネイティブ機能追加（プッシュ通知、ショートカット等）で Apple 審査対策</li>
+              <li>App Store に公開</li>
+              <li>コスト: <span class="badge badge-warning">$99/年</span>　期間: <span class="badge badge-info">1〜2週間</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="info-section">
+          <div class="info-section-title">この推奨の理由</div>
+          <table>
+            <thead><tr><th>観点</th><th>説明</th></tr></thead>
+            <tbody>
+              <tr><td><strong>コスト最小</strong></td><td>既存コードベースを最大限活用。React Native/Flutter のようなフルリライト不要</td></tr>
+              <tr><td><strong>リスク分散</strong></td><td>段階的に進めるため、各フェーズで判断・方向転換が可能</td></tr>
+              <tr><td><strong>スキルセット</strong></td><td>Web 開発スキル（HTML/CSS/JS）のみで対応可能</td></tr>
+              <tr><td><strong>メンテナンス</strong></td><td>コードベースは基本的に1つ。Web / Android / iOS で共有</td></tr>
+              <tr><td><strong>ユーザー体験</strong></td><td>本アプリはデータ表示・リスト操作が中心であり、WebView で十分なパフォーマンス</td></tr>
+            </tbody>
+          </table>
+        </div>
+      `
+    },
+    {
+      title: '6. Apple App Store 審査の注意点',
+      content: `
+        <div class="info-section">
+          <div class="info-section-title">ガイドライン 4.2 — リパッケージ Web サイトの禁止</div>
+          <p>Apple は「Web サイトを単にラップしただけのアプリ」をリジェクトする方針。Capacitor で提出する場合は以下の対策が必要：</p>
+          <table>
+            <thead><tr><th>対策</th><th>詳細</th><th>難易度</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>プッシュ通知</strong></td>
+                <td>APNs 連携で買い物リマインダーや共有通知を実装</td>
+                <td><span class="badge badge-success">低</span></td>
+              </tr>
+              <tr>
+                <td><strong>Siri ショートカット</strong></td>
+                <td>「今日の買い物リスト」を Siri で確認</td>
+                <td><span class="badge badge-warning">中</span></td>
+              </tr>
+              <tr>
+                <td><strong>ウィジェット</strong></td>
+                <td>ホーム画面に買い物リストの概要を表示</td>
+                <td><span class="badge badge-warning">中</span></td>
+              </tr>
+              <tr>
+                <td><strong>App Clip / Spotlight</strong></td>
+                <td>ディープリンクで特定の料理や買い物リストに直接アクセス</td>
+                <td><span class="badge badge-warning">中</span></td>
+              </tr>
+              <tr>
+                <td><strong>ネイティブ設定画面</strong></td>
+                <td>iOS の Settings.app に設定項目を追加</td>
+                <td><span class="badge badge-success">低</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <p style="margin-top:12px;font-size:13px;color:#64748b;">※ 最低でもプッシュ通知 + もう1つのネイティブ機能を実装することで審査通過率が上がる</p>
+        </div>
+      `
+    },
+    {
+      title: '7. 必要な開発環境・ツール',
+      content: `
+        <table>
+          <thead><tr><th>ツール</th><th>用途</th><th>備考</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Xcode</strong></td><td>iOS ビルド・シミュレータ</td><td>macOS 必須。App Store 提出に必要</td></tr>
+            <tr><td><strong>Android Studio</strong></td><td>Android ビルド・エミュレータ</td><td>Windows/Mac/Linux 対応</td></tr>
+            <tr><td><strong>Capacitor CLI</strong></td><td>iOS/Android プロジェクト管理</td><td><code>npm install @capacitor/core @capacitor/cli</code></td></tr>
+            <tr><td><strong>Bubblewrap</strong></td><td>TWA パッケージ生成</td><td><code>npm install -g @nicolo-ribaudo/pwabuilder-cli</code></td></tr>
+            <tr><td><strong>Apple Developer Account</strong></td><td>App Store 提出</td><td>$99/年</td></tr>
+            <tr><td><strong>Google Play Console</strong></td><td>Play Store 提出</td><td>$25（一回）</td></tr>
+          </tbody>
+        </table>
+      `
+    },
+    {
+      title: '8. 参考リンク',
+      content: `
+        <table>
+          <thead><tr><th>リソース</th><th>URL</th></tr></thead>
+          <tbody>
+            <tr><td>Capacitor 公式ドキュメント</td><td><a href="https://capacitorjs.com/docs" target="_blank">capacitorjs.com/docs</a></td></tr>
+            <tr><td>PWA → Native (Capacitor)</td><td><a href="https://capgo.app/blog/transform-pwa-to-native-app-with-capacitor/" target="_blank">capgo.app/blog/transform-pwa-to-native-app-with-capacitor</a></td></tr>
+            <tr><td>TWA 公式ガイド</td><td><a href="https://developer.android.com/develop/ui/views/layout/webapps/trusted-web-activities" target="_blank">developer.android.com TWA</a></td></tr>
+            <tr><td>PWA vs Native 比較表 (2026)</td><td><a href="https://progressier.com/pwa-vs-native-app-comparison-table" target="_blank">progressier.com/pwa-vs-native-app-comparison-table</a></td></tr>
+            <tr><td>Apple App Store ストア提出ガイド</td><td><a href="https://www.mobiloud.com/blog/publishing-pwa-app-store" target="_blank">mobiloud.com - Publishing PWA to App Store</a></td></tr>
+            <tr><td>Capacitor vs React Native 比較</td><td><a href="https://nextnative.dev/blog/capacitor-vs-react-native" target="_blank">nextnative.dev/blog/capacitor-vs-react-native</a></td></tr>
+          </tbody>
+        </table>
+      `
+    }
+  ];
+
+  let html = '<a href="#docs" class="back-link">&larr; ドキュメント一覧</a>';
+  html += '<div class="info-section-title" style="font-size:18px;margin-bottom:20px;">ネイティブアプリ技術検討（2026-03）</div>';
+  for (const s of sections) {
+    html += `<div class="info-section"><div class="info-section-title">${s.title}</div>${s.content}</div>`;
+  }
   area.innerHTML = html;
 }
 
