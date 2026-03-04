@@ -1399,12 +1399,20 @@ function highlightText(text, query) {
   return escaped.replace(regex, '<mark style="background:rgba(249,115,22,0.25);color:inherit;border-radius:2px;padding:0 1px">$1</mark>');
 }
 
-function renderRecipePage(allRecipes, mode, searchQuery) {
-  const query = searchQuery || '';
-  const isSaved = mode === 'saved';
-  const recipes = isSaved ? (allRecipes || []).filter(r => r.liked) : (allRecipes || []);
+const RECIPE_PAGE_SIZE = 20;
+let recipePageRecipes = [];
+let recipePageQuery = '';
+let recipePageRendered = 0;
+let recipePageStepIdx = 0;
 
-  if (recipes.length === 0) {
+function renderRecipePage(allRecipes, mode, searchQuery) {
+  recipePageQuery = searchQuery || '';
+  const isSaved = mode === 'saved';
+  recipePageRecipes = isSaved ? (allRecipes || []).filter(r => r.liked) : (allRecipes || []);
+  recipePageRendered = 0;
+  recipePageStepIdx = 0;
+
+  if (recipePageRecipes.length === 0) {
     const emptyMsg = isSaved
       ? 'いいね済みのレシピはありません。<br>レシピの♡をタップしていいねしてください。'
       : 'みんなのレシピはまだありません。';
@@ -1414,100 +1422,118 @@ function renderRecipePage(allRecipes, mode, searchQuery) {
   }
 
   // いいね合計数
-  const totalLikes = recipes.reduce((sum, r) => sum + (r.like_count || 0), 0);
+  const totalLikes = recipePageRecipes.reduce((sum, r) => sum + (r.like_count || 0), 0);
   recipePageLikeCount.textContent = totalLikes > 0 ? `♥ ${totalLikes}` : '';
 
-  let html = '';
-  let stepIdx = 0;
-  for (const r of recipes) {
+  recipePageContent.innerHTML = '';
+  appendRecipeCards(RECIPE_PAGE_SIZE);
+}
+
+function appendRecipeCards(count) {
+  const query = recipePageQuery;
+  const slice = recipePageRecipes.slice(recipePageRendered, recipePageRendered + count);
+  if (slice.length === 0) return;
+
+  const fragment = document.createDocumentFragment();
+  for (const r of slice) {
     const liked = r.liked;
     const likeCount = r.like_count || 0;
     let steps = [];
     try { steps = JSON.parse(r.steps_json); } catch {}
     let stepsHtml = '';
+    const idx = recipePageStepIdx++;
     if (steps && steps.length > 0) {
-      stepsHtml = `<ol class="recipe-steps" id="rp-steps-${stepIdx}">`;
+      stepsHtml = `<ol class="recipe-steps" id="rp-steps-${idx}">`;
       steps.forEach(s => { stepsHtml += `<li>${highlightText(s, query)}</li>`; });
       stepsHtml += '</ol>';
     }
-    html += `
-      <div class="recipe-card">
-        <div class="recipe-card-header">
-          <div class="recipe-card-title">${highlightText(r.title, query)}</div>
-          <div>
-            <button class="recipe-like-btn${liked ? ' liked' : ''}" data-recipe-id="${r.id}">${liked ? '♥' : '♡'}</button>
-            ${likeCount > 0 ? `<span class="recipe-like-count">${likeCount}</span>` : ''}
-          </div>
+    const card = document.createElement('div');
+    card.className = 'recipe-card';
+    card.innerHTML = `
+      <div class="recipe-card-header">
+        <div class="recipe-card-title">${highlightText(r.title, query)}</div>
+        <div>
+          <button class="recipe-like-btn${liked ? ' liked' : ''}" data-recipe-id="${r.id}">${liked ? '♥' : '♡'}</button>
+          ${likeCount > 0 ? `<span class="recipe-like-count">${likeCount}</span>` : ''}
         </div>
-        <div class="recipe-card-summary">${highlightText(r.summary, query)}</div>
-        ${stepsHtml ? `<div class="recipe-detail-toggle" data-target="rp-steps-${stepIdx}">▶ 詳細を見る</div>${stepsHtml}` : ''}
-        </div>
-      `;
-    stepIdx++;
-  }
+      </div>
+      <div class="recipe-card-summary">${highlightText(r.summary, query)}</div>
+      ${stepsHtml ? `<div class="recipe-detail-toggle" data-target="rp-steps-${idx}">▶ 詳細を見る</div>${stepsHtml}` : ''}
+    `;
 
-  recipePageContent.innerHTML = html;
+    // 詳細展開トグル
+    const toggle = card.querySelector('.recipe-detail-toggle');
+    if (toggle) {
+      toggle.addEventListener('click', () => {
+        const stepsEl = document.getElementById(toggle.dataset.target);
+        if (stepsEl) {
+          const isOpen = stepsEl.classList.toggle('open');
+          toggle.textContent = isOpen ? '▼ 閉じる' : '▶ 詳細を見る';
+        }
+      });
+    }
 
-  // 詳細展開トグル
-  recipePageContent.querySelectorAll('.recipe-detail-toggle').forEach(toggle => {
-    toggle.addEventListener('click', () => {
-      const steps = document.getElementById(toggle.dataset.target);
-      if (steps) {
-        const isOpen = steps.classList.toggle('open');
-        toggle.textContent = isOpen ? '▼ 閉じる' : '▶ 詳細を見る';
-      }
-    });
-  });
+    // いいねトグル
+    const likeBtn = card.querySelector('.recipe-like-btn');
+    if (likeBtn) {
+      likeBtn.addEventListener('click', async () => {
+        const recipeId = Number(likeBtn.dataset.recipeId);
+        if (!recipeId) return;
+        const res = await api('PUT', `/${recipeId}/like`, {}, '/api/saved-recipes');
+        if (res.success) {
+          const { liked, like_count } = res.data;
 
-  // いいねトグル
-  recipePageContent.querySelectorAll('.recipe-like-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const recipeId = Number(btn.dataset.recipeId);
-      if (!recipeId) return;
-      const res = await api('PUT', `/${recipeId}/like`, {}, '/api/saved-recipes');
-      if (res.success) {
-        const { liked, like_count } = res.data;
-
-        if (recipePageMode === 'saved' && !liked) {
-          // 自分のレシピ: いいね解除 → カードを削除
-          btn.closest('.recipe-card').remove();
-          if (recipePageContent.querySelectorAll('.recipe-card').length === 0) {
-            recipePageContent.innerHTML = '<div class="recipe-page-empty">いいね済みのレシピはありません。<br>レシピの♡をタップしていいねしてください。</div>';
-            recipePageLikeCount.textContent = '';
+          if (recipePageMode === 'saved' && !liked) {
+            likeBtn.closest('.recipe-card').remove();
+            if (recipePageContent.querySelectorAll('.recipe-card').length === 0) {
+              recipePageContent.innerHTML = '<div class="recipe-page-empty">いいね済みのレシピはありません。<br>レシピの♡をタップしていいねしてください。</div>';
+              recipePageLikeCount.textContent = '';
+            } else {
+              updateRecipePageTotalLikes();
+            }
           } else {
+            likeBtn.textContent = liked ? '♥' : '♡';
+            likeBtn.classList.toggle('liked', !!liked);
+            const countSpan = likeBtn.parentElement.querySelector('.recipe-like-count');
+            if (like_count > 0) {
+              if (countSpan) {
+                countSpan.textContent = like_count;
+              } else {
+                likeBtn.insertAdjacentHTML('afterend', `<span class="recipe-like-count">${like_count}</span>`);
+              }
+            } else if (countSpan) {
+              countSpan.remove();
+            }
             updateRecipePageTotalLikes();
           }
-        } else {
-          // みんなのレシピ: カードは残してボタン状態を更新
-          btn.textContent = liked ? '♥' : '♡';
-          btn.classList.toggle('liked', !!liked);
-          const countSpan = btn.parentElement.querySelector('.recipe-like-count');
-          if (like_count > 0) {
-            if (countSpan) {
-              countSpan.textContent = like_count;
-            } else {
-              btn.insertAdjacentHTML('afterend', `<span class="recipe-like-count">${like_count}</span>`);
-            }
-          } else if (countSpan) {
-            countSpan.remove();
-          }
-          updateRecipePageTotalLikes();
-        }
 
-        // ingredientsCache のrecipeStatesも同期
-        for (const [, cached] of ingredientsCache) {
-          if (cached.recipeStates) {
-            const state = cached.recipeStates.find(s => s.id === recipeId);
-            if (state) {
-              state.liked = liked;
-              state.like_count = like_count;
+          for (const [, cached] of ingredientsCache) {
+            if (cached.recipeStates) {
+              const state = cached.recipeStates.find(s => s.id === recipeId);
+              if (state) {
+                state.liked = liked;
+                state.like_count = like_count;
+              }
             }
           }
         }
-      }
-    });
-  });
+      });
+    }
+
+    fragment.appendChild(card);
+  }
+
+  recipePageContent.appendChild(fragment);
+  recipePageRendered += slice.length;
 }
+
+// 無限スクロール: レシピページモーダル内のスクロール検知
+document.querySelector('.recipe-page-modal').addEventListener('scroll', function () {
+  if (recipePageRendered >= recipePageRecipes.length) return;
+  if (this.scrollTop + this.clientHeight >= this.scrollHeight - 200) {
+    appendRecipeCards(RECIPE_PAGE_SIZE);
+  }
+});
 
 function updateRecipePageTotalLikes() {
   let totalLikes = 0;
