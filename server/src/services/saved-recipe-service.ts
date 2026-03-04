@@ -31,8 +31,9 @@ export function getAllSavedRecipes(userId: number): SavedRecipe[] {
       EXISTS(SELECT 1 FROM recipe_likes WHERE saved_recipe_id = sr.id AND user_id = ?) as liked
     FROM saved_recipes sr
     WHERE sr.user_id = ?
+       OR EXISTS(SELECT 1 FROM recipe_likes WHERE saved_recipe_id = sr.id AND user_id = ?)
     ORDER BY like_count DESC, sr.dish_name ASC, sr.created_at DESC
-  `).all(userId, userId) as SavedRecipe[];
+  `).all(userId, userId, userId) as SavedRecipe[];
 }
 
 export function getSharedRecipes(userId: number): SavedRecipe[] {
