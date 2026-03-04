@@ -2,7 +2,7 @@
 
 ## プロジェクト概要
 
-料理買物リストの PWA（Progressive Web App）。
+お料理バスケット — 料理買物リストの PWA（Progressive Web App）。
 料理を登録すると Gemini AI が具材とレシピを提案し、買い物リストに一括追加できる。
 Magic Link 認証で複数ユーザー対応。
 

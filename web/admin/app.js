@@ -587,7 +587,7 @@ function renderIconPreview() {
 // App Name Candidates
 // ============================================================
 function renderAppName() {
-  const currentName = '料理買物List';
+  const currentName = 'お料理バスケット';
 
   const categories = [
     {
