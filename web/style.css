@@ -929,12 +929,41 @@ body.modal-open { overflow: hidden; }
   margin: 0 -16px;
   padding-left: 16px;
   padding-right: 16px;
-  border-bottom: 1px solid #333;
-  margin-bottom: 16px;
   position: sticky;
   top: 0;
   background: #242424;
   z-index: 1;
+}
+
+.recipe-search-bar {
+  margin: 0 -16px;
+  padding: 0 16px 12px;
+  border-bottom: 1px solid #333;
+  margin-bottom: 16px;
+  position: sticky;
+  top: 45px;
+  background: #242424;
+  z-index: 1;
+}
+
+.recipe-search-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: #1c1c1c;
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: #d4d4d4;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.recipe-search-input:focus {
+  border-color: #fb923c;
+}
+
+.recipe-search-input::placeholder {
+  color: #666;
 }
 
 .recipe-page-title {

@@ -1340,11 +1340,32 @@ if (screen.orientation && screen.orientation.lock) {
 const recipePageContent = document.getElementById('recipe-page-content');
 const recipePageLikeCount = document.getElementById('recipe-page-like-count');
 const recipePageTitle = document.getElementById('recipe-page-title');
+const recipeSearchInput = document.getElementById('recipe-search-input');
 let recipePageMode = null; // 'shared' | 'saved'
+let recipePageData = []; // 現在のレシピデータ保持
 
 document.getElementById('header-shared-recipe-btn').addEventListener('click', () => openRecipePage('shared'));
 document.getElementById('header-saved-recipe-btn').addEventListener('click', () => openRecipePage('saved'));
 document.getElementById('recipe-page-close').addEventListener('click', closeRecipePage);
+
+recipeSearchInput.addEventListener('input', () => {
+  const query = recipeSearchInput.value.trim().toLowerCase();
+  if (!query) {
+    renderRecipePage(recipePageData, recipePageMode, '');
+    return;
+  }
+  const filtered = recipePageData.filter(r => {
+    if ((r.title && r.title.toLowerCase().includes(query)) ||
+        (r.dish_name && r.dish_name.toLowerCase().includes(query)) ||
+        (r.summary && r.summary.toLowerCase().includes(query))) return true;
+    try {
+      const steps = JSON.parse(r.steps_json);
+      if (steps.some(s => s.toLowerCase().includes(query))) return true;
+    } catch {}
+    return false;
+  });
+  renderRecipePage(filtered, recipePageMode, query);
+});
 
 async function openRecipePage(mode) {
   recipePageMode = mode;
@@ -1354,9 +1375,12 @@ async function openRecipePage(mode) {
   recipePageLikeCount.textContent = '';
   recipePageTitle.childNodes[0].textContent = mode === 'shared' ? 'みんなのレシピ ' : '自分のレシピ ';
 
+  recipeSearchInput.value = '';
+
   const endpoint = mode === 'shared' ? '/api/saved-recipes/shared' : '/api/saved-recipes';
   const res = await api('GET', '', null, endpoint);
   if (res.success) {
+    recipePageData = res.data;
     renderRecipePage(res.data, mode);
   } else {
     recipePageContent.innerHTML = '<div class="recipe-page-empty">読み込みに失敗しました</div>';
@@ -1368,7 +1392,15 @@ function closeRecipePage() {
   updateBodyScroll();
 }
 
-function renderRecipePage(allRecipes, mode) {
+function highlightText(text, query) {
+  if (!query) return escapeHtml(text);
+  const escaped = escapeHtml(text);
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  return escaped.replace(regex, '<mark style="background:rgba(249,115,22,0.25);color:inherit;border-radius:2px;padding:0 1px">$1</mark>');
+}
+
+function renderRecipePage(allRecipes, mode, searchQuery) {
+  const query = searchQuery || '';
   const isSaved = mode === 'saved';
   const recipes = isSaved ? (allRecipes || []).filter(r => r.liked) : (allRecipes || []);
 
@@ -1395,19 +1427,19 @@ function renderRecipePage(allRecipes, mode) {
     let stepsHtml = '';
     if (steps && steps.length > 0) {
       stepsHtml = `<ol class="recipe-steps" id="rp-steps-${stepIdx}">`;
-      steps.forEach(s => { stepsHtml += `<li>${escapeHtml(s)}</li>`; });
+      steps.forEach(s => { stepsHtml += `<li>${highlightText(s, query)}</li>`; });
       stepsHtml += '</ol>';
     }
     html += `
       <div class="recipe-card">
         <div class="recipe-card-header">
-          <div class="recipe-card-title">${escapeHtml(r.title)}</div>
+          <div class="recipe-card-title">${highlightText(r.title, query)}</div>
           <div>
             <button class="recipe-like-btn${liked ? ' liked' : ''}" data-recipe-id="${r.id}">${liked ? '♥' : '♡'}</button>
             ${likeCount > 0 ? `<span class="recipe-like-count">${likeCount}</span>` : ''}
           </div>
         </div>
-        <div class="recipe-card-summary">${escapeHtml(r.summary)}</div>
+        <div class="recipe-card-summary">${highlightText(r.summary, query)}</div>
         ${stepsHtml ? `<div class="recipe-detail-toggle" data-target="rp-steps-${stepIdx}">▶ 詳細を見る</div>${stepsHtml}` : ''}
         </div>
       `;
