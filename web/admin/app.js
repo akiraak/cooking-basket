@@ -200,6 +200,7 @@ const Pages = {
   shopping:           { title: '買い物アイテム',   render: renderShopping },
   'purchase-history': { title: '購入履歴',         render: renderPurchaseHistory },
   system:             { title: 'システム情報',     render: renderSystem },
+  'icon-preview':     { title: 'アイコン候補',     render: renderIconPreview },
 };
 
 // ============================================================
@@ -479,6 +480,76 @@ async function renderSystem() {
     <div style="margin-top:16px">
       <button class="btn btn-primary" onclick="renderSystem()">更新</button>
     </div>`;
+}
+
+// ============================================================
+// Icon Preview
+// ============================================================
+function renderIconPreview() {
+  const combos = [
+    {
+      id: 'A', label: '地球 + ハート', desc: 'みんな=地球 / 自分=ハート',
+      shared: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
+      saved: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+    },
+    {
+      id: 'B', label: '複数人 + 1人', desc: 'みんな=ユーザーグループ / 自分=ユーザー',
+      shared: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>',
+      saved: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    },
+    {
+      id: 'C', label: '開いた本 + ブックマーク', desc: 'みんな=開いた本 / 自分=ブックマーク',
+      shared: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>',
+      saved: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>',
+    },
+    {
+      id: 'D', label: '複数人 + ハート', desc: 'みんな=ユーザーグループ / 自分=ハート',
+      shared: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>',
+      saved: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+    },
+    {
+      id: 'E', label: '星 + ブックマーク', desc: 'みんな=星(人気) / 自分=ブックマーク',
+      shared: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+      saved: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>',
+    },
+    {
+      id: 'F', label: '複数人 + ブックマーク', desc: 'みんな=ユーザーグループ / 自分=ブックマーク', current: true,
+      shared: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>',
+      saved: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>',
+    },
+    {
+      id: 'G', label: '地球 + ブックマーク', desc: 'みんな=地球 / 自分=ブックマーク',
+      shared: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
+      saved: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>',
+    },
+  ];
+
+  const hamburger = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>';
+
+  const btnStyle = 'display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #444;border-radius:6px;background:none;color:#888;';
+
+  let html = `
+    <p style="color:#888;margin-bottom:16px">左: みんなのレシピ / 中: 自分のレシピ / 右: メニュー(固定)</p>
+    <div style="display:flex;flex-direction:column;gap:12px">`;
+
+  for (const c of combos) {
+    html += `
+      <div class="card" style="padding:16px;display:flex;align-items:center;gap:16px;${c.current ? 'border:1px solid #f97316;' : ''}">
+        <strong style="min-width:20px">${c.id}</strong>
+        <div style="display:flex;gap:8px;align-items:center;background:#1c1c1c;padding:8px 12px;border-radius:8px">
+          <span style="${btnStyle}">${c.shared}</span>
+          <span style="${btnStyle}">${c.saved}</span>
+          <span style="${btnStyle}">${hamburger}</span>
+        </div>
+        <div>
+          <div style="font-size:14px">${c.label}${c.current ? ' <span style="background:#f97316;color:#1c1c1c;padding:2px 6px;border-radius:4px;font-size:11px">現在</span>' : ''}</div>
+          <div style="font-size:12px;color:#888">${c.desc}</div>
+        </div>
+      </div>`;
+  }
+
+  html += '</div>';
+  document.getElementById('content-area').innerHTML = html;
 }
 
 // ============================================================
