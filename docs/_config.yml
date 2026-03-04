@@ -1,6 +1,6 @@
-title: Life Stream Docs
-description: Life Stream アプリ仕様書
-baseurl: /life-stream-claude
+title: Cooking Basket Docs
+description: お料理バスケット アプリ仕様書
+baseurl: /cooking-basket
 markdown: kramdown
 kramdown:
   input: GFM

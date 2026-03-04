@@ -1,7 +1,7 @@
 services:
-  life-stream:
+  cooking-basket:
     build: .
-    container_name: life-stream
+    container_name: cooking-basket
     restart: unless-stopped
     environment:
       - PORT=3002

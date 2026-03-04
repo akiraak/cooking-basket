@@ -1,9 +1,9 @@
-# Life Stream Claude
+# Cooking Basket
 
 スマホ向けの買い物リスト Web アプリ（PWA）。料理を登録すると AI が具材とレシピを提案してくれます。
 
 **アプリ**: https://basket.chobi.me/
-**インストールガイド**: https://akiraak.github.io/life-stream-claude/
+**インストールガイド**: https://akiraak.github.io/cooking-basket/
 
 ## 主な機能
 
@@ -48,7 +48,7 @@
 ## ディレクトリ構成
 
 ```
-life-stream-claude/
+cooking-basket/
 ├── server/                 # サーバサイド (Node.js / Express / TypeScript)
 │   ├── src/
 │   │   ├── index.ts        # エントリポイント
