@@ -122,7 +122,7 @@ const user3Id = insertUser.run('suzuki@example.com').lastInsertRowid as number;
 const user4Id = insertUser.run('yamada@example.com').lastInsertRowid as number;
 
 // ========================================
-// メインユーザー (demo) の料理・アイテム
+// メインユーザー (demo) の料理・食材
 // ========================================
 
 // --- カレーライス ---
@@ -211,7 +211,7 @@ addItems(userId, misoId, [
   { name: '長ねぎ', category: '野菜', checked: 0 },
 ]);
 
-// --- 単品アイテム ---
+// --- 単品食材 ---
 addItems(userId, null, [
   { name: '牛乳', category: '乳製品', checked: 0 },
   { name: '食パン', category: '穀類', checked: 1 },
@@ -346,7 +346,7 @@ const totalLikes = db.prepare('SELECT COUNT(*) as c FROM recipe_likes').get() as
 console.log(`デモDB作成完了: ${DB_PATH}`);
 console.log(`  ユーザー: 4人（demo, tanaka, suzuki, yamada）`);
 console.log(`  料理: 5件（カレーライス、肉じゃが、グリーンサラダ、鶏の唐揚げ、味噌汁）`);
-console.log(`  アイテム: ${totalItems.c}件`);
+console.log(`  食材: ${totalItems.c}件`);
 console.log(`  保存済みレシピ: ${totalRecipes.c}件`);
 console.log(`  いいね: ${totalLikes.c}件`);
 console.log('');

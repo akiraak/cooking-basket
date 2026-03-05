@@ -24,7 +24,7 @@ blockquote{border-left:4px solid #ddb892;padding:10px 16px;margin:12px 0;backgro
 <div class="container">
 <h1>買い物リスト機能 仕様書</h1>
 <div class="section"><div class="section-title">概要</div><p>日常の買い物管理を支援するシンプルなリスト機能。Web ブラウザおよび iOS アプリから利用可能。</p></div>
-<div class="section"><div class="section-title">機能一覧</div><table><thead><tr><th>機能</th><th>説明</th></tr></thead><tbody><tr><td>アイテム追加</td><td>名前を入力してリストに追加</td></tr><tr><td>アイテム削除</td><td>個別に削除</td></tr><tr><td>チェック</td><td>購入済みアイテムをチェックし非表示にする</td></tr><tr><td>一覧表示</td><td>未チェックのアイテムのみ表示</td></tr></tbody></table></div>
-<div class="section"><div class="section-title">API エンドポイント</div><h3>GET /api/shopping</h3><p>未チェックのアイテム一覧を取得する。</p><h3>POST /api/shopping</h3><p>新しいアイテムを追加する。</p><pre><code>{ "name": "牛乳" }</code></pre><blockquote><p>全 API 共通のレスポンス形式: <code>{ success, data, error }</code></p></blockquote></div>
+<div class="section"><div class="section-title">機能一覧</div><table><thead><tr><th>機能</th><th>説明</th></tr></thead><tbody><tr><td>食材追加</td><td>名前を入力してリストに追加</td></tr><tr><td>食材削除</td><td>個別に削除</td></tr><tr><td>チェック</td><td>購入済み食材をチェックし非表示にする</td></tr><tr><td>一覧表示</td><td>未チェックの食材のみ表示</td></tr></tbody></table></div>
+<div class="section"><div class="section-title">API エンドポイント</div><h3>GET /api/shopping</h3><p>未チェックの食材一覧を取得する。</p><h3>POST /api/shopping</h3><p>新しい食材を追加する。</p><pre><code>{ "name": "牛乳" }</code></pre><blockquote><p>全 API 共通のレスポンス形式: <code>{ success, data, error }</code></p></blockquote></div>
 </div>
 </body></html>

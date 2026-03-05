@@ -39,29 +39,29 @@ adminRouter.delete('/users/:id', (req: Request, res: Response) => {
   res.json({ success: true, data: null, error: null });
 });
 
-// 買い物アイテム一覧（全ユーザー）
+// 買い物食材一覧（全ユーザー）
 adminRouter.get('/shopping', (_req: Request, res: Response) => {
   const items = getAllShoppingItems();
   res.json({ success: true, data: items, error: null });
 });
 
-// 買い物アイテム更新
+// 買い物食材更新
 adminRouter.put('/shopping/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const item = updateShoppingItem(id, req.body);
   if (!item) {
-    res.status(404).json({ success: false, data: null, error: 'アイテムが見つかりません' });
+    res.status(404).json({ success: false, data: null, error: '食材が見つかりません' });
     return;
   }
   res.json({ success: true, data: item, error: null });
 });
 
-// 買い物アイテム削除
+// 買い物食材削除
 adminRouter.delete('/shopping/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const deleted = deleteShoppingItem(id);
   if (!deleted) {
-    res.status(404).json({ success: false, data: null, error: 'アイテムが見つかりません' });
+    res.status(404).json({ success: false, data: null, error: '食材が見つかりません' });
     return;
   }
   res.json({ success: true, data: null, error: null });

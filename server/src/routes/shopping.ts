@@ -11,13 +11,13 @@ import {
 
 export const shoppingRouter = Router();
 
-// 全アイテム取得
+// 全食材取得
 shoppingRouter.get('/', (req: Request, res: Response) => {
   const items = getAllItems(req.userId!);
   res.json({ success: true, data: items, error: null });
 });
 
-// アイテム追加
+// 食材追加
 shoppingRouter.post('/', (req: Request, res: Response) => {
   const { name, category } = req.body;
   if (!name || typeof name !== 'string' || name.trim() === '') {
@@ -28,7 +28,7 @@ shoppingRouter.post('/', (req: Request, res: Response) => {
   res.status(201).json({ success: true, data: item, error: null });
 });
 
-// アイテム名サジェスト (/:id より先に定義)
+// 食材名サジェスト (/:id より先に定義)
 shoppingRouter.get('/suggestions', (req: Request, res: Response) => {
   const q = req.query.q;
   const query = (typeof q === 'string') ? q.trim() : '';
@@ -58,23 +58,23 @@ shoppingRouter.delete('/checked', (req: Request, res: Response) => {
   res.json({ success: true, data: { deleted: count }, error: null });
 });
 
-// アイテム更新
+// 食材更新
 shoppingRouter.put('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const item = updateItem(req.userId!, id, req.body);
   if (!item) {
-    res.status(404).json({ success: false, data: null, error: 'アイテムが見つかりません' });
+    res.status(404).json({ success: false, data: null, error: '食材が見つかりません' });
     return;
   }
   res.json({ success: true, data: item, error: null });
 });
 
-// アイテム削除
+// 食材削除
 shoppingRouter.delete('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const deleted = deleteItem(req.userId!, id);
   if (!deleted) {
-    res.status(404).json({ success: false, data: null, error: 'アイテムが見つかりません' });
+    res.status(404).json({ success: false, data: null, error: '食材が見つかりません' });
     return;
   }
   res.json({ success: true, data: null, error: null });

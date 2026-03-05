@@ -274,7 +274,7 @@ const confirmCancel = document.getElementById('confirm-cancel');
 let items = [];
 let dishes = [];
 let modalMode = null; // 'item' | 'dish' | 'edit'
-let editingItem = null; // 編集中のアイテム
+let editingItem = null; // 編集中の食材
 let confirmResolve = null;
 
 // モーダル開閉時のスクロール制御
@@ -340,7 +340,7 @@ function highlightIngredients(text, ingredientNames, addedNames) {
   });
 }
 
-// アイテムがどの料理に紐づくか逆引きマップを作成
+// 食材がどの料理に紐づくか逆引きマップを作成
 function buildItemDishMap() {
   const map = {};
   dishes.forEach(dish => {
@@ -400,7 +400,7 @@ function render() {
     header.innerHTML = `
       <span class="dish-name">${escapeHtml(dish.name)}${dishStatus}</span>
       <div class="dish-actions">
-        <button class="btn-add-to-dish" title="アイテムを追加">+</button>
+        <button class="btn-add-to-dish" title="食材を追加">+</button>
         <button class="btn-delete-dish" title="料理を削除">&times;</button>
       </div>
     `;
@@ -436,7 +436,7 @@ function render() {
     listEl.appendChild(group);
   });
 
-  // 料理に紐づかないアイテム（移動先として常に表示）
+  // 料理に紐づかない食材（移動先として常に表示）
   {
     const ul = document.createElement('ul');
     ul.className = 'ungrouped-items';
@@ -488,7 +488,7 @@ function initSortable() {
     }));
   }
 
-  // アイテム移動時の処理（別リストから追加された時）
+  // 食材移動時の処理（別リストから追加された時）
   async function onItemAdd(evt) {
     isDragging = false;
     const itemId = Number(evt.item.dataset.itemId);
@@ -515,7 +515,7 @@ function initSortable() {
     render();
   }
 
-  // 料理内アイテムの並べ替え（グループ間移動対応）
+  // 料理内食材の並べ替え（グループ間移動対応）
   listEl.querySelectorAll('.dish-items').forEach(ul => {
     const dishId = Number(ul.closest('.dish-group').dataset.dishId);
     sortableInstances.push(new Sortable(ul, {
@@ -535,7 +535,7 @@ function initSortable() {
     }));
   });
 
-  // 未分類アイテムの並べ替え（グループ間移動対応）
+  // 未分類食材の並べ替え（グループ間移動対応）
   const ungroupedUl = listEl.querySelector('.ungrouped-items');
   if (ungroupedUl) {
     sortableInstances.push(new Sortable(ungroupedUl, {
@@ -608,9 +608,9 @@ async function loadAll() {
   await loadItems();
 }
 
-// アイテム操作
+// 食材操作
 async function addItem(name, dishId) {
-  // 同じ料理に同名アイテムが既にあればスキップ
+  // 同じ料理に同名食材が既にあればスキップ
   if (dishId) {
     const dish = dishes.find(d => d.id === Number(dishId));
     if (dish && (dish.items || []).some(i => i.name === name)) return;
@@ -731,8 +731,8 @@ function openModal(mode, presetDishId) {
   editingItem = null;
   modalInput.value = '';
   if (mode === 'item') {
-    modalTitle.textContent = 'アイテムを追加';
-    modalInput.placeholder = 'アイテム名';
+    modalTitle.textContent = '食材を追加';
+    modalInput.placeholder = '食材名';
     modalDishRow.style.display = '';
     modalDishSelect.value = presetDishId || '';
     modalOk.textContent = '追加';
@@ -748,12 +748,12 @@ function openModal(mode, presetDishId) {
   if (mode === 'item' || mode === 'dish') fetchSuggestions('');
 }
 
-// アイテム編集モーダル
+// 食材編集モーダル
 function openEditModal(item) {
   modalMode = 'edit';
   editingItem = item;
-  modalTitle.textContent = 'アイテムを編集';
-  modalInput.placeholder = 'アイテム名';
+  modalTitle.textContent = '食材を編集';
+  modalInput.placeholder = '食材名';
   modalInput.value = item.name;
   modalDishRow.style.display = '';
   modalOk.textContent = '保存';
@@ -790,7 +790,7 @@ function submitModal() {
   closeModal();
 }
 
-// アイテム編集
+// 食材編集
 async function updateItemEdit(item, newName, newDishId) {
   // 名前を更新
   const res = await api('PUT', `/${item.id}`, { name: newName });
@@ -1169,7 +1169,7 @@ function renderIngredients(ingredients) {
     chip.addEventListener('click', async () => {
       const name = chip.dataset.name;
       if (chip.classList.contains('selected')) {
-        // 削除: 料理からアイテムを探して削除
+        // 削除: 料理から食材を探して削除
         const d = dishes.find(dd => dd.id === ingredientsDishId);
         const dishItem = d && (d.items || []).find(i => i.name === name);
         if (dishItem) {
@@ -1302,7 +1302,7 @@ function renderRecipes(recipes, ingredients) {
       }
       let addedCount = 0;
       for (const ing of recipeIngredients) {
-        // 同じ料理に同名アイテムが既にあればスキップ
+        // 同じ料理に同名食材が既にあればスキップ
         const d = dishes.find(dd => dd.id === ingredientsDishId);
         if (d && (d.items || []).some(it => it.name === ing.name && !it.checked)) continue;
         const res = await api('POST', '', { name: ing.name });

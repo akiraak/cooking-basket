@@ -220,14 +220,14 @@ export default function ShoppingListScreen() {
     return Promise.all(promises);
   }, []);
 
-  // 料理内アイテムのドラッグ開始時
+  // 料理内食材のドラッグ開始時
   const handleItemDragStart = useCallback((dishId: number) => {
     setScrollEnabled(false);
     setDraggingFromDishId(dishId);
     measureDishGroups();
   }, [measureDishGroups]);
 
-  // 料理内アイテムのドラッグ中: 指位置からドロップ先を判定
+  // 料理内食材のドラッグ中: 指位置からドロップ先を判定
   const handleItemDragMove = useCallback((pageY: number) => {
     let targetId: number | null = null;
     dishGroupLayouts.current.forEach((layout, dishId) => {
@@ -238,13 +238,13 @@ export default function ShoppingListScreen() {
     setDropTargetDishId((prev) => prev !== targetId ? targetId : prev);
   }, []);
 
-  // 料理内アイテムのドラッグ終了
+  // 料理内食材のドラッグ終了
   const handleItemDragEnd = useCallback(() => {
     setScrollEnabled(true);
     setDraggingFromDishId(null);
   }, []);
 
-  // アイテムのドロップ: 別の料理またはその他に移動
+  // 食材のドロップ: 別の料理またはその他に移動
   const handleItemDrop = useCallback(async (sourceDishId: number, itemId: number, pageY: number) => {
     setDraggingFromDishId(null);
     const targetDishId = dropTargetDishId;
@@ -270,20 +270,20 @@ export default function ShoppingListScreen() {
     }
   }, [dropTargetDishId, dishes, loadAll]);
 
-  // その他アイテムのドラッグ開始
+  // その他食材のドラッグ開始
   const handleUngroupedDragStart = useCallback(() => {
     setScrollEnabled(false);
     setDraggingFromDishId(0);
     measureDishGroups();
   }, [measureDishGroups]);
 
-  // その他アイテムのドラッグ終了
+  // その他食材のドラッグ終了
   const handleUngroupedDragEnd = useCallback(() => {
     setScrollEnabled(true);
     setDraggingFromDishId(null);
   }, []);
 
-  // その他アイテムのドロップ
+  // その他食材のドロップ
   const handleUngroupedDrop = useCallback((item: ShoppingItem, pageY: number) => {
     handleItemDrop(0, item.id, pageY);
   }, [handleItemDrop]);
@@ -336,7 +336,7 @@ export default function ShoppingListScreen() {
       >
         {isEmpty && !loading && (
           <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-            リストは空です。料理やアイテムを追加しましょう
+            リストは空です。料理や食材を追加しましょう
           </Text>
         )}
 
@@ -438,7 +438,7 @@ export default function ShoppingListScreen() {
       <ConfirmDialog
         visible={!!confirmDish}
         title="料理を削除"
-        message={`「${confirmDish?.name}」を削除しますか？アイテムはリストに残ります。`}
+        message={`「${confirmDish?.name}」を削除しますか？食材はリストに残ります。`}
         onConfirm={handleDeleteDish}
         onCancel={() => setConfirmDish(null)}
       />

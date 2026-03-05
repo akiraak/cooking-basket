@@ -95,13 +95,13 @@ export function AddModal({
           ]}
         >
           <Text style={[styles.title, { color: colors.text }]}>
-            {mode === 'edit' ? 'アイテム編集' : mode === 'item' ? 'アイテム追加' : '料理追加'}
+            {mode === 'edit' ? '食材編集' : mode === 'item' ? '食材追加' : '料理追加'}
           </Text>
 
           <TextInput
             ref={inputRef}
             style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
-            placeholder={mode === 'dish' ? '料理名' : 'アイテム名'}
+            placeholder={mode === 'dish' ? '料理名' : '食材名'}
             placeholderTextColor={colors.textMuted}
             value={name}
             onChangeText={setName}

@@ -197,7 +197,7 @@ const Pages = {
   users:              { title: 'ユーザー管理',     render: renderUsers },
   dishes:             { title: '料理',             render: renderDishes },
   'saved-recipes':    { title: '料理レシピ',       render: renderSavedRecipes },
-  shopping:           { title: '買い物アイテム',   render: renderShopping },
+  shopping:           { title: '買い物食材',   render: renderShopping },
   'purchase-history': { title: '購入履歴',         render: renderPurchaseHistory },
   system:             { title: 'システム情報',     render: renderSystem },
   docs:               { title: '企画ドキュメント', render: renderDocs },
@@ -253,7 +253,7 @@ async function renderDashboard() {
         <div class="stat-sub">直近7日: +${d.recentUsersCount}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">買い物アイテム</div>
+        <div class="stat-label">買い物食材</div>
         <div class="stat-value">${d.totalItems}</div>
         <div class="stat-sub">直近7日: +${d.recentItemsCount}</div>
       </div>
@@ -286,7 +286,7 @@ async function renderUsers() {
     columns: [
       { key: 'id', label: 'ID', width: '60px' },
       { key: 'email', label: 'メール' },
-      { key: 'shopping_count', label: 'アイテム数', width: '90px' },
+      { key: 'shopping_count', label: '食材数', width: '90px' },
       { key: 'dish_count', label: '料理数', width: '80px' },
       { key: 'purchase_count', label: '購入履歴', width: '80px' },
       { key: 'created_at', label: '作成日', render: r => formatDate(r.created_at) },
@@ -411,7 +411,7 @@ async function renderPurchaseHistory() {
     columns: [
       { key: 'id', label: 'ID', width: '60px' },
       { key: 'email', label: 'ユーザー' },
-      { key: 'item_name', label: 'アイテム名' },
+      { key: 'item_name', label: '食材名' },
       { key: 'purchased_at', label: '購入日', render: r => formatDate(r.purchased_at) },
     ],
     data: res.data,
@@ -1830,7 +1830,7 @@ function renderReactNativePlan() {
             <tr><td>3</td><td><strong>買い物リスト</strong></td><td><code>app/(tabs)/index</code></td><td>メイン画面。料理グループ表示、チェック、D&amp;D 並替え</td></tr>
             <tr><td>4</td><td><strong>具材モーダル</strong></td><td><code>app/dish/[id]/ingredients</code></td><td>AI 提案具材の選択・一括追加</td></tr>
             <tr><td>5</td><td><strong>レシピページ</strong></td><td><code>app/dish/[id]/recipe</code></td><td>レシピ表示、食材ハイライト、いいね</td></tr>
-            <tr><td>6</td><td><strong>アイテム追加/編集</strong></td><td><code>app/item/add</code></td><td>買い物アイテムの追加・編集フォーム</td></tr>
+            <tr><td>6</td><td><strong>食材追加/編集</strong></td><td><code>app/item/add</code></td><td>買い物食材の追加・編集フォーム</td></tr>
             <tr><td>7</td><td><strong>料理追加</strong></td><td><code>app/dish/add</code></td><td>料理名入力 → AI 具材検索をバックグラウンド実行</td></tr>
             <tr><td>8</td><td><strong>レシピブック</strong></td><td><code>app/(tabs)/recipes</code></td><td>みんなのレシピ / 自分のレシピ（タブ切替）</td></tr>
           </tbody>
@@ -1914,9 +1914,9 @@ function renderReactNativePlan() {
             <tr><td>POST</td><td>/api/auth/verify-otp</td><td>OTP 検証 → JWT 発行</td></tr>
             <tr><td>POST</td><td>/api/auth/google</td><td>Google Sign-In トークン検証</td></tr>
             <tr><td>GET</td><td>/api/shopping</td><td>買い物リスト取得</td></tr>
-            <tr><td>POST</td><td>/api/shopping</td><td>アイテム追加</td></tr>
-            <tr><td>PUT</td><td>/api/shopping/:id</td><td>アイテム更新</td></tr>
-            <tr><td>DELETE</td><td>/api/shopping/:id</td><td>アイテム削除</td></tr>
+            <tr><td>POST</td><td>/api/shopping</td><td>食材追加</td></tr>
+            <tr><td>PUT</td><td>/api/shopping/:id</td><td>食材更新</td></tr>
+            <tr><td>DELETE</td><td>/api/shopping/:id</td><td>食材削除</td></tr>
             <tr><td>POST</td><td>/api/shopping/reorder</td><td>並び替え</td></tr>
             <tr><td>POST</td><td>/api/dishes</td><td>料理追加（AI 具材検索）</td></tr>
             <tr><td>PUT</td><td>/api/dishes/:id</td><td>料理更新</td></tr>
@@ -1943,12 +1943,12 @@ function renderReactNativePlan() {
             </tr>
             <tr>
               <td><span class="badge badge-info">Phase 2</span></td>
-              <td><strong>買い物リスト</strong> — メイン画面、料理グループ表示、アイテム CRUD、チェック機能</td>
+              <td><strong>買い物リスト</strong> — メイン画面、料理グループ表示、食材 CRUD、チェック機能</td>
               <td>3〜4日</td>
             </tr>
             <tr>
               <td><span class="badge badge-info">Phase 3</span></td>
-              <td><strong>ドラッグ&amp;ドロップ</strong> — リスト内並替え、料理間のアイテム移動</td>
+              <td><strong>ドラッグ&amp;ドロップ</strong> — リスト内並替え、料理間の食材移動</td>
               <td>2〜3日</td>
             </tr>
             <tr>
@@ -2029,7 +2029,7 @@ function renderReactNativePlan() {
             </tr>
             <tr>
               <td><strong>D&amp;D クロスリスト</strong></td>
-              <td>react-native-draggable-flatlist は単一リスト内の並替えのみ対応。料理間のアイテム移動は別実装が必要</td>
+              <td>react-native-draggable-flatlist は単一リスト内の並替えのみ対応。料理間の食材移動は別実装が必要</td>
               <td>長押し → 移動先料理をモーダルで選択する UX に変更。または react-native-gesture-handler でカスタム実装</td>
             </tr>
             <tr>

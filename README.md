@@ -7,14 +7,14 @@
 
 ## 主な機能
 
-- **買い物リスト** — アイテムの追加・チェック・並べ替え（ドラッグ&ドロップ）
-- **料理管理** — 料理を追加してアイテムをグループ化、料理間のドラッグ移動
+- **買い物リスト** — 食材の追加・チェック・並べ替え（ドラッグ&ドロップ）
+- **料理管理** — 料理を追加して食材をグループ化、料理間のドラッグ移動
 - **AI 具材提案** — 料理名から Gemini AI がレシピごとの具材を自動提案、タップでリストに追加
 - **AI レシピ表示** — 料理ごとにおすすめレシピ3件を表示（手順・食材付き）
 - **レシピ保存・いいね** — レシピにいいねを付けて保存、複数ユーザー間で共有
 - **みんなのレシピ / 自分のレシピ** — いいね数順のレシピブラウズ、検索・無限スクロール対応
 - **リストに追加** — レシピカードから食材を一括で買い物リストに追加
-- **サジェスト** — 過去の購入頻度をもとにアイテム名・料理名を補完
+- **サジェスト** — 過去の購入頻度をもとに食材名・料理名を補完
 - **AI データ引き継ぎ** — 同じ料理名なら前回の AI データを再利用、AI 再取得も可能
 - **Magic Link 認証** — メールアドレスでログイン（OTP）、複数ユーザー対応
 - **PWA** — ホーム画面に追加してネイティブアプリのように使用可能
@@ -149,9 +149,9 @@ npm start
 | メソッド | パス | 説明 |
 |---------|------|------|
 | GET | `/api/shopping` | 一覧取得 |
-| POST | `/api/shopping` | アイテム追加 `{ name, category? }` |
-| PUT | `/api/shopping/:id` | アイテム更新 |
-| DELETE | `/api/shopping/:id` | アイテム削除 |
+| POST | `/api/shopping` | 食材追加 `{ name, category? }` |
+| PUT | `/api/shopping/:id` | 食材更新 |
+| DELETE | `/api/shopping/:id` | 食材削除 |
 | PUT | `/api/shopping/reorder` | 並べ替え |
 | DELETE | `/api/shopping/checked` | チェック済み一括削除 |
 | GET | `/api/shopping/suggestions?q=` | サジェスト |
@@ -167,7 +167,7 @@ npm start
 | PUT | `/api/dishes/reorder` | 並べ替え |
 | GET | `/api/dishes/suggestions?q=` | 料理名サジェスト |
 | POST | `/api/dishes/:id/suggest-ingredients` | AI 具材・レシピ提案 |
-| POST | `/api/dishes/:id/items` | アイテムリンク |
+| POST | `/api/dishes/:id/items` | 食材リンク |
 | PUT | `/api/dishes/:id/items/reorder` | リンク内並べ替え |
 | DELETE | `/api/dishes/:id/items/:itemId` | リンク解除 |
 

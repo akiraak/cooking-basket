@@ -54,7 +54,7 @@ recipesRouter.get('/recommend', async (req: Request, res: Response, next: NextFu
       res.status(400).json({
         success: false,
         data: null,
-        error: '買い物リストに未購入のアイテムがありません',
+        error: '買い物リストに未購入の食材がありません',
       });
       return;
     }

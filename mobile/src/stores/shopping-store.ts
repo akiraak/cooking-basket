@@ -10,7 +10,7 @@ interface ShoppingState {
 
   loadAll: () => Promise<void>;
 
-  // アイテム操作
+  // 食材操作
   addItem: (name: string, category?: string) => Promise<ShoppingItem>;
   updateItemName: (id: number, name: string) => Promise<void>;
   toggleCheck: (id: number, checked: number) => Promise<void>;
@@ -28,7 +28,7 @@ interface ShoppingState {
   // AI
   suggestIngredients: (dishId: number, extraIngredients?: string[], force?: boolean) => Promise<SuggestIngredientsResponse>;
 
-  // 料理⇔アイテム
+  // 料理⇔食材
   linkItemToDish: (dishId: number, itemId: number) => Promise<void>;
   unlinkItemFromDish: (dishId: number, itemId: number) => Promise<void>;
 }

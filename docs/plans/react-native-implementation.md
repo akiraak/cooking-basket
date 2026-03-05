@@ -189,13 +189,13 @@ export function useThemeColors() {
 - Tab bar: bg `surface`, active `primaryLight`, inactive テーマに応じた `textMuted`
 
 ### 3.2 メイン画面 (`app/(tabs)/index.tsx`)
-- ScrollView: 料理グループ → 未分類アイテム の順
-- FAB 2つ (料理追加 / アイテム追加)
+- ScrollView: 料理グループ → 未分類食材 の順
+- FAB 2つ (料理追加 / 食材追加)
 - Pull to refresh
 
 ### 3.3 コンポーネント
-- **DishGroup**: 左ボーダーオレンジ、料理名、+ボタン、×ボタン、アイテムリスト
-- **ShoppingItem**: 丸チェックボックス、アイテム名、スワイプ削除
+- **DishGroup**: 左ボーダーオレンジ、料理名、+ボタン、×ボタン、食材リスト
+- **ShoppingItem**: 丸チェックボックス、食材名、スワイプ削除
 - **AddItemModal**: テキスト入力 + サジェスト + 料理選択
 - **AddDishModal**: テキスト入力 + サジェスト
 - **SuggestionsList**: デバウンスAPI呼び出し、頻度表示
@@ -244,7 +244,7 @@ export function useThemeColors() {
 - 同様のレイアウト
 
 ### 5.3 レシピからリストに追加
-- 料理を新規作成 → レシピの具材をアイテムとして追加 → 料理にリンク
+- 料理を新規作成 → レシピの具材を食材として追加 → 料理にリンク
 
 ---
 
@@ -255,8 +255,8 @@ export function useThemeColors() {
 npx expo install react-native-draggable-flatlist react-native-gesture-handler react-native-reanimated
 ```
 - 料理グループの並び替え (長押し)
-- 料理内アイテムの並び替え (長押し)
-- 料理間移動はアイテム編集モーダルの料理ピッカーで対応（クロスリストD&Dは複雑すぎるため）
+- 料理内食材の並び替え (長押し)
+- 料理間移動は食材編集モーダルの料理ピッカーで対応（クロスリストD&Dは複雑すぎるため）
 
 ### 6.2 アニメーション (react-native-reanimated)
 - チェック: 右スライド + フェードアウト (300ms)
@@ -266,7 +266,7 @@ npx expo install react-native-draggable-flatlist react-native-gesture-handler re
 ### 6.3 Haptic フィードバック
 - チェックボックス: Light impact
 - ドラッグ開始: Medium impact
-- アイテム追加: Success
+- 食材追加: Success
 - 削除確認: Warning
 
 ### 6.4 その他

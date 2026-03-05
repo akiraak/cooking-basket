@@ -269,7 +269,7 @@ dishesRouter.post('/:id/items', (req: Request, res: Response) => {
   }
 });
 
-// 料理内アイテム並べ替え
+// 料理内食材並べ替え
 dishesRouter.put('/:id/items/reorder', (req: Request, res: Response) => {
   try {
     const dishId = Number(req.params.id);

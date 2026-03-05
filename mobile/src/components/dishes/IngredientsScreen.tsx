@@ -33,10 +33,10 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
   const [dishName, setDishName] = useState(dish.name);
   const [editingName, setEditingName] = useState(false);
 
-  // 料理に紐づくアイテム名（リアルタイム）
+  // 料理に紐づく食材名（リアルタイム）
   const dishItemNames = useMemo(() => new Set(dish.items.filter((i) => !i.checked).map((i) => i.name)), [dish.items]);
 
-  // 追加素材 = 料理のアイテムのうち、AI具材リストにないもの（Web版と同じロジック）
+  // 追加素材 = 料理の食材のうち、AI具材リストにないもの（Web版と同じロジック）
   const extraIngredients = useMemo(() => {
     const aiNames = new Set(ingredients.map((i) => i.name));
     return dish.items.filter((item) => !item.checked && !aiNames.has(item.name)).map((item) => item.name);
