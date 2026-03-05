@@ -1,8 +1,13 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useThemeColors } from '../../theme/theme-provider';
 
+export interface Suggestion {
+  name: string;
+  count?: number;
+}
+
 interface SuggestionsListProps {
-  suggestions: string[];
+  suggestions: (string | Suggestion)[];
   onSelect: (name: string) => void;
 }
 
@@ -13,15 +18,21 @@ export function SuggestionsList({ suggestions, onSelect }: SuggestionsListProps)
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      {suggestions.map((name) => (
-        <TouchableOpacity
-          key={name}
-          style={[styles.item, { borderBottomColor: colors.border }]}
-          onPress={() => onSelect(name)}
-        >
-          <Text style={[styles.text, { color: colors.text }]}>{name}</Text>
-        </TouchableOpacity>
-      ))}
+      {suggestions.map((item, index) => {
+        const name = typeof item === 'string' ? item : item.name;
+        const count = typeof item === 'string' ? undefined : item.count;
+        return (
+          <TouchableOpacity
+            key={`${name}-${index}`}
+            style={[styles.item, { borderBottomColor: colors.border }]}
+            onPress={() => onSelect(name)}
+          >
+            <Text style={[styles.text, { color: colors.text }]}>
+              {name}{count ? ` (${count})` : ''}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }

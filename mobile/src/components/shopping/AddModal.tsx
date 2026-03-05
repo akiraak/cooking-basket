@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { useThemeColors } from '../../theme/theme-provider';
-import { SuggestionsList } from '../ui/SuggestionsList';
+import { SuggestionsList, type Suggestion } from '../ui/SuggestionsList';
 import { useDebounce } from '../../hooks/use-debounce';
 import * as shoppingApi from '../../api/shopping';
 import * as dishesApi from '../../api/dishes';
@@ -40,7 +40,7 @@ export function AddModal({
   const colors = useThemeColors();
   const [name, setName] = useState('');
   const [selectedDishId, setSelectedDishId] = useState<number | null>(null);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<(string | Suggestion)[]>([]);
   const debouncedName = useDebounce(name, 200);
 
   useEffect(() => {
