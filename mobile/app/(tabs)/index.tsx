@@ -3,16 +3,12 @@ import {
   View,
   Text,
   Image,
+  ScrollView,
   TouchableOpacity,
   RefreshControl,
   StyleSheet,
   Alert,
 } from 'react-native';
-import {
-  NestableScrollContainer,
-  NestableDraggableFlatList,
-  type RenderItemParams,
-} from 'react-native-draggable-flatlist';
 import * as Haptics from 'expo-haptics';
 import { useThemeColors } from '../../src/theme/theme-provider';
 import { useShoppingStore } from '../../src/stores/shopping-store';
@@ -22,7 +18,7 @@ import { AddModal } from '../../src/components/shopping/AddModal';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { Toast } from '../../src/components/ui/Toast';
 import { IngredientsScreen } from '../../src/components/dishes/IngredientsScreen';
-import type { Dish, DishItem } from '../../src/types/models';
+import type { Dish } from '../../src/types/models';
 
 type ModalMode = 'item' | 'dish';
 
@@ -126,55 +122,47 @@ export default function ShoppingListScreen() {
     }
   }, [deleteCheckedItems]);
 
-  const handleReorderDishes = useCallback(async ({ data }: { data: Dish[] }) => {
-    const orderedIds = data.map((d) => d.id);
-    useShoppingStore.setState({ dishes: data });
+  const handleMoveDish = useCallback(async (dishId: number, direction: 'up' | 'down') => {
+    const idx = dishes.findIndex((d) => d.id === dishId);
+    if (idx < 0) return;
+    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= dishes.length) return;
+    const newDishes = [...dishes];
+    [newDishes[idx], newDishes[newIdx]] = [newDishes[newIdx], newDishes[idx]];
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    useShoppingStore.setState({ dishes: newDishes });
     try {
-      await reorderDishes(orderedIds);
+      await reorderDishes(newDishes.map((d) => d.id));
     } catch {
       loadAll();
     }
-  }, [reorderDishes, loadAll]);
+  }, [dishes, reorderDishes, loadAll]);
 
-  const handleReorderDishItems = useCallback(async (dishId: number, data: DishItem[]) => {
-    const orderedItemIds = data.map((i) => i.id);
+  const handleMoveDishItem = useCallback(async (dishId: number, itemId: number, direction: 'up' | 'down') => {
+    const dish = dishes.find((d) => d.id === dishId);
+    if (!dish) return;
+    const idx = dish.items.findIndex((i) => i.id === itemId);
+    if (idx < 0) return;
+    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (newIdx < 0 || newIdx >= dish.items.length) return;
+    const newItems = [...dish.items];
+    [newItems[idx], newItems[newIdx]] = [newItems[newIdx], newItems[idx]];
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     useShoppingStore.setState((s) => ({
-      dishes: s.dishes.map((d) =>
-        d.id === dishId ? { ...d, items: data } : d
-      ),
+      dishes: s.dishes.map((d) => d.id === dishId ? { ...d, items: newItems } : d),
     }));
     try {
-      await reorderDishItems(dishId, orderedItemIds);
+      await reorderDishItems(dishId, newItems.map((i) => i.id));
     } catch {
       loadAll();
     }
-  }, [reorderDishItems, loadAll]);
+  }, [dishes, reorderDishItems, loadAll]);
 
   const isEmpty = dishes.length === 0 && ungroupedItems.length === 0 && checkedItems.length === 0;
 
-  const renderDishGroup = useCallback(({ item: dish, drag, isActive }: RenderItemParams<Dish>) => {
-    const handleDrag = () => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      drag();
-    };
-    return (
-      <DishGroup
-        dish={dish}
-        onToggleCheck={handleToggleCheck}
-        onDeleteItem={handleDeleteItem}
-        onDeleteDish={setConfirmDish}
-        onAddItem={openAddItem}
-        onPressDishName={setActiveDish}
-        onDragStart={handleDrag}
-        isActive={isActive}
-        onReorderItems={handleReorderDishItems}
-      />
-    );
-  }, [handleToggleCheck, handleDeleteItem, openAddItem, handleReorderDishItems]);
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <NestableScrollContainer
+      <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadAll} tintColor={colors.primary} />}
@@ -185,15 +173,21 @@ export default function ShoppingListScreen() {
           </Text>
         )}
 
-        {dishes.length > 0 && (
-          <NestableDraggableFlatList
-            data={dishes}
-            keyExtractor={(item) => String(item.id)}
-            renderItem={renderDishGroup}
-            onDragEnd={handleReorderDishes}
-            scrollEnabled={false}
+        {dishes.map((dish, index) => (
+          <DishGroup
+            key={dish.id}
+            dish={dish}
+            onToggleCheck={handleToggleCheck}
+            onDeleteItem={handleDeleteItem}
+            onDeleteDish={setConfirmDish}
+            onAddItem={openAddItem}
+            onPressDishName={setActiveDish}
+            canMoveUp={index > 0}
+            canMoveDown={index < dishes.length - 1}
+            onMoveDish={handleMoveDish}
+            onMoveItem={handleMoveDishItem}
           />
-        )}
+        ))}
 
         {ungroupedItems.length > 0 && (
           <View style={styles.ungroupedSection}>
@@ -246,7 +240,7 @@ export default function ShoppingListScreen() {
             )}
           </View>
         )}
-      </NestableScrollContainer>
+      </ScrollView>
 
       <View style={styles.fabContainer}>
         <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primaryLight }]} onPress={openAddDish}>
