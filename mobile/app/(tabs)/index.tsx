@@ -26,7 +26,7 @@ type ModalMode = 'item' | 'dish' | 'edit';
 
 export default function ShoppingListScreen() {
   const colors = useThemeColors();
-  const { items, dishes, loading, loadAll, addItem, updateItemName, toggleCheck, deleteItem, addDish, deleteDish, linkItemToDish, deleteCheckedItems, reorderItems, reorderDishes, reorderDishItems } = useShoppingStore();
+  const { items, dishes, loading, loadAll, addItem, updateItemName, toggleCheck, deleteItem, addDish, deleteDish, linkItemToDish, reorderItems, reorderDishes, reorderDishItems } = useShoppingStore();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>('item');
@@ -64,14 +64,6 @@ export default function ShoppingListScreen() {
       Alert.alert('エラー', '更新に失敗しました');
     }
   }, [toggleCheck]);
-
-  const handleDeleteItem = useCallback(async (id: number) => {
-    try {
-      await deleteItem(id);
-    } catch {
-      Alert.alert('エラー', '削除に失敗しました');
-    }
-  }, [deleteItem]);
 
   const handleDeleteDish = useCallback(async () => {
     if (!confirmDish) return;
@@ -159,15 +151,6 @@ export default function ShoppingListScreen() {
     }
     setEditItem(null);
   }, [editItem, deleteItem]);
-
-  const handleDeleteChecked = useCallback(async () => {
-    try {
-      const count = await deleteCheckedItems();
-      if (count > 0) setToast(`${count}件を削除しました`);
-    } catch {
-      Alert.alert('エラー', '削除に失敗しました');
-    }
-  }, [deleteCheckedItems]);
 
   const handleReorderDishes = useCallback(async (newDishes: Dish[]) => {
     useShoppingStore.setState({ dishes: newDishes });
@@ -294,10 +277,9 @@ export default function ShoppingListScreen() {
       name={item.name}
       checked={item.checked}
       onToggleCheck={handleToggleCheck}
-      onDelete={handleDeleteItem}
       onPressName={handlePressItemName}
     />
-  ), [handleToggleCheck, handleDeleteItem, handlePressItemName]);
+  ), [handleToggleCheck, handlePressItemName]);
 
   const renderDishGroup = useCallback((dish: Dish) => (
     <View
@@ -307,7 +289,6 @@ export default function ShoppingListScreen() {
       <DishGroup
         dish={dish}
         onToggleCheck={handleToggleCheck}
-        onDeleteItem={handleDeleteItem}
         onDeleteDish={setConfirmDish}
         onAddItem={openAddItem}
         onPressDishName={setActiveDish}
@@ -321,7 +302,7 @@ export default function ShoppingListScreen() {
         itemDragging={draggingFromDishId === dish.id}
       />
     </View>
-  ), [handleToggleCheck, handleDeleteItem, openAddItem, handlePressItemName, handleReorderDishItems, handleItemDragStart, handleItemDragEnd, handleItemDragMove, handleItemDrop, dropTargetDishId, draggingFromDishId]);
+  ), [handleToggleCheck, openAddItem, handlePressItemName, handleReorderDishItems, handleItemDragStart, handleItemDragEnd, handleItemDragMove, handleItemDrop, dropTargetDishId, draggingFromDishId]);
 
   const isEmpty = dishes.length === 0 && ungroupedItems.length === 0 && checkedItems.length === 0;
   // scrollEnabled は state で管理
@@ -383,9 +364,6 @@ export default function ShoppingListScreen() {
               <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
                 {checkedExpanded ? '▼' : '▶'} チェック済み ({checkedItems.length})
               </Text>
-              <TouchableOpacity onPress={handleDeleteChecked}>
-                <Text style={[styles.clearBtn, { color: colors.danger }]}>すべて削除</Text>
-              </TouchableOpacity>
             </TouchableOpacity>
             {checkedExpanded && (
               <>
@@ -396,7 +374,6 @@ export default function ShoppingListScreen() {
                     name={item.name}
                     checked={item.checked}
                     onToggleCheck={handleToggleCheck}
-                    onDelete={handleDeleteItem}
                     onPressName={handlePressItemName}
                   />
                 ))}
@@ -487,9 +464,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
-  },
-  clearBtn: {
-    fontSize: 13,
   },
   showMoreBtn: {
     textAlign: 'center',

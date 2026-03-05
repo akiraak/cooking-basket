@@ -9,11 +9,10 @@ interface ShoppingItemRowProps {
   name: string;
   checked: number;
   onToggleCheck: (id: number, checked: number) => void;
-  onDelete: (id: number) => void;
   onPressName?: (id: number, name: string) => void;
 }
 
-export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete, onPressName }: ShoppingItemRowProps) {
+export function ShoppingItemRow({ id, name, checked, onToggleCheck, onPressName }: ShoppingItemRowProps) {
   const colors = useThemeColors();
   const opacity = useRef(new Animated.Value(1)).current;
 
@@ -28,14 +27,6 @@ export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete, on
     } else {
       onToggleCheck(id, newChecked);
     }
-  };
-
-  const handleDelete = () => {
-    if (isDragActive()) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
-      onDelete(id);
-    });
   };
 
   return (
@@ -68,9 +59,6 @@ export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete, on
           </Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Text style={[styles.deleteBtn, { color: colors.textMuted }]}>×</Text>
-      </TouchableOpacity>
     </Animated.View>
   );
 }
@@ -110,9 +98,5 @@ const styles = StyleSheet.create({
   },
   nameChecked: {
     textDecorationLine: 'line-through',
-  },
-  deleteBtn: {
-    fontSize: 20,
-    paddingHorizontal: 8,
   },
 });
