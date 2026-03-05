@@ -23,6 +23,9 @@ interface DraggableListProps<T> extends DragCallbacks {
   keyExtractor: (item: T) => string;
   renderItem: (item: T, index: number) => ReactNode;
   onReorder: (data: T[]) => void;
+  onDragMoveY?: (pageY: number) => void;
+  onDragDrop?: (item: T, pageY: number) => void;
+  elevatedKey?: string | null;
 }
 
 interface ItemLayout {
@@ -30,7 +33,7 @@ interface ItemLayout {
   height: number;
 }
 
-export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, onDragStart, onDragEnd }: DraggableListProps<T>) {
+export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, onDragStart, onDragEnd, onDragMoveY, onDragDrop, elevatedKey }: DraggableListProps<T>) {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [displayOrder, setDisplayOrder] = useState<T[] | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -48,6 +51,11 @@ export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, on
   // ドラッグ開始時の指のY座標とアイテムの初期translateY
   const startFingerYRef = useRef(0);
   const startTranslateYRef = useRef(0);
+  const lastPageYRef = useRef(0);
+  const onDragMoveYRef = useRef(onDragMoveY);
+  onDragMoveYRef.current = onDragMoveY;
+  const onDragDropRef = useRef(onDragDrop);
+  onDragDropRef.current = onDragDrop;
   const renderItemRef = useRef(renderItem);
   renderItemRef.current = renderItem;
 
@@ -80,10 +88,12 @@ export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, on
     dragActiveRef.current = false;
     justFinishedDragRef.current = true;
     const finalOrder = orderRef.current;
+    const draggedItem = finalOrder[currentIndexRef.current];
     setActiveKey(null);
     setDisplayOrder(null);
     setIsDragging(false);
     onDragEnd?.();
+    onDragDropRef.current?.(draggedItem, lastPageYRef.current);
     onReorder(finalOrder);
     // 少し後にフラグをリセット（次のタップイベントが処理された後）
     setTimeout(() => {
@@ -97,6 +107,8 @@ export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, on
 
     const delta = pageY - startFingerYRef.current;
     dragYAnim.setValue(startTranslateYRef.current + delta);
+    lastPageYRef.current = pageY;
+    onDragMoveYRef.current?.(pageY);
 
     const fromIdx = currentIndexRef.current;
     const layouts = orderedLayoutsRef.current;
@@ -139,7 +151,7 @@ export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, on
   }, [dragYAnim, keyExtractor]);
 
   const startDrag = useCallback(async (index: number, pageY: number) => {
-    if (dragActiveRef.current) return;
+    if (dragActiveRef.current || _dragActive) return;
     // measure前に即座にフラグを立てて子のタッチイベントをブロック
     dragActiveRef.current = true;
     justFinishedDragRef.current = true;
@@ -208,11 +220,15 @@ export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, on
       {items.map((item, index) => {
         const key = keyExtractor(item);
         const isBeingDragged = isDragging && key === activeKey;
+        const isElevated = elevatedKey === key;
         return (
           <View
             key={key}
             ref={(ref) => { if (ref) itemRefs.current.set(key, ref); }}
-            style={isBeingDragged ? styles.placeholder : undefined}
+            style={[
+              isBeingDragged ? styles.placeholder : undefined,
+              isElevated && styles.elevated,
+            ]}
             pointerEvents={isDragging ? 'none' : 'auto'}
             collapsable={false}
           >
@@ -258,6 +274,8 @@ function DraggableItem({ index, children, onLongPress, disabled, justFinishedDra
 
   const handleTouchStart = useCallback((e: GestureResponderEvent) => {
     if (disabled || justFinishedDragRef.current) return;
+    // ネストされたDraggableListの親にイベントを伝播させない
+    e.stopPropagation();
     startYRef.current = e.nativeEvent.pageY;
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
@@ -304,6 +322,10 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     opacity: 0.3,
+  },
+  elevated: {
+    zIndex: 1000,
+    elevation: 1000,
   },
   floating: {
     position: 'absolute',

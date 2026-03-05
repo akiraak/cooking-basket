@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useThemeColors } from '../../src/theme/theme-provider';
 import { useShoppingStore } from '../../src/stores/shopping-store';
+import * as dishesApi from '../../src/api/dishes';
 import { DishGroup } from '../../src/components/shopping/DishGroup';
 import { ShoppingItemRow } from '../../src/components/shopping/ShoppingItemRow';
 import { AddModal } from '../../src/components/shopping/AddModal';
@@ -19,13 +20,13 @@ import { DraggableList } from '../../src/components/ui/DraggableList';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { Toast } from '../../src/components/ui/Toast';
 import { IngredientsScreen } from '../../src/components/dishes/IngredientsScreen';
-import type { Dish, DishItem } from '../../src/types/models';
+import type { Dish, DishItem, ShoppingItem } from '../../src/types/models';
 
 type ModalMode = 'item' | 'dish' | 'edit';
 
 export default function ShoppingListScreen() {
   const colors = useThemeColors();
-  const { items, dishes, loading, loadAll, addItem, updateItemName, toggleCheck, deleteItem, addDish, deleteDish, linkItemToDish, unlinkItemFromDish, deleteCheckedItems, reorderDishes, reorderDishItems } = useShoppingStore();
+  const { items, dishes, loading, loadAll, addItem, updateItemName, toggleCheck, deleteItem, addDish, deleteDish, linkItemToDish, deleteCheckedItems, reorderItems, reorderDishes, reorderDishItems } = useShoppingStore();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>('item');
@@ -37,6 +38,10 @@ export default function ShoppingListScreen() {
   const [checkedExpanded, setCheckedExpanded] = useState(false);
   const [checkedLimit, setCheckedLimit] = useState(10);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [dropTargetDishId, setDropTargetDishId] = useState<number | null>(null);
+  const [draggingFromDishId, setDraggingFromDishId] = useState<number | null>(null);
+  const dishGroupRefs = useRef<Map<number, View>>(new Map());
+  const dishGroupLayouts = useRef<Map<number, { pageY: number; height: number }>>(new Map());
   const CHECKED_PAGE_SIZE = 10;
 
   useEffect(() => {
@@ -132,15 +137,16 @@ export default function ShoppingListScreen() {
         await updateItemName(editItem.id, name);
       }
       if (dishId !== currentDishId) {
-        if (currentDishId) await unlinkItemFromDish(currentDishId, editItem.id);
-        if (dishId) await linkItemToDish(dishId, editItem.id);
+        if (currentDishId) await dishesApi.unlinkItemFromDish(currentDishId, editItem.id);
+        if (dishId) await dishesApi.linkItemToDish(dishId, editItem.id);
+        await loadAll();
       }
       setToast(`${name} を更新しました`);
     } catch {
       Alert.alert('エラー', '更新に失敗しました');
     }
     setEditItem(null);
-  }, [editItem, itemDishMap, updateItemName, unlinkItemFromDish, linkItemToDish]);
+  }, [editItem, itemDishMap, updateItemName, loadAll]);
 
   const handleDeleteEditItem = useCallback(async () => {
     if (!editItem) return;
@@ -183,23 +189,115 @@ export default function ShoppingListScreen() {
     }
   }, [reorderDishItems, loadAll]);
 
+  const handleReorderUngroupedItems = useCallback(async (newItems: ShoppingItem[]) => {
+    useShoppingStore.setState((s) => {
+      const ungroupedIds = new Set(newItems.map((i) => i.id));
+      const otherItems = s.items.filter((i) => !ungroupedIds.has(i.id));
+      return { items: [...otherItems, ...newItems] };
+    });
+    try {
+      await reorderItems(newItems.map((i) => i.id));
+    } catch {
+      loadAll();
+    }
+  }, [reorderItems, loadAll]);
+
   const handleDragStart = useCallback(() => setScrollEnabled(false), []);
   const handleDragEnd = useCallback(() => setScrollEnabled(true), []);
 
-  const renderDishGroup = useCallback((dish: Dish) => (
-    <DishGroup
-      dish={dish}
+  // 料理間ドラッグ: 全DishGroupの位置を計測
+  const measureDishGroups = useCallback(() => {
+    dishGroupLayouts.current.clear();
+    const promises: Promise<void>[] = [];
+    dishGroupRefs.current.forEach((ref, dishId) => {
+      promises.push(new Promise((resolve) => {
+        ref.measureInWindow((_x, y, _w, height) => {
+          dishGroupLayouts.current.set(dishId, { pageY: y, height });
+          resolve();
+        });
+      }));
+    });
+    return Promise.all(promises);
+  }, []);
+
+  // 料理内アイテムのドラッグ開始時
+  const handleItemDragStart = useCallback((dishId: number) => {
+    setScrollEnabled(false);
+    setDraggingFromDishId(dishId);
+    measureDishGroups();
+  }, [measureDishGroups]);
+
+  // 料理内アイテムのドラッグ中: 指位置からドロップ先を判定
+  const handleItemDragMove = useCallback((pageY: number) => {
+    let targetId: number | null = null;
+    dishGroupLayouts.current.forEach((layout, dishId) => {
+      if (pageY >= layout.pageY && pageY <= layout.pageY + layout.height) {
+        targetId = dishId;
+      }
+    });
+    setDropTargetDishId((prev) => prev !== targetId ? targetId : prev);
+  }, []);
+
+  // 料理内アイテムのドラッグ終了
+  const handleItemDragEnd = useCallback(() => {
+    setScrollEnabled(true);
+    setDraggingFromDishId(null);
+  }, []);
+
+  // 料理内アイテムのドロップ: 別の料理に移動
+  const handleItemDrop = useCallback(async (sourceDishId: number, itemId: number, pageY: number) => {
+    setDraggingFromDishId(null);
+    const targetDishId = dropTargetDishId;
+    setDropTargetDishId(null);
+
+    if (targetDishId && targetDishId !== sourceDishId) {
+      try {
+        await dishesApi.unlinkItemFromDish(sourceDishId, itemId);
+        await dishesApi.linkItemToDish(targetDishId, itemId);
+        await loadAll();
+        const targetDish = dishes.find((d) => d.id === targetDishId);
+        setToast(`${targetDish?.name ?? '別の料理'} に移動しました`);
+      } catch {
+        Alert.alert('エラー', '移動に失敗しました');
+        loadAll();
+      }
+    }
+  }, [dropTargetDishId, dishes, loadAll]);
+
+  const renderUngroupedItem = useCallback((item: ShoppingItem) => (
+    <ShoppingItemRow
+      id={item.id}
+      name={item.name}
+      checked={item.checked}
       onToggleCheck={handleToggleCheck}
-      onDeleteItem={handleDeleteItem}
-      onDeleteDish={setConfirmDish}
-      onAddItem={openAddItem}
-      onPressDishName={setActiveDish}
-      onPressItemName={handlePressItemName}
-      onReorderItems={handleReorderDishItems}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
+      onDelete={handleDeleteItem}
+      onPressName={handlePressItemName}
     />
-  ), [handleToggleCheck, handleDeleteItem, openAddItem, handlePressItemName, handleReorderDishItems, handleDragStart, handleDragEnd]);
+  ), [handleToggleCheck, handleDeleteItem, handlePressItemName]);
+
+  const renderDishGroup = useCallback((dish: Dish) => (
+    <View
+      ref={(ref) => { if (ref) dishGroupRefs.current.set(dish.id, ref); }}
+      collapsable={false}
+    >
+      <DishGroup
+        dish={dish}
+        onToggleCheck={handleToggleCheck}
+        onDeleteItem={handleDeleteItem}
+        onDeleteDish={setConfirmDish}
+        onAddItem={openAddItem}
+        onPressDishName={setActiveDish}
+        onPressItemName={handlePressItemName}
+        onReorderItems={handleReorderDishItems}
+        onDragStart={handleItemDragStart}
+        onDragEnd={handleItemDragEnd}
+        onItemDragMove={handleItemDragMove}
+        onItemDrop={handleItemDrop}
+        dropTarget={dropTargetDishId === dish.id}
+        itemDragging={draggingFromDishId === dish.id}
+      />
+    </View>
+  ), [handleToggleCheck, handleDeleteItem, openAddItem, handlePressItemName, handleReorderDishItems, handleItemDragStart, handleItemDragEnd, handleItemDragMove, handleItemDrop, dropTargetDishId, draggingFromDishId]);
 
   const isEmpty = dishes.length === 0 && ungroupedItems.length === 0 && checkedItems.length === 0;
   // scrollEnabled は state で管理
@@ -226,6 +324,7 @@ export default function ShoppingListScreen() {
             onReorder={handleReorderDishes}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            elevatedKey={draggingFromDishId ? String(draggingFromDishId) : null}
           />
         )}
 
@@ -234,17 +333,14 @@ export default function ShoppingListScreen() {
             {dishes.length > 0 && (
               <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>その他</Text>
             )}
-            {ungroupedItems.map((item) => (
-              <ShoppingItemRow
-                key={item.id}
-                id={item.id}
-                name={item.name}
-                checked={item.checked}
-                onToggleCheck={handleToggleCheck}
-                onDelete={handleDeleteItem}
-                onPressName={handlePressItemName}
-              />
-            ))}
+            <DraggableList
+              data={ungroupedItems}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={renderUngroupedItem}
+              onReorder={handleReorderUngroupedItems}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            />
           </View>
         )}
 

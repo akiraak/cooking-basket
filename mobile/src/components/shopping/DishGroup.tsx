@@ -14,8 +14,12 @@ interface DishGroupProps {
   onPressDishName: (dish: Dish) => void;
   onPressItemName?: (id: number, name: string) => void;
   onReorderItems?: (dishId: number, data: DishItem[]) => void;
-  onDragStart?: () => void;
-  onDragEnd?: () => void;
+  onDragStart?: (dishId: number) => void;
+  onDragEnd?: (dishId: number) => void;
+  onItemDragMove?: (pageY: number) => void;
+  onItemDrop?: (sourceDishId: number, itemId: number, pageY: number) => void;
+  dropTarget?: boolean;
+  itemDragging?: boolean;
 }
 
 export function DishGroup({
@@ -29,6 +33,10 @@ export function DishGroup({
   onReorderItems,
   onDragStart,
   onDragEnd,
+  onItemDragMove,
+  onItemDrop,
+  dropTarget,
+  itemDragging,
 }: DishGroupProps) {
   const colors = useThemeColors();
 
@@ -50,9 +58,26 @@ export function DishGroup({
     onReorderItems?.(dish.id, [...newItems, ...checkedItems]);
   }, [dish.id, checkedItems, onReorderItems]);
 
+  const handleInnerDragStart = useCallback(() => {
+    onDragStart?.(dish.id);
+  }, [dish.id, onDragStart]);
+
+  const handleInnerDragEnd = useCallback(() => {
+    onDragEnd?.(dish.id);
+  }, [dish.id, onDragEnd]);
+
+  const handleDragDrop = useCallback((item: DishItem, pageY: number) => {
+    onItemDrop?.(dish.id, item.id, pageY);
+  }, [dish.id, onItemDrop]);
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={[styles.leftBorder, { backgroundColor: colors.primary }]} />
+    <View style={[
+      styles.container,
+      { backgroundColor: colors.surface, borderColor: dropTarget ? colors.primary : colors.border },
+      dropTarget && styles.dropTargetContainer,
+      itemDragging && styles.itemDraggingContainer,
+    ]}>
+      <View style={[styles.leftBorder, { backgroundColor: dropTarget ? colors.primary : colors.primary }]} />
       <View style={styles.content}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.dishNameArea} onPress={() => { if (!isDragActive()) onPressDishName(dish); }}>
@@ -76,8 +101,10 @@ export function DishGroup({
             keyExtractor={(item) => String(item.id)}
             renderItem={renderItem}
             onReorder={handleReorder}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
+            onDragStart={handleInnerDragStart}
+            onDragEnd={handleInnerDragEnd}
+            onDragMoveY={onItemDragMove}
+            onDragDrop={handleDragDrop}
           />
         )}
 
@@ -104,6 +131,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
     marginBottom: 12,
+  },
+  dropTargetContainer: {
+    borderWidth: 2,
+  },
+  itemDraggingContainer: {
+    overflow: 'visible',
+    zIndex: 1000,
   },
   leftBorder: {
     width: 4,
