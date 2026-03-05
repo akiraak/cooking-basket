@@ -7,7 +7,7 @@
 - [x] Step1: EAS セットアップ (eas-cli, eas login, eas init, eas.json作成)
 - [x] Step2: app.json 公開向け設定 (runtimeVersion, permissions, infoPlist)
 - [ ] Step3: アイコン・スクリーンショット準備
-- [ ] Step4: プライバシーポリシーページ作成・公開
+- [x] Step4: プライバシーポリシーページ作成・公開
 - [ ] Step5: Apple Developer Program 登録 ($99/年)
 - [ ] Step6: iOS ビルド & App Store Connect 設定 & 審査提出
 - [ ] Step7: Google Play Console 登録 ($25)

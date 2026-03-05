@@ -41,6 +41,12 @@ app.get('/about', (_req, res) => {
   res.type('html').send(aboutHtml);
 });
 
+// /privacy ページ
+const privacyHtml = fs.readFileSync(path.join(webDir, 'privacy.html'), 'utf-8');
+app.get('/privacy', (_req, res) => {
+  res.type('html').send(privacyHtml);
+});
+
 // 静的ファイル配信 (Web クライアント)
 app.use(express.static(webDir));
 
