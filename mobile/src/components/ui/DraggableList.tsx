@@ -126,6 +126,11 @@ export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, on
 
   const startDrag = useCallback(async (index: number, pageY: number) => {
     if (dragActiveRef.current) return;
+    // measure前に即座にフラグを立てて子のタッチイベントをブロック
+    dragActiveRef.current = true;
+    justFinishedDragRef.current = true;
+    setIsDragging(true);
+    onDragStart?.();
 
     const layoutMap = await measureAllItems();
     const order = [...data];
@@ -142,12 +147,9 @@ export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, on
     });
 
     dragYAnim.setValue(pageY - dragHeightRef.current / 2);
-    dragActiveRef.current = true;
 
     setActiveKey(key);
     setDisplayOrder(order);
-    setIsDragging(true);
-    onDragStart?.();
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, [data, keyExtractor, measureAllItems, dragYAnim, onDragStart]);
