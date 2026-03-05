@@ -15,10 +15,11 @@ import { useShoppingStore } from '../../src/stores/shopping-store';
 import { DishGroup } from '../../src/components/shopping/DishGroup';
 import { ShoppingItemRow } from '../../src/components/shopping/ShoppingItemRow';
 import { AddModal } from '../../src/components/shopping/AddModal';
+import { DraggableList } from '../../src/components/ui/DraggableList';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { Toast } from '../../src/components/ui/Toast';
 import { IngredientsScreen } from '../../src/components/dishes/IngredientsScreen';
-import type { Dish } from '../../src/types/models';
+import type { Dish, DishItem } from '../../src/types/models';
 
 type ModalMode = 'item' | 'dish';
 
@@ -122,32 +123,16 @@ export default function ShoppingListScreen() {
     }
   }, [deleteCheckedItems]);
 
-  const handleMoveDish = useCallback(async (dishId: number, direction: 'up' | 'down') => {
-    const idx = dishes.findIndex((d) => d.id === dishId);
-    if (idx < 0) return;
-    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= dishes.length) return;
-    const newDishes = [...dishes];
-    [newDishes[idx], newDishes[newIdx]] = [newDishes[newIdx], newDishes[idx]];
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handleReorderDishes = useCallback(async (newDishes: Dish[]) => {
     useShoppingStore.setState({ dishes: newDishes });
     try {
       await reorderDishes(newDishes.map((d) => d.id));
     } catch {
       loadAll();
     }
-  }, [dishes, reorderDishes, loadAll]);
+  }, [reorderDishes, loadAll]);
 
-  const handleMoveDishItem = useCallback(async (dishId: number, itemId: number, direction: 'up' | 'down') => {
-    const dish = dishes.find((d) => d.id === dishId);
-    if (!dish) return;
-    const idx = dish.items.findIndex((i) => i.id === itemId);
-    if (idx < 0) return;
-    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= dish.items.length) return;
-    const newItems = [...dish.items];
-    [newItems[idx], newItems[newIdx]] = [newItems[newIdx], newItems[idx]];
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handleReorderDishItems = useCallback(async (dishId: number, newItems: DishItem[]) => {
     useShoppingStore.setState((s) => ({
       dishes: s.dishes.map((d) => d.id === dishId ? { ...d, items: newItems } : d),
     }));
@@ -156,9 +141,21 @@ export default function ShoppingListScreen() {
     } catch {
       loadAll();
     }
-  }, [dishes, reorderDishItems, loadAll]);
+  }, [reorderDishItems, loadAll]);
 
   const isEmpty = dishes.length === 0 && ungroupedItems.length === 0 && checkedItems.length === 0;
+
+  const renderDishGroup = useCallback((dish: Dish) => (
+    <DishGroup
+      dish={dish}
+      onToggleCheck={handleToggleCheck}
+      onDeleteItem={handleDeleteItem}
+      onDeleteDish={setConfirmDish}
+      onAddItem={openAddItem}
+      onPressDishName={setActiveDish}
+      onReorderItems={handleReorderDishItems}
+    />
+  ), [handleToggleCheck, handleDeleteItem, openAddItem, handleReorderDishItems]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -173,21 +170,14 @@ export default function ShoppingListScreen() {
           </Text>
         )}
 
-        {dishes.map((dish, index) => (
-          <DishGroup
-            key={dish.id}
-            dish={dish}
-            onToggleCheck={handleToggleCheck}
-            onDeleteItem={handleDeleteItem}
-            onDeleteDish={setConfirmDish}
-            onAddItem={openAddItem}
-            onPressDishName={setActiveDish}
-            canMoveUp={index > 0}
-            canMoveDown={index < dishes.length - 1}
-            onMoveDish={handleMoveDish}
-            onMoveItem={handleMoveDishItem}
+        {dishes.length > 0 && (
+          <DraggableList
+            data={dishes}
+            keyExtractor={(d) => String(d.id)}
+            renderItem={renderDishGroup}
+            onReorder={handleReorderDishes}
           />
-        ))}
+        )}
 
         {ungroupedItems.length > 0 && (
           <View style={styles.ungroupedSection}>

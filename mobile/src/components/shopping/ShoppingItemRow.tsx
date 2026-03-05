@@ -9,13 +9,9 @@ interface ShoppingItemRowProps {
   checked: number;
   onToggleCheck: (id: number, checked: number) => void;
   onDelete: (id: number) => void;
-  showReorder?: boolean;
-  canMoveUp?: boolean;
-  canMoveDown?: boolean;
-  onMove?: (direction: 'up' | 'down') => void;
 }
 
-export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete, showReorder, canMoveUp, canMoveDown, onMove }: ShoppingItemRowProps) {
+export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete }: ShoppingItemRowProps) {
   const colors = useThemeColors();
   const opacity = useRef(new Animated.Value(1)).current;
 
@@ -40,24 +36,6 @@ export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete, sh
 
   return (
     <Animated.View style={[styles.container, { opacity }]}>
-      {showReorder && onMove && (
-        <View style={styles.reorderButtons}>
-          <TouchableOpacity
-            onPress={() => canMoveUp && onMove('up')}
-            disabled={!canMoveUp}
-            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-          >
-            <Text style={[styles.reorderBtn, { color: canMoveUp ? colors.textMuted : colors.border }]}>▲</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => canMoveDown && onMove('down')}
-            disabled={!canMoveDown}
-            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-          >
-            <Text style={[styles.reorderBtn, { color: canMoveDown ? colors.textMuted : colors.border }]}>▼</Text>
-          </TouchableOpacity>
-        </View>
-      )}
       <TouchableOpacity style={styles.checkRow} onPress={handleCheck} activeOpacity={0.6}>
         <View
           style={[
@@ -91,14 +69,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 4,
-  },
-  reorderButtons: {
-    marginRight: 8,
-    gap: 2,
-  },
-  reorderBtn: {
-    fontSize: 10,
-    lineHeight: 14,
   },
   checkRow: {
     flex: 1,
