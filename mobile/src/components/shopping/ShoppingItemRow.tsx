@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { Animated, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useThemeColors } from '../../theme/theme-provider';
 
 interface ShoppingItemRowProps {
@@ -8,13 +9,15 @@ interface ShoppingItemRowProps {
   checked: number;
   onToggleCheck: (id: number, checked: number) => void;
   onDelete: (id: number) => void;
+  onDragStart?: () => void;
 }
 
-export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete }: ShoppingItemRowProps) {
+export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete, onDragStart }: ShoppingItemRowProps) {
   const colors = useThemeColors();
   const opacity = useRef(new Animated.Value(1)).current;
 
   const handleCheck = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newChecked = checked ? 0 : 1;
     if (newChecked === 1) {
       Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
@@ -26,6 +29,7 @@ export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete }: 
   };
 
   const handleDelete = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
       onDelete(id);
     });
@@ -33,7 +37,7 @@ export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete }: 
 
   return (
     <Animated.View style={[styles.container, { opacity }]}>
-      <TouchableOpacity style={styles.checkRow} onPress={handleCheck} activeOpacity={0.6}>
+      <TouchableOpacity style={styles.checkRow} onPress={handleCheck} onLongPress={onDragStart} delayLongPress={200} activeOpacity={0.6}>
         <View
           style={[
             styles.checkbox,

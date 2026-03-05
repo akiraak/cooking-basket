@@ -3,12 +3,17 @@ import {
   View,
   Text,
   Image,
-  ScrollView,
   TouchableOpacity,
   RefreshControl,
   StyleSheet,
   Alert,
 } from 'react-native';
+import DraggableFlatList, {
+  NestableScrollContainer,
+  NestableDraggableFlatList,
+  type RenderItemParams,
+} from 'react-native-draggable-flatlist';
+import * as Haptics from 'expo-haptics';
 import { useThemeColors } from '../../src/theme/theme-provider';
 import { useShoppingStore } from '../../src/stores/shopping-store';
 import { DishGroup } from '../../src/components/shopping/DishGroup';
@@ -17,13 +22,13 @@ import { AddModal } from '../../src/components/shopping/AddModal';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { Toast } from '../../src/components/ui/Toast';
 import { IngredientsScreen } from '../../src/components/dishes/IngredientsScreen';
-import type { Dish } from '../../src/types/models';
+import type { Dish, DishItem } from '../../src/types/models';
 
 type ModalMode = 'item' | 'dish';
 
 export default function ShoppingListScreen() {
   const colors = useThemeColors();
-  const { items, dishes, loading, loadAll, addItem, toggleCheck, deleteItem, addDish, deleteDish, linkItemToDish, deleteCheckedItems } = useShoppingStore();
+  const { items, dishes, loading, loadAll, addItem, toggleCheck, deleteItem, addDish, deleteDish, linkItemToDish, deleteCheckedItems, reorderDishes, reorderDishItems } = useShoppingStore();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>('item');
@@ -95,6 +100,7 @@ export default function ShoppingListScreen() {
       if (dishId) {
         await linkItemToDish(dishId, item.id);
       }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setToast(`${name} を追加しました`);
     } catch {
       Alert.alert('エラー', '追加に失敗しました');
@@ -105,6 +111,7 @@ export default function ShoppingListScreen() {
     setModalVisible(false);
     try {
       await addDish(name);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setToast(`${name} を追加しました`);
     } catch {
       Alert.alert('エラー', '追加に失敗しました');
@@ -120,11 +127,57 @@ export default function ShoppingListScreen() {
     }
   }, [deleteCheckedItems]);
 
+  const handleReorderDishes = useCallback(async ({ data }: { data: Dish[] }) => {
+    const orderedIds = data.map((d) => d.id);
+    // 楽観的更新
+    useShoppingStore.setState({ dishes: data });
+    try {
+      await reorderDishes(orderedIds);
+    } catch {
+      loadAll();
+    }
+  }, [reorderDishes, loadAll]);
+
+  const handleReorderDishItems = useCallback(async (dishId: number, data: DishItem[]) => {
+    const orderedItemIds = data.map((i) => i.id);
+    // 楽観的更新
+    useShoppingStore.setState((s) => ({
+      dishes: s.dishes.map((d) =>
+        d.id === dishId ? { ...d, items: data } : d
+      ),
+    }));
+    try {
+      await reorderDishItems(dishId, orderedItemIds);
+    } catch {
+      loadAll();
+    }
+  }, [reorderDishItems, loadAll]);
+
   const isEmpty = dishes.length === 0 && ungroupedItems.length === 0 && checkedItems.length === 0;
+
+  const renderDishGroup = useCallback(({ item: dish, drag, isActive }: RenderItemParams<Dish>) => {
+    const handleDrag = () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      drag();
+    };
+    return (
+      <DishGroup
+        dish={dish}
+        onToggleCheck={handleToggleCheck}
+        onDeleteItem={handleDeleteItem}
+        onDeleteDish={setConfirmDish}
+        onAddItem={openAddItem}
+        onPressDishName={setActiveDish}
+        onDragStart={handleDrag}
+        isActive={isActive}
+        onReorderItems={handleReorderDishItems}
+      />
+    );
+  }, [handleToggleCheck, handleDeleteItem, openAddItem, handleReorderDishItems]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView
+      <NestableScrollContainer
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadAll} tintColor={colors.primary} />}
@@ -135,17 +188,15 @@ export default function ShoppingListScreen() {
           </Text>
         )}
 
-        {dishes.map((dish) => (
-          <DishGroup
-            key={dish.id}
-            dish={dish}
-            onToggleCheck={handleToggleCheck}
-            onDeleteItem={handleDeleteItem}
-            onDeleteDish={setConfirmDish}
-            onAddItem={openAddItem}
-            onPressDishName={setActiveDish}
+        {dishes.length > 0 && (
+          <NestableDraggableFlatList
+            data={dishes}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={renderDishGroup}
+            onDragEnd={handleReorderDishes}
+            scrollEnabled={false}
           />
-        ))}
+        )}
 
         {ungroupedItems.length > 0 && (
           <View style={styles.ungroupedSection}>
@@ -198,7 +249,7 @@ export default function ShoppingListScreen() {
             )}
           </View>
         )}
-      </ScrollView>
+      </NestableScrollContainer>
 
       {/* FABs - 横並び: 料理(左) アイテム(右) */}
       <View style={styles.fabContainer}>

@@ -1,4 +1,5 @@
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useThemeColors } from '../../theme/theme-provider';
 
 interface ConfirmDialogProps {
@@ -32,7 +33,7 @@ export function ConfirmDialog({
             <TouchableOpacity style={[styles.button, { borderColor: colors.border }]} onPress={onCancel}>
               <Text style={[styles.buttonText, { color: colors.textMuted }]}>{cancelText}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.button, { backgroundColor: colors.danger }]} onPress={onConfirm}>
+            <TouchableOpacity style={[styles.button, { backgroundColor: colors.danger }]} onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); onConfirm(); }}>
               <Text style={[styles.buttonText, { color: '#fff' }]}>{confirmText}</Text>
             </TouchableOpacity>
           </View>
