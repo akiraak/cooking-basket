@@ -1,31 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Modal,
   View,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Animated,
 } from 'react-native';
 import { useThemeColors } from '../../theme/theme-provider';
-import { SuggestionsList, type Suggestion } from '../ui/SuggestionsList';
-import { useDebounce } from '../../hooks/use-debounce';
-import * as shoppingApi from '../../api/shopping';
-import * as dishesApi from '../../api/dishes';
 import type { Dish } from '../../types/models';
 
-type ModalMode = 'item' | 'dish';
+type ModalMode = 'item' | 'dish' | 'edit';
 
 interface AddModalProps {
   visible: boolean;
   mode: ModalMode;
   dishes: Dish[];
   presetDishId?: number | null;
+  editItemName?: string;
   onClose: () => void;
   onSubmitItem: (name: string, dishId: number | null) => void;
   onSubmitDish: (name: string) => void;
+  onUpdateItem?: (name: string, dishId: number | null) => void;
+  onDeleteItem?: () => void;
 }
 
 export function AddModal({
@@ -33,82 +33,82 @@ export function AddModal({
   mode,
   dishes,
   presetDishId,
+  editItemName,
   onClose,
   onSubmitItem,
   onSubmitDish,
+  onUpdateItem,
+  onDeleteItem,
 }: AddModalProps) {
   const colors = useThemeColors();
   const [name, setName] = useState('');
   const [selectedDishId, setSelectedDishId] = useState<number | null>(null);
-  const [suggestions, setSuggestions] = useState<(string | Suggestion)[]>([]);
-  const debouncedName = useDebounce(name, 200);
+  const [mounted, setMounted] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (visible) {
-      setName('');
+      setName(mode === 'edit' ? (editItemName ?? '') : '');
       setSelectedDishId(presetDishId ?? null);
-      setSuggestions([]);
+      setMounted(true);
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start(() => {
+        inputRef.current?.focus();
+      });
+    } else if (mounted) {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start(() => {
+        setMounted(false);
+      });
     }
-  }, [visible, presetDishId]);
-
-  useEffect(() => {
-    if (!visible) return;
-    const fetchSuggestions = async () => {
-      try {
-        const results = mode === 'item'
-          ? await shoppingApi.getItemSuggestions(debouncedName || undefined)
-          : await dishesApi.getDishSuggestions(debouncedName || undefined);
-        setSuggestions(results);
-      } catch {
-        setSuggestions([]);
-      }
-    };
-    fetchSuggestions();
-  }, [debouncedName, mode, visible]);
+  }, [visible]);
 
   const handleSubmit = useCallback(() => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (mode === 'item') {
+    if (mode === 'edit') {
+      onUpdateItem?.(trimmed, selectedDishId);
+    } else if (mode === 'item') {
       onSubmitItem(trimmed, selectedDishId);
     } else {
       onSubmitDish(trimmed);
     }
-  }, [name, mode, selectedDishId, onSubmitItem, onSubmitDish]);
+  }, [name, mode, selectedDishId, onSubmitItem, onSubmitDish, onUpdateItem]);
 
-  const handleSelectSuggestion = useCallback((suggestion: string) => {
-    // 候補を選択したら即送信
-    setSuggestions([]);
-    if (mode === 'item') {
-      onSubmitItem(suggestion, selectedDishId);
-    } else {
-      onSubmitDish(suggestion);
-    }
-  }, [mode, selectedDishId, onSubmitItem, onSubmitDish]);
+  if (!mounted) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <KeyboardAvoidingView
-        style={styles.overlay}
+        style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        pointerEvents="box-none"
       >
-        <View style={[styles.modal, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <TouchableWithoutFeedback onPress={onClose}>
+          <Animated.View style={[styles.overlay, { opacity: fadeAnim }]} />
+        </TouchableWithoutFeedback>
+
+        <Animated.View
+          style={[
+            styles.modal,
+            { backgroundColor: colors.surface, borderColor: colors.border, opacity: fadeAnim },
+          ]}
+        >
           <Text style={[styles.title, { color: colors.text }]}>
-            {mode === 'item' ? 'アイテム追加' : '料理追加'}
+            {mode === 'edit' ? 'アイテム編集' : mode === 'item' ? 'アイテム追加' : '料理追加'}
           </Text>
 
           <TextInput
+            ref={inputRef}
             style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
-            placeholder={mode === 'item' ? 'アイテム名' : '料理名'}
+            placeholder={mode === 'dish' ? '料理名' : 'アイテム名'}
             placeholderTextColor={colors.textMuted}
             value={name}
             onChangeText={setName}
-            autoFocus
+            onSubmitEditing={handleSubmit}
           />
 
-          <SuggestionsList suggestions={suggestions} onSelect={handleSelectSuggestion} />
-
-          {mode === 'item' && (
+          {(mode === 'item' || mode === 'edit') && (
             <View style={styles.dishPicker}>
               <Text style={[styles.label, { color: colors.textMuted }]}>料理:</Text>
               <View style={styles.dishOptions}>
@@ -147,34 +147,41 @@ export function AddModal({
           )}
 
           <View style={styles.buttons}>
+            {mode === 'edit' && (
+              <TouchableOpacity style={[styles.deleteBtn, { borderColor: colors.danger }]} onPress={onDeleteItem}>
+                <Text style={[styles.deleteBtnText, { color: colors.danger }]}>削除</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={[styles.cancelBtn, { borderColor: colors.border }]} onPress={onClose}>
               <Text style={[styles.cancelText, { color: colors.textMuted }]}>キャンセル</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.submitBtn, { backgroundColor: colors.primary }]}
+              style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: !name.trim() ? 0.5 : 1 }]}
               onPress={handleSubmit}
               disabled={!name.trim()}
             >
-              <Text style={styles.submitText}>追加</Text>
+              <Text style={styles.submitText}>{mode === 'edit' ? '保存' : '追加'}</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  container: {
     flex: 1,
+    justifyContent: 'flex-start',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
   },
   modal: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderBottomWidth: 0,
+    marginHorizontal: 16,
     padding: 20,
     gap: 12,
   },
@@ -212,6 +219,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 4,
+  },
+  deleteBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  deleteBtnText: {
+    fontSize: 15,
   },
   cancelBtn: {
     flex: 1,

@@ -12,6 +12,7 @@ interface ShoppingState {
 
   // アイテム操作
   addItem: (name: string, category?: string) => Promise<ShoppingItem>;
+  updateItemName: (id: number, name: string) => Promise<void>;
   toggleCheck: (id: number, checked: number) => Promise<void>;
   deleteItem: (id: number) => Promise<void>;
   deleteCheckedItems: () => Promise<number>;
@@ -54,6 +55,17 @@ export const useShoppingStore = create<ShoppingState>((set, get) => ({
     const item = await shoppingApi.createItem(name, category);
     await get().loadAll();
     return item;
+  },
+
+  updateItemName: async (id, name) => {
+    await shoppingApi.updateItem(id, { name });
+    set((s) => ({
+      items: s.items.map((i) => (i.id === id ? { ...i, name } : i)),
+      dishes: s.dishes.map((d) => ({
+        ...d,
+        items: d.items.map((i) => (i.id === id ? { ...i, name } : i)),
+      })),
+    }));
   },
 
   toggleCheck: async (id, checked) => {

@@ -12,6 +12,7 @@ interface DishGroupProps {
   onDeleteDish: (dish: Dish) => void;
   onAddItem: (dishId: number) => void;
   onPressDishName: (dish: Dish) => void;
+  onPressItemName?: (id: number, name: string) => void;
   onReorderItems?: (dishId: number, data: DishItem[]) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -24,6 +25,7 @@ export function DishGroup({
   onDeleteDish,
   onAddItem,
   onPressDishName,
+  onPressItemName,
   onReorderItems,
   onDragStart,
   onDragEnd,
@@ -40,8 +42,9 @@ export function DishGroup({
       checked={item.checked}
       onToggleCheck={onToggleCheck}
       onDelete={onDeleteItem}
+      onPressName={onPressItemName}
     />
-  ), [onToggleCheck, onDeleteItem]);
+  ), [onToggleCheck, onDeleteItem, onPressItemName]);
 
   const handleReorder = useCallback((newItems: DishItem[]) => {
     onReorderItems?.(dish.id, [...newItems, ...checkedItems]);
@@ -86,6 +89,7 @@ export function DishGroup({
             checked={item.checked}
             onToggleCheck={onToggleCheck}
             onDelete={onDeleteItem}
+            onPressName={onPressItemName}
           />
         ))}
       </View>

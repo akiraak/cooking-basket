@@ -21,11 +21,11 @@ import { Toast } from '../../src/components/ui/Toast';
 import { IngredientsScreen } from '../../src/components/dishes/IngredientsScreen';
 import type { Dish, DishItem } from '../../src/types/models';
 
-type ModalMode = 'item' | 'dish';
+type ModalMode = 'item' | 'dish' | 'edit';
 
 export default function ShoppingListScreen() {
   const colors = useThemeColors();
-  const { items, dishes, loading, loadAll, addItem, toggleCheck, deleteItem, addDish, deleteDish, linkItemToDish, deleteCheckedItems, reorderDishes, reorderDishItems } = useShoppingStore();
+  const { items, dishes, loading, loadAll, addItem, updateItemName, toggleCheck, deleteItem, addDish, deleteDish, linkItemToDish, unlinkItemFromDish, deleteCheckedItems, reorderDishes, reorderDishItems } = useShoppingStore();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>('item');
@@ -33,6 +33,7 @@ export default function ShoppingListScreen() {
   const [confirmDish, setConfirmDish] = useState<Dish | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [activeDish, setActiveDish] = useState<Dish | null>(null);
+  const [editItem, setEditItem] = useState<{ id: number; name: string } | null>(null);
   const [checkedExpanded, setCheckedExpanded] = useState(false);
   const [checkedLimit, setCheckedLimit] = useState(10);
   const [scrollEnabled, setScrollEnabled] = useState(true);
@@ -115,6 +116,44 @@ export default function ShoppingListScreen() {
     }
   }, [addDish]);
 
+  const handlePressItemName = useCallback((id: number, name: string) => {
+    setEditItem({ id, name });
+    setModalMode('edit');
+    setPresetDishId(itemDishMap.get(id) ?? null);
+    setModalVisible(true);
+  }, [itemDishMap]);
+
+  const handleUpdateItem = useCallback(async (name: string, dishId: number | null) => {
+    if (!editItem) return;
+    setModalVisible(false);
+    const currentDishId = itemDishMap.get(editItem.id) ?? null;
+    try {
+      if (name !== editItem.name) {
+        await updateItemName(editItem.id, name);
+      }
+      if (dishId !== currentDishId) {
+        if (currentDishId) await unlinkItemFromDish(currentDishId, editItem.id);
+        if (dishId) await linkItemToDish(dishId, editItem.id);
+      }
+      setToast(`${name} を更新しました`);
+    } catch {
+      Alert.alert('エラー', '更新に失敗しました');
+    }
+    setEditItem(null);
+  }, [editItem, itemDishMap, updateItemName, unlinkItemFromDish, linkItemToDish]);
+
+  const handleDeleteEditItem = useCallback(async () => {
+    if (!editItem) return;
+    setModalVisible(false);
+    try {
+      await deleteItem(editItem.id);
+      setToast(`${editItem.name} を削除しました`);
+    } catch {
+      Alert.alert('エラー', '削除に失敗しました');
+    }
+    setEditItem(null);
+  }, [editItem, deleteItem]);
+
   const handleDeleteChecked = useCallback(async () => {
     try {
       const count = await deleteCheckedItems();
@@ -155,11 +194,12 @@ export default function ShoppingListScreen() {
       onDeleteDish={setConfirmDish}
       onAddItem={openAddItem}
       onPressDishName={setActiveDish}
+      onPressItemName={handlePressItemName}
       onReorderItems={handleReorderDishItems}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     />
-  ), [handleToggleCheck, handleDeleteItem, openAddItem, handleReorderDishItems, handleDragStart, handleDragEnd]);
+  ), [handleToggleCheck, handleDeleteItem, openAddItem, handlePressItemName, handleReorderDishItems, handleDragStart, handleDragEnd]);
 
   const isEmpty = dishes.length === 0 && ungroupedItems.length === 0 && checkedItems.length === 0;
   // scrollEnabled は state で管理
@@ -202,6 +242,7 @@ export default function ShoppingListScreen() {
                 checked={item.checked}
                 onToggleCheck={handleToggleCheck}
                 onDelete={handleDeleteItem}
+                onPressName={handlePressItemName}
               />
             ))}
           </View>
@@ -227,6 +268,7 @@ export default function ShoppingListScreen() {
                     checked={item.checked}
                     onToggleCheck={handleToggleCheck}
                     onDelete={handleDeleteItem}
+                    onPressName={handlePressItemName}
                   />
                 ))}
                 {checkedItems.length > checkedLimit && (
@@ -256,9 +298,12 @@ export default function ShoppingListScreen() {
         mode={modalMode}
         dishes={dishes}
         presetDishId={presetDishId}
-        onClose={() => setModalVisible(false)}
+        editItemName={editItem?.name}
+        onClose={() => { setModalVisible(false); setEditItem(null); }}
         onSubmitItem={handleSubmitItem}
         onSubmitDish={handleSubmitDish}
+        onUpdateItem={handleUpdateItem}
+        onDeleteItem={handleDeleteEditItem}
       />
 
       <ConfirmDialog

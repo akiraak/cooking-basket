@@ -10,9 +10,10 @@ interface ShoppingItemRowProps {
   checked: number;
   onToggleCheck: (id: number, checked: number) => void;
   onDelete: (id: number) => void;
+  onPressName?: (id: number, name: string) => void;
 }
 
-export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete }: ShoppingItemRowProps) {
+export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete, onPressName }: ShoppingItemRowProps) {
   const colors = useThemeColors();
   const opacity = useRef(new Animated.Value(1)).current;
 
@@ -39,26 +40,34 @@ export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete }: 
 
   return (
     <Animated.View style={[styles.container, { opacity }]}>
-      <TouchableOpacity style={styles.checkRow} onPress={handleCheck} activeOpacity={0.6}>
-        <View
-          style={[
-            styles.checkbox,
-            { borderColor: checked ? colors.primaryLight : colors.textMuted },
-            !!checked && { backgroundColor: colors.primaryLight },
-          ]}
+      <View style={styles.checkRow}>
+        <TouchableOpacity onPress={handleCheck} activeOpacity={0.6} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <View
+            style={[
+              styles.checkbox,
+              { borderColor: checked ? colors.primaryLight : colors.textMuted },
+              !!checked && { backgroundColor: colors.primaryLight },
+            ]}
+          >
+            {checked ? <Text style={styles.checkmark}>✓</Text> : null}
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.nameArea}
+          onPress={() => { if (!isDragActive() && onPressName) onPressName(id, name); }}
+          activeOpacity={0.6}
         >
-          {checked ? <Text style={styles.checkmark}>✓</Text> : null}
-        </View>
-        <Text
-          style={[
-            styles.name,
-            { color: checked ? colors.checked : colors.text },
-            !!checked && styles.nameChecked,
-          ]}
-        >
-          {name}
-        </Text>
-      </TouchableOpacity>
+          <Text
+            style={[
+              styles.name,
+              { color: checked ? colors.checked : colors.text },
+              !!checked && styles.nameChecked,
+            ]}
+          >
+            {name}
+          </Text>
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <Text style={[styles.deleteBtn, { color: colors.textMuted }]}>×</Text>
       </TouchableOpacity>
@@ -93,9 +102,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: -1,
   },
+  nameArea: {
+    flex: 1,
+  },
   name: {
     fontSize: 15,
-    flex: 1,
   },
   nameChecked: {
     textDecorationLine: 'line-through',
