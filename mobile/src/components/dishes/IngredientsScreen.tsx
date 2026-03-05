@@ -201,8 +201,8 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
               })}
             </View>
 
-            {/* 追加素材（買い物リストから） */}
-            {extraIngredients.length > 0 && (
+            {/* 追加素材（買い物リストから）+ 再検索ボタン */}
+            {extraIngredients.length > 0 ? (
               <View style={[styles.extraSection, { borderTopColor: colors.border }]}>
                 <Text style={[styles.extraLabel, { color: colors.textMuted }]}>追加素材（買い物リストから）</Text>
                 <View style={styles.chipContainer}>
@@ -220,6 +220,14 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
                   <Text style={styles.extraSearchBtnText}>この素材でレシピを再検索</Text>
                 </TouchableOpacity>
               </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.extraSearchBtn, { backgroundColor: colors.primaryLight }]}
+                onPress={handleRefresh}
+                disabled={loading}
+              >
+                <Text style={styles.extraSearchBtnText}>レシピを再検索</Text>
+              </TouchableOpacity>
             )}
 
             {/* レシピ */}
@@ -240,15 +248,6 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
                 ))}
               </>
             )}
-
-            {/* レシピを再取得ボタン */}
-            <TouchableOpacity
-              style={[styles.refreshBtn, { borderColor: colors.border }]}
-              onPress={handleRefresh}
-              disabled={loading}
-            >
-              <Text style={[styles.refreshBtnText, { color: colors.primaryLight }]}>レシピを再取得</Text>
-            </TouchableOpacity>
           </>
         )}
       </ScrollView>
@@ -275,6 +274,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    justifyContent: 'center',
   },
   dishTitle: {
     fontSize: 18,
@@ -352,17 +352,6 @@ const styles = StyleSheet.create({
   },
   extraSearchBtnText: {
     color: '#000',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  refreshBtn: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  refreshBtnText: {
     fontSize: 15,
     fontWeight: '600',
   },
