@@ -1,0 +1,343 @@
+import { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  StyleSheet,
+  Alert,
+} from 'react-native';
+import { useThemeColors } from '../../theme/theme-provider';
+import { useShoppingStore } from '../../stores/shopping-store';
+import { RecipeCard } from './RecipeCard';
+import { useRecipeStore } from '../../stores/recipe-store';
+import type { Dish, Ingredient, Recipe, RecipeState, SuggestIngredientsResponse } from '../../types/models';
+
+interface IngredientsScreenProps {
+  dish: Dish;
+  onClose: () => void;
+}
+
+export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
+  const colors = useThemeColors();
+  const { addItem, linkItemToDish, loadAll, updateDish } = useShoppingStore();
+  const { toggleLike } = useRecipeStore();
+
+  const [loading, setLoading] = useState(true);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipeStates, setRecipeStates] = useState<RecipeState[]>([]);
+  const [addedNames, setAddedNames] = useState<Set<string>>(new Set());
+  const [extraInput, setExtraInput] = useState('');
+  const [extras, setExtras] = useState<string[]>([]);
+  const [dishName, setDishName] = useState(dish.name);
+  const [editingName, setEditingName] = useState(false);
+
+  const existingItemNames = new Set(dish.items.map((i) => i.name));
+
+  const fetchSuggestions = useCallback(async (force = false) => {
+    setLoading(true);
+    try {
+      const data: SuggestIngredientsResponse = await useShoppingStore.getState().suggestIngredients(
+        dish.id,
+        extras.length > 0 ? extras : undefined,
+        force,
+      );
+      setIngredients(data.ingredients);
+      setRecipes(data.recipes);
+      setRecipeStates(data.recipeStates);
+      // 既にリストにある具材は選択済みに
+      const existing = new Set<string>();
+      for (const ing of data.ingredients) {
+        if (existingItemNames.has(ing.name)) existing.add(ing.name);
+      }
+      setAddedNames(existing);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'AI提案に失敗しました';
+      Alert.alert('エラー', message);
+    } finally {
+      setLoading(false);
+    }
+  }, [dish.id, extras, existingItemNames]);
+
+  useEffect(() => {
+    fetchSuggestions();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleToggleIngredient = useCallback(async (name: string) => {
+    if (addedNames.has(name)) {
+      setAddedNames((prev) => {
+        const next = new Set(prev);
+        next.delete(name);
+        return next;
+      });
+    } else {
+      setAddedNames((prev) => new Set(prev).add(name));
+      try {
+        const ingredient = ingredients.find((i) => i.name === name);
+        const item = await addItem(name, ingredient?.category);
+        await linkItemToDish(dish.id, item.id);
+      } catch {
+        // undo
+        setAddedNames((prev) => {
+          const next = new Set(prev);
+          next.delete(name);
+          return next;
+        });
+      }
+    }
+  }, [addedNames, ingredients, addItem, linkItemToDish, dish.id]);
+
+  const handleAddExtra = useCallback(() => {
+    const trimmed = extraInput.trim();
+    if (!trimmed || extras.includes(trimmed)) return;
+    setExtras((prev) => [...prev, trimmed]);
+    setExtraInput('');
+  }, [extraInput, extras]);
+
+  const handleRefetch = useCallback(() => {
+    fetchSuggestions(true);
+  }, [fetchSuggestions]);
+
+  const handleToggleLike = useCallback(async (recipeStateId: number) => {
+    try {
+      await toggleLike(recipeStateId);
+      setRecipeStates((prev) =>
+        prev.map((rs) =>
+          rs.id === recipeStateId ? { ...rs, liked: rs.liked ? 0 : 1 } : rs,
+        ),
+      );
+    } catch {
+      Alert.alert('エラー', 'いいねに失敗しました');
+    }
+  }, [toggleLike]);
+
+  const handleAddRecipeToList = useCallback(async (recipe: Recipe) => {
+    for (const ing of recipe.ingredients) {
+      if (!addedNames.has(ing.name)) {
+        try {
+          const item = await addItem(ing.name, ing.category);
+          await linkItemToDish(dish.id, item.id);
+          setAddedNames((prev) => new Set(prev).add(ing.name));
+        } catch { /* skip */ }
+      }
+    }
+  }, [addedNames, addItem, linkItemToDish, dish.id]);
+
+  const handleSaveName = useCallback(async () => {
+    const trimmed = dishName.trim();
+    if (!trimmed || trimmed === dish.name) {
+      setDishName(dish.name);
+      setEditingName(false);
+      return;
+    }
+    try {
+      await updateDish(dish.id, trimmed);
+      setEditingName(false);
+    } catch {
+      setDishName(dish.name);
+      setEditingName(false);
+    }
+  }, [dishName, dish.id, dish.name, updateDish]);
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* ヘッダー */}
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={() => { loadAll(); onClose(); }}>
+          <Text style={[styles.backBtn, { color: colors.primaryLight }]}>← 戻る</Text>
+        </TouchableOpacity>
+        {editingName ? (
+          <TextInput
+            style={[styles.nameInput, { color: colors.text, borderBottomColor: colors.primaryLight }]}
+            value={dishName}
+            onChangeText={setDishName}
+            onBlur={handleSaveName}
+            onSubmitEditing={handleSaveName}
+            autoFocus
+          />
+        ) : (
+          <TouchableOpacity onPress={() => setEditingName(true)}>
+            <Text style={[styles.dishTitle, { color: colors.primaryLight }]}>{dishName}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textMuted }]}>具材を検索中...</Text>
+          </View>
+        ) : (
+          <>
+            {/* 具材チップ */}
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>具材</Text>
+            <View style={styles.chipContainer}>
+              {ingredients.map((ing) => {
+                const isAdded = addedNames.has(ing.name);
+                return (
+                  <TouchableOpacity
+                    key={ing.name}
+                    style={[
+                      styles.chip,
+                      isAdded
+                        ? { backgroundColor: colors.primary }
+                        : { backgroundColor: colors.surfaceHover, borderColor: 'rgba(251,146,60,0.3)', borderWidth: 1 },
+                    ]}
+                    onPress={() => handleToggleIngredient(ing.name)}
+                  >
+                    <Text style={[styles.chipText, { color: isAdded ? '#fff' : colors.text }]}>
+                      {ing.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* 追加素材 */}
+            <View style={styles.extraSection}>
+              {extras.length > 0 && (
+                <View style={styles.chipContainer}>
+                  {extras.map((name) => (
+                    <View key={name} style={[styles.chip, styles.extraChip, { borderColor: colors.textMuted }]}>
+                      <Text style={[styles.chipText, { color: colors.textMuted }]}>{name}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              <View style={styles.extraInputRow}>
+                <TextInput
+                  style={[styles.extraInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  placeholder="追加の素材..."
+                  placeholderTextColor={colors.textMuted}
+                  value={extraInput}
+                  onChangeText={setExtraInput}
+                  onSubmitEditing={handleAddExtra}
+                />
+                <TouchableOpacity
+                  style={[styles.refetchBtn, { backgroundColor: colors.primary }]}
+                  onPress={handleRefetch}
+                >
+                  <Text style={styles.refetchBtnText}>レシピを再検索</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* レシピ */}
+            {recipes.length > 0 && (
+              <>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>レシピ</Text>
+                {recipes.map((recipe, i) => (
+                  <RecipeCard
+                    key={i}
+                    recipe={recipe}
+                    recipeState={recipeStates[i]}
+                    allIngredients={ingredients}
+                    addedNames={addedNames}
+                    onToggleLike={handleToggleLike}
+                    onAddToList={handleAddRecipeToList}
+                    onPressIngredient={handleToggleIngredient}
+                  />
+                ))}
+              </>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  backBtn: {
+    fontSize: 16,
+  },
+  dishTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  nameInput: {
+    fontSize: 18,
+    fontWeight: '600',
+    borderBottomWidth: 2,
+    paddingVertical: 2,
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    marginTop: 60,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 15,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 10,
+    marginTop: 8,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  chipText: {
+    fontSize: 14,
+  },
+  extraChip: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  extraSection: {
+    marginBottom: 16,
+  },
+  extraInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  extraInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 14,
+  },
+  refetchBtn: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  refetchBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+});

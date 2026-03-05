@@ -15,6 +15,7 @@ import { ShoppingItemRow } from '../../src/components/shopping/ShoppingItemRow';
 import { AddModal } from '../../src/components/shopping/AddModal';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { Toast } from '../../src/components/ui/Toast';
+import { IngredientsScreen } from '../../src/components/dishes/IngredientsScreen';
 import type { Dish } from '../../src/types/models';
 
 type ModalMode = 'item' | 'dish';
@@ -28,6 +29,7 @@ export default function ShoppingListScreen() {
   const [presetDishId, setPresetDishId] = useState<number | null>(null);
   const [confirmDish, setConfirmDish] = useState<Dish | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [activeDish, setActiveDish] = useState<Dish | null>(null);
 
   useEffect(() => {
     loadAll();
@@ -137,7 +139,7 @@ export default function ShoppingListScreen() {
             onDeleteItem={handleDeleteItem}
             onDeleteDish={setConfirmDish}
             onAddItem={openAddItem}
-            onPressDishName={() => {/* Phase 4 で具材画面を開く */}}
+            onPressDishName={setActiveDish}
           />
         ))}
 
@@ -212,6 +214,12 @@ export default function ShoppingListScreen() {
       />
 
       <Toast message={toast} onHide={() => setToast(null)} />
+
+      {activeDish && (
+        <View style={StyleSheet.absoluteFill}>
+          <IngredientsScreen dish={activeDish} onClose={() => setActiveDish(null)} />
+        </View>
+      )}
     </View>
   );
 }
