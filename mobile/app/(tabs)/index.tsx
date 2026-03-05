@@ -38,9 +38,9 @@ export default function ShoppingListScreen() {
   const [checkedExpanded, setCheckedExpanded] = useState(false);
   const [checkedLimit, setCheckedLimit] = useState(10);
   const [scrollEnabled, setScrollEnabled] = useState(true);
-  const [dropTargetDishId, setDropTargetDishId] = useState<number | null>(null);
-  const [draggingFromDishId, setDraggingFromDishId] = useState<number | null>(null);
-  const dishGroupRefs = useRef<Map<number, View>>(new Map());
+  const [dropTargetDishId, setDropTargetDishId] = useState<number | null>(null); // 0 = ungrouped
+  const [draggingFromDishId, setDraggingFromDishId] = useState<number | null>(null); // 0 = ungrouped
+  const dishGroupRefs = useRef<Map<number, View>>(new Map()); // 0 = ungrouped
   const dishGroupLayouts = useRef<Map<number, { pageY: number; height: number }>>(new Map());
   const CHECKED_PAGE_SIZE = 10;
 
@@ -244,25 +244,49 @@ export default function ShoppingListScreen() {
     setDraggingFromDishId(null);
   }, []);
 
-  // 料理内アイテムのドロップ: 別の料理に移動
+  // アイテムのドロップ: 別の料理またはその他に移動
   const handleItemDrop = useCallback(async (sourceDishId: number, itemId: number, pageY: number) => {
     setDraggingFromDishId(null);
     const targetDishId = dropTargetDishId;
     setDropTargetDishId(null);
 
-    if (targetDishId && targetDishId !== sourceDishId) {
+    if (targetDishId !== null && targetDishId !== sourceDishId) {
       try {
-        await dishesApi.unlinkItemFromDish(sourceDishId, itemId);
-        await dishesApi.linkItemToDish(targetDishId, itemId);
+        // 元の料理からunlink（その他からの場合は不要）
+        if (sourceDishId !== 0) {
+          await dishesApi.unlinkItemFromDish(sourceDishId, itemId);
+        }
+        // 移動先の料理にlink（その他への場合は不要）
+        if (targetDishId !== 0) {
+          await dishesApi.linkItemToDish(targetDishId, itemId);
+        }
         await loadAll();
-        const targetDish = dishes.find((d) => d.id === targetDishId);
-        setToast(`${targetDish?.name ?? '別の料理'} に移動しました`);
+        const targetName = targetDishId === 0 ? 'その他' : (dishes.find((d) => d.id === targetDishId)?.name ?? '別の料理');
+        setToast(`${targetName} に移動しました`);
       } catch {
         Alert.alert('エラー', '移動に失敗しました');
         loadAll();
       }
     }
   }, [dropTargetDishId, dishes, loadAll]);
+
+  // その他アイテムのドラッグ開始
+  const handleUngroupedDragStart = useCallback(() => {
+    setScrollEnabled(false);
+    setDraggingFromDishId(0);
+    measureDishGroups();
+  }, [measureDishGroups]);
+
+  // その他アイテムのドラッグ終了
+  const handleUngroupedDragEnd = useCallback(() => {
+    setScrollEnabled(true);
+    setDraggingFromDishId(null);
+  }, []);
+
+  // その他アイテムのドロップ
+  const handleUngroupedDrop = useCallback((item: ShoppingItem, pageY: number) => {
+    handleItemDrop(0, item.id, pageY);
+  }, [handleItemDrop]);
 
   const renderUngroupedItem = useCallback((item: ShoppingItem) => (
     <ShoppingItemRow
@@ -329,7 +353,14 @@ export default function ShoppingListScreen() {
         )}
 
         {ungroupedItems.length > 0 && (
-          <View style={styles.ungroupedSection}>
+          <View
+            style={[
+              styles.ungroupedSection,
+              dropTargetDishId === 0 && { borderColor: colors.primary, borderWidth: 2, borderRadius: 8, padding: 8 },
+            ]}
+            ref={(ref) => { if (ref) dishGroupRefs.current.set(0, ref); }}
+            collapsable={false}
+          >
             {dishes.length > 0 && (
               <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>その他</Text>
             )}
@@ -338,8 +369,10 @@ export default function ShoppingListScreen() {
               keyExtractor={(item) => String(item.id)}
               renderItem={renderUngroupedItem}
               onReorder={handleReorderUngroupedItems}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
+              onDragStart={handleUngroupedDragStart}
+              onDragEnd={handleUngroupedDragEnd}
+              onDragMoveY={handleItemDragMove}
+              onDragDrop={handleUngroupedDrop}
             />
           </View>
         )}
