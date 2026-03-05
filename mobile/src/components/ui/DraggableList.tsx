@@ -7,7 +7,12 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
-// 親コンポーネントに「ドラッグ中かどうか」を通知するためのコールバック
+// モジュールレベルのドラッグ状態フラグ（同期的にチェック可能）
+let _dragActive = false;
+export function isDragActive() {
+  return _dragActive;
+}
+
 export interface DragCallbacks {
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -77,7 +82,10 @@ export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, on
     onDragEnd?.();
     onReorder(finalOrder);
     // 少し後にフラグをリセット（次のタップイベントが処理された後）
-    setTimeout(() => { justFinishedDragRef.current = false; }, 300);
+    setTimeout(() => {
+      justFinishedDragRef.current = false;
+      _dragActive = false;
+    }, 300);
   }, [onReorder, onDragEnd]);
 
   const moveDrag = useCallback((pageY: number) => {
@@ -129,6 +137,7 @@ export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, on
     // measure前に即座にフラグを立てて子のタッチイベントをブロック
     dragActiveRef.current = true;
     justFinishedDragRef.current = true;
+    _dragActive = true;
     setIsDragging(true);
     onDragStart?.();
 

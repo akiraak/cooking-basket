@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Animated, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { isDragActive } from '../ui/DraggableList';
 import { useThemeColors } from '../../theme/theme-provider';
 
 interface ShoppingItemRowProps {
@@ -16,6 +17,7 @@ export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete }: 
   const opacity = useRef(new Animated.Value(1)).current;
 
   const handleCheck = () => {
+    if (isDragActive()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newChecked = checked ? 0 : 1;
     if (newChecked === 1) {
@@ -28,6 +30,7 @@ export function ShoppingItemRow({ id, name, checked, onToggleCheck, onDelete }: 
   };
 
   const handleDelete = () => {
+    if (isDragActive()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
       onDelete(id);

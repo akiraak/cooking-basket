@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useThemeColors } from '../../theme/theme-provider';
 import { ShoppingItemRow } from './ShoppingItemRow';
-import { DraggableList } from '../ui/DraggableList';
+import { DraggableList, isDragActive } from '../ui/DraggableList';
 import type { Dish, DishItem } from '../../types/models';
 
 interface DishGroupProps {
@@ -52,16 +52,16 @@ export function DishGroup({
       <View style={[styles.leftBorder, { backgroundColor: colors.primary }]} />
       <View style={styles.content}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.dishNameArea} onPress={() => onPressDishName(dish)}>
+          <TouchableOpacity style={styles.dishNameArea} onPress={() => { if (!isDragActive()) onPressDishName(dish); }}>
             <Text style={[styles.dishName, { color: colors.primaryLight }]} numberOfLines={1}>
               {dish.name}
             </Text>
           </TouchableOpacity>
           <View style={styles.headerButtons}>
-            <TouchableOpacity onPress={() => onAddItem(dish.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={() => { if (!isDragActive()) onAddItem(dish.id); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={[styles.headerBtn, { color: colors.primaryLight }]}>+</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => onDeleteDish(dish)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={() => { if (!isDragActive()) onDeleteDish(dish); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={[styles.headerBtn, { color: colors.textMuted }]}>×</Text>
             </TouchableOpacity>
           </View>
