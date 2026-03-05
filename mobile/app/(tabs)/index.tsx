@@ -15,7 +15,7 @@ import { useShoppingStore } from '../../src/stores/shopping-store';
 import { DishGroup } from '../../src/components/shopping/DishGroup';
 import { ShoppingItemRow } from '../../src/components/shopping/ShoppingItemRow';
 import { AddModal } from '../../src/components/shopping/AddModal';
-import { DraggableList } from '../../src/components/ui/DraggableList';
+import { DraggableList, DragOverlay, type DragOverlayState } from '../../src/components/ui/DraggableList';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { Toast } from '../../src/components/ui/Toast';
 import { IngredientsScreen } from '../../src/components/dishes/IngredientsScreen';
@@ -35,6 +35,7 @@ export default function ShoppingListScreen() {
   const [activeDish, setActiveDish] = useState<Dish | null>(null);
   const [checkedExpanded, setCheckedExpanded] = useState(false);
   const [checkedLimit, setCheckedLimit] = useState(10);
+  const [dragOverlay, setDragOverlay] = useState<DragOverlayState | null>(null);
   const CHECKED_PAGE_SIZE = 10;
 
   useEffect(() => {
@@ -143,8 +144,6 @@ export default function ShoppingListScreen() {
     }
   }, [reorderDishItems, loadAll]);
 
-  const isEmpty = dishes.length === 0 && ungroupedItems.length === 0 && checkedItems.length === 0;
-
   const renderDishGroup = useCallback((dish: Dish) => (
     <DishGroup
       dish={dish}
@@ -154,8 +153,12 @@ export default function ShoppingListScreen() {
       onAddItem={openAddItem}
       onPressDishName={setActiveDish}
       onReorderItems={handleReorderDishItems}
+      onDragStateChange={setDragOverlay}
     />
   ), [handleToggleCheck, handleDeleteItem, openAddItem, handleReorderDishItems]);
+
+  const isEmpty = dishes.length === 0 && ungroupedItems.length === 0 && checkedItems.length === 0;
+  const scrollEnabled = dragOverlay === null;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -163,6 +166,7 @@ export default function ShoppingListScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadAll} tintColor={colors.primary} />}
+        scrollEnabled={scrollEnabled}
       >
         {isEmpty && !loading && (
           <Text style={[styles.emptyText, { color: colors.textMuted }]}>
@@ -176,6 +180,7 @@ export default function ShoppingListScreen() {
             keyExtractor={(d) => String(d.id)}
             renderItem={renderDishGroup}
             onReorder={handleReorderDishes}
+            onDragStateChange={setDragOverlay}
           />
         )}
 
@@ -231,6 +236,9 @@ export default function ShoppingListScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ドラッグ中のオーバーレイ（ScrollViewの外） */}
+      <DragOverlay state={dragOverlay} />
 
       <View style={styles.fabContainer}>
         <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primaryLight }]} onPress={openAddDish}>

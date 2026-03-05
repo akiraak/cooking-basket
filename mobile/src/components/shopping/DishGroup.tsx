@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useThemeColors } from '../../theme/theme-provider';
 import { ShoppingItemRow } from './ShoppingItemRow';
-import { DraggableList } from '../ui/DraggableList';
+import { DraggableList, type DragOverlayState } from '../ui/DraggableList';
 import type { Dish, DishItem } from '../../types/models';
 
 interface DishGroupProps {
@@ -13,6 +13,7 @@ interface DishGroupProps {
   onAddItem: (dishId: number) => void;
   onPressDishName: (dish: Dish) => void;
   onReorderItems?: (dishId: number, data: DishItem[]) => void;
+  onDragStateChange?: (state: DragOverlayState | null) => void;
 }
 
 export function DishGroup({
@@ -23,6 +24,7 @@ export function DishGroup({
   onAddItem,
   onPressDishName,
   onReorderItems,
+  onDragStateChange,
 }: DishGroupProps) {
   const colors = useThemeColors();
 
@@ -40,7 +42,6 @@ export function DishGroup({
   ), [onToggleCheck, onDeleteItem]);
 
   const handleReorder = useCallback((newItems: DishItem[]) => {
-    // 並び替え後にチェック済みを末尾に戻す
     onReorderItems?.(dish.id, [...newItems, ...checkedItems]);
   }, [dish.id, checkedItems, onReorderItems]);
 
@@ -70,6 +71,7 @@ export function DishGroup({
             keyExtractor={(item) => String(item.id)}
             renderItem={renderItem}
             onReorder={handleReorder}
+            onDragStateChange={onDragStateChange}
           />
         )}
 

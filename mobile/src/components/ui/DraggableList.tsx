@@ -1,150 +1,208 @@
 import { useState, useRef, useCallback, type ReactNode } from 'react';
 import {
   View,
-  PanResponder,
   Animated,
   StyleSheet,
-  type LayoutChangeEvent,
   type GestureResponderEvent,
-  type PanResponderGestureState,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+
+export interface DragOverlayState {
+  renderFloating: () => ReactNode;
+  dragYAnim: Animated.Value;
+  onMove: (pageY: number) => void;
+  onEnd: () => void;
+}
 
 interface DraggableListProps<T> {
   data: T[];
   keyExtractor: (item: T) => string;
   renderItem: (item: T, index: number) => ReactNode;
   onReorder: (data: T[]) => void;
+  onDragStateChange?: (overlay: DragOverlayState | null) => void;
 }
 
-export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder }: DraggableListProps<T>) {
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const [currentOrder, setCurrentOrder] = useState<T[] | null>(null);
+interface ItemLayout {
+  pageY: number;
+  height: number;
+}
 
-  // レイアウト情報（各アイテムのY座標と高さ）
-  const layoutsRef = useRef<Map<number, { y: number; height: number }>>(new Map());
-  const containerRef = useRef<View>(null);
-  const containerYRef = useRef(0);
+export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder, onDragStateChange }: DraggableListProps<T>) {
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [displayOrder, setDisplayOrder] = useState<T[] | null>(null);
 
-  // ドラッグ中のアニメーション値
-  const dragY = useRef(new Animated.Value(0)).current;
-  const dragOpacity = useRef(new Animated.Value(0)).current;
-  const draggedItemYRef = useRef(0);
-  const draggedIndexRef = useRef(-1);
-  const orderRef = useRef<T[]>(data);
+  const itemRefs = useRef<Map<string, View>>(new Map());
+  const dragYAnim = useRef(new Animated.Value(0)).current;
+  const currentIndexRef = useRef(-1);
+  const orderRef = useRef<T[]>([]);
+  const dragHeightRef = useRef(0);
+  const orderedLayoutsRef = useRef<ItemLayout[]>([]);
+  const dragActiveRef = useRef(false);
 
-  const handleLayout = useCallback((index: number, event: LayoutChangeEvent) => {
-    const { y, height } = event.nativeEvent.layout;
-    layoutsRef.current.set(index, { y, height });
-  }, []);
+  const measureAllItems = useCallback((): Promise<Map<string, ItemLayout>> => {
+    return new Promise((resolve) => {
+      const result = new Map<string, ItemLayout>();
+      const keys = data.map(keyExtractor);
+      let measured = 0;
+      const total = keys.length;
+      if (total === 0) { resolve(result); return; }
 
-  const startDrag = useCallback((index: number, pageY: number) => {
-    // コンテナのページ上の位置を取得
-    containerRef.current?.measureInWindow((_x, y) => {
-      containerYRef.current = y;
-
-      const layout = layoutsRef.current.get(index);
-      if (!layout) return;
-
-      draggedIndexRef.current = index;
-      draggedItemYRef.current = layout.y;
-      orderRef.current = [...data];
-
-      // ドラッグ開始位置を設定
-      dragY.setValue(layout.y);
-      dragOpacity.setValue(1);
-
-      setDraggingIndex(index);
-      setCurrentOrder([...data]);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      keys.forEach((key) => {
+        const ref = itemRefs.current.get(key);
+        if (ref) {
+          ref.measureInWindow((_x, y, _w, height) => {
+            result.set(key, { pageY: y, height });
+            measured++;
+            if (measured === total) resolve(result);
+          });
+        } else {
+          measured++;
+          if (measured === total) resolve(result);
+        }
+      });
     });
-  }, [data, dragY, dragOpacity]);
+  }, [data, keyExtractor]);
 
-  const moveDrag = useCallback((moveY: number) => {
-    const relativeY = moveY - containerYRef.current;
-    const layouts = layoutsRef.current;
-    const order = orderRef.current;
-    const fromIdx = draggedIndexRef.current;
+  const handleDragEnd = useCallback(() => {
+    if (!dragActiveRef.current) return;
+    dragActiveRef.current = false;
+    const finalOrder = orderRef.current;
+    setActiveKey(null);
+    setDisplayOrder(null);
+    onDragStateChange?.(null);
+    onReorder(finalOrder);
+  }, [onReorder, onDragStateChange]);
 
-    // フローティングアイテムの位置を更新
-    dragY.setValue(relativeY - (layouts.get(fromIdx)?.height ?? 40) / 2);
+  const handleDragMove = useCallback((pageY: number) => {
+    if (!dragActiveRef.current) return;
 
-    // どの位置に入るか計算
+    dragYAnim.setValue(pageY - dragHeightRef.current / 2);
+
+    const fromIdx = currentIndexRef.current;
+    const layouts = orderedLayoutsRef.current;
+
     let targetIdx = fromIdx;
-    let accY = 0;
-    for (let i = 0; i < order.length; i++) {
-      const h = layouts.get(i)?.height ?? 40;
-      if (relativeY < accY + h / 2) {
+    for (let i = 0; i < layouts.length; i++) {
+      const midY = layouts[i].pageY + layouts[i].height / 2;
+      if (pageY < midY) {
         targetIdx = i;
         break;
       }
-      accY += h;
-      if (i === order.length - 1) {
-        targetIdx = order.length - 1;
+      if (i === layouts.length - 1) {
+        targetIdx = layouts.length - 1;
       }
     }
 
     if (targetIdx !== fromIdx) {
-      // 配列を入れ替え
-      const newOrder = [...order];
+      const newOrder = [...orderRef.current];
       const [moved] = newOrder.splice(fromIdx, 1);
       newOrder.splice(targetIdx, 0, moved);
+
+      const newLayouts = [...layouts];
+      const [movedL] = newLayouts.splice(fromIdx, 1);
+      newLayouts.splice(targetIdx, 0, movedL);
+
+      // pageYを再計算
+      let accY = newLayouts[0]?.pageY ?? 0;
+      for (let i = 0; i < newLayouts.length; i++) {
+        newLayouts[i] = { ...newLayouts[i], pageY: accY };
+        accY += newLayouts[i].height;
+      }
+
       orderRef.current = newOrder;
-      draggedIndexRef.current = targetIdx;
-      setCurrentOrder(newOrder);
+      orderedLayoutsRef.current = newLayouts;
+      currentIndexRef.current = targetIdx;
+      setActiveKey(keyExtractor(newOrder[targetIdx]));
+      setDisplayOrder([...newOrder]);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-  }, [dragY]);
+  }, [dragYAnim, keyExtractor]);
 
-  const endDrag = useCallback(() => {
-    dragOpacity.setValue(0);
-    const finalOrder = orderRef.current;
-    setDraggingIndex(null);
-    setCurrentOrder(null);
-    onReorder(finalOrder);
-  }, [dragOpacity, onReorder]);
+  const handleLongPress = useCallback(async (index: number, pageY: number) => {
+    if (dragActiveRef.current) return;
 
-  const displayData = currentOrder ?? data;
+    const layoutMap = await measureAllItems();
+
+    const order = [...data];
+    orderRef.current = order;
+    currentIndexRef.current = index;
+
+    const key = keyExtractor(order[index]);
+    const layout = layoutMap.get(key);
+    dragHeightRef.current = layout?.height ?? 50;
+
+    orderedLayoutsRef.current = order.map((item) => {
+      const l = layoutMap.get(keyExtractor(item));
+      return l ?? { pageY: 0, height: 50 };
+    });
+
+    dragYAnim.setValue(pageY - dragHeightRef.current / 2);
+    dragActiveRef.current = true;
+
+    setActiveKey(key);
+    setDisplayOrder(order);
+
+    // 親に「オーバーレイを出してくれ」と伝える
+    onDragStateChange?.({
+      renderFloating: () => renderItem(order[index], index),
+      dragYAnim,
+      onMove: handleDragMove,
+      onEnd: handleDragEnd,
+    });
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, [data, keyExtractor, measureAllItems, dragYAnim, renderItem, handleDragMove, handleDragEnd, onDragStateChange]);
+
+  const items = displayOrder ?? data;
 
   return (
-    <View ref={containerRef} style={styles.container}>
-      {displayData.map((item, index) => {
+    <View style={styles.container}>
+      {items.map((item, index) => {
         const key = keyExtractor(item);
-        const isDragged = draggingIndex !== null && currentOrder !== null &&
-          keyExtractor(currentOrder[draggingIndex]) === key;
-        // Temporarily show original at reduced opacity while dragging
-        // Actually: hide the dragged item in place, show it as floating
+        const isBeingDragged = key === activeKey;
         return (
-          <DraggableItem
+          <View
             key={key}
-            index={index}
-            onLayout={(e) => handleLayout(index, e)}
-            onLongPress={(pageY) => startDrag(index, pageY)}
-            onMove={moveDrag}
-            onRelease={endDrag}
-            isDragging={draggingIndex !== null}
-            isDraggedItem={isDragged}
+            ref={(ref) => { if (ref) itemRefs.current.set(key, ref); }}
+            style={isBeingDragged ? styles.placeholder : undefined}
+            collapsable={false}
           >
-            {renderItem(item, index)}
-          </DraggableItem>
+            <DraggableItem
+              index={index}
+              onLongPress={handleLongPress}
+              disabled={dragActiveRef.current}
+            >
+              {renderItem(item, index)}
+            </DraggableItem>
+          </View>
         );
       })}
+    </View>
+  );
+}
 
-      {/* フローティング（ドラッグ中のアイテム） */}
-      {draggingIndex !== null && currentOrder !== null && (
-        <Animated.View
-          style={[
-            styles.floating,
-            {
-              opacity: dragOpacity,
-              transform: [{ translateY: dragY }],
-            },
-          ]}
-          pointerEvents="none"
-        >
-          {renderItem(currentOrder[draggedIndexRef.current], draggedIndexRef.current)}
-        </Animated.View>
-      )}
+// 親コンポーネントが使うオーバーレイ描画ヘルパー
+export function DragOverlay({ state }: { state: DragOverlayState | null }) {
+  if (!state) return null;
+
+  return (
+    <View
+      style={styles.overlay}
+      onStartShouldSetResponder={() => true}
+      onMoveShouldSetResponder={() => true}
+      onResponderMove={(e) => state.onMove(e.nativeEvent.pageY)}
+      onResponderRelease={() => state.onEnd()}
+      onResponderTerminate={() => state.onEnd()}
+    >
+      <Animated.View
+        style={[
+          styles.floating,
+          { transform: [{ translateY: state.dragYAnim }] },
+        ]}
+        pointerEvents="none"
+      >
+        {state.renderFloating()}
+      </Animated.View>
     </View>
   );
 }
@@ -152,93 +210,46 @@ export function DraggableList<T>({ data, keyExtractor, renderItem, onReorder }: 
 interface DraggableItemProps {
   index: number;
   children: ReactNode;
-  onLayout: (e: LayoutChangeEvent) => void;
-  onLongPress: (pageY: number) => void;
-  onMove: (moveY: number) => void;
-  onRelease: () => void;
-  isDragging: boolean;
-  isDraggedItem: boolean;
+  onLongPress: (index: number, pageY: number) => void;
+  disabled: boolean;
 }
 
-function DraggableItem({
-  children,
-  onLayout,
-  onLongPress,
-  onMove,
-  onRelease,
-  isDragging,
-  isDraggedItem,
-}: DraggableItemProps) {
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isActiveDrag = useRef(false);
-  const startPageY = useRef(0);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_e, gs) => {
-        // 長押し後にドラッグ開始していればキャプチャ
-        return isActiveDrag.current && Math.abs(gs.dy) > 2;
-      },
-      onPanResponderGrant: () => {},
-      onPanResponderMove: (_e: GestureResponderEvent, gs: PanResponderGestureState) => {
-        if (isActiveDrag.current) {
-          onMove(gs.moveY);
-        }
-      },
-      onPanResponderRelease: () => {
-        if (isActiveDrag.current) {
-          isActiveDrag.current = false;
-          onRelease();
-        }
-      },
-      onPanResponderTerminate: () => {
-        if (isActiveDrag.current) {
-          isActiveDrag.current = false;
-          onRelease();
-        }
-      },
-    })
-  ).current;
+function DraggableItem({ index, children, onLongPress, disabled }: DraggableItemProps) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startYRef = useRef(0);
 
   const handleTouchStart = useCallback((e: GestureResponderEvent) => {
-    startPageY.current = e.nativeEvent.pageY;
-    longPressTimer.current = setTimeout(() => {
-      isActiveDrag.current = true;
-      onLongPress(startPageY.current);
-    }, 300);
-  }, [onLongPress]);
+    if (disabled) return;
+    startYRef.current = e.nativeEvent.pageY;
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      onLongPress(index, startYRef.current);
+    }, 400);
+  }, [index, onLongPress, disabled]);
 
   const handleTouchEnd = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
     }
-    if (isActiveDrag.current) {
-      isActiveDrag.current = false;
-      onRelease();
-    }
-  }, [onRelease]);
+  }, []);
 
   const handleTouchMove = useCallback((e: GestureResponderEvent) => {
-    // 長押し判定中に指が動いたらキャンセル
-    if (!isActiveDrag.current && longPressTimer.current) {
-      const dy = Math.abs(e.nativeEvent.pageY - startPageY.current);
-      if (dy > 10) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
+    if (timerRef.current) {
+      const dy = Math.abs(e.nativeEvent.pageY - startYRef.current);
+      if (dy > 8) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
       }
     }
   }, []);
 
   return (
     <View
-      onLayout={onLayout}
-      style={[isDraggedItem && styles.draggedPlaceholder]}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       onTouchMove={handleTouchMove}
-      {...panResponder.panHandlers}
     >
       {children}
     </View>
@@ -249,18 +260,16 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
   },
+  placeholder: {
+    opacity: 0.3,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+  },
   floating: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 999,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  draggedPlaceholder: {
-    opacity: 0.3,
+    left: 16,
+    right: 16,
   },
 });
