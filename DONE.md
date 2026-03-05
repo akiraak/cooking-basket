@@ -95,3 +95,4 @@
 - 2026-03-04 React Native Phase 6.2: アニメーション（既存Animated実装で十分、追加不要）
 - 2026-03-04 React Native Phase 6.3: Hapticフィードバック（チェック・ドラッグ・追加・削除）
 - 2026-03-04 React Native Phase 6.4: アプリアイコン設定、その他ポリッシュ完了
+- 2026-03-04 買い物リストの料理・アイテムをドラッグで並び替え可能に（reanimated v3 + draggable-flatlist）

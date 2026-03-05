@@ -3,12 +3,16 @@ import {
   View,
   Text,
   Image,
-  ScrollView,
   TouchableOpacity,
   RefreshControl,
   StyleSheet,
   Alert,
 } from 'react-native';
+import {
+  NestableScrollContainer,
+  NestableDraggableFlatList,
+  type RenderItemParams,
+} from 'react-native-draggable-flatlist';
 import * as Haptics from 'expo-haptics';
 import { useThemeColors } from '../../src/theme/theme-provider';
 import { useShoppingStore } from '../../src/stores/shopping-store';
@@ -18,7 +22,7 @@ import { AddModal } from '../../src/components/shopping/AddModal';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { Toast } from '../../src/components/ui/Toast';
 import { IngredientsScreen } from '../../src/components/dishes/IngredientsScreen';
-import type { Dish } from '../../src/types/models';
+import type { Dish, DishItem } from '../../src/types/models';
 
 type ModalMode = 'item' | 'dish';
 
@@ -40,7 +44,6 @@ export default function ShoppingListScreen() {
     loadAll();
   }, [loadAll]);
 
-  // アイテムを料理ごとに振り分け
   const itemDishMap = new Map<number, number>();
   for (const dish of dishes) {
     for (const di of dish.items) {
@@ -123,49 +126,55 @@ export default function ShoppingListScreen() {
     }
   }, [deleteCheckedItems]);
 
-  const handleMoveDish = useCallback(async (dishId: number, direction: 'up' | 'down') => {
-    const idx = dishes.findIndex((d) => d.id === dishId);
-    if (idx < 0) return;
-    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= dishes.length) return;
-    const newDishes = [...dishes];
-    [newDishes[idx], newDishes[newIdx]] = [newDishes[newIdx], newDishes[idx]];
-    const orderedIds = newDishes.map((d) => d.id);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    useShoppingStore.setState({ dishes: newDishes });
+  const handleReorderDishes = useCallback(async ({ data }: { data: Dish[] }) => {
+    const orderedIds = data.map((d) => d.id);
+    useShoppingStore.setState({ dishes: data });
     try {
       await reorderDishes(orderedIds);
     } catch {
       loadAll();
     }
-  }, [dishes, reorderDishes, loadAll]);
+  }, [reorderDishes, loadAll]);
 
-  const handleMoveDishItem = useCallback(async (dishId: number, itemId: number, direction: 'up' | 'down') => {
-    const dish = dishes.find((d) => d.id === dishId);
-    if (!dish) return;
-    const idx = dish.items.findIndex((i) => i.id === itemId);
-    if (idx < 0) return;
-    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (newIdx < 0 || newIdx >= dish.items.length) return;
-    const newItems = [...dish.items];
-    [newItems[idx], newItems[newIdx]] = [newItems[newIdx], newItems[idx]];
-    const orderedItemIds = newItems.map((i) => i.id);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handleReorderDishItems = useCallback(async (dishId: number, data: DishItem[]) => {
+    const orderedItemIds = data.map((i) => i.id);
     useShoppingStore.setState((s) => ({
-      dishes: s.dishes.map((d) => d.id === dishId ? { ...d, items: newItems } : d),
+      dishes: s.dishes.map((d) =>
+        d.id === dishId ? { ...d, items: data } : d
+      ),
     }));
     try {
       await reorderDishItems(dishId, orderedItemIds);
     } catch {
       loadAll();
     }
-  }, [dishes, reorderDishItems, loadAll]);
+  }, [reorderDishItems, loadAll]);
 
   const isEmpty = dishes.length === 0 && ungroupedItems.length === 0 && checkedItems.length === 0;
 
+  const renderDishGroup = useCallback(({ item: dish, drag, isActive }: RenderItemParams<Dish>) => {
+    const handleDrag = () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      drag();
+    };
+    return (
+      <DishGroup
+        dish={dish}
+        onToggleCheck={handleToggleCheck}
+        onDeleteItem={handleDeleteItem}
+        onDeleteDish={setConfirmDish}
+        onAddItem={openAddItem}
+        onPressDishName={setActiveDish}
+        onDragStart={handleDrag}
+        isActive={isActive}
+        onReorderItems={handleReorderDishItems}
+      />
+    );
+  }, [handleToggleCheck, handleDeleteItem, openAddItem, handleReorderDishItems]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView
+      <NestableScrollContainer
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadAll} tintColor={colors.primary} />}
@@ -176,21 +185,15 @@ export default function ShoppingListScreen() {
           </Text>
         )}
 
-        {dishes.map((dish, index) => (
-          <DishGroup
-            key={dish.id}
-            dish={dish}
-            onToggleCheck={handleToggleCheck}
-            onDeleteItem={handleDeleteItem}
-            onDeleteDish={setConfirmDish}
-            onAddItem={openAddItem}
-            onPressDishName={setActiveDish}
-            canMoveUp={index > 0}
-            canMoveDown={index < dishes.length - 1}
-            onMoveDish={handleMoveDish}
-            onMoveItem={handleMoveDishItem}
+        {dishes.length > 0 && (
+          <NestableDraggableFlatList
+            data={dishes}
+            keyExtractor={(item) => String(item.id)}
+            renderItem={renderDishGroup}
+            onDragEnd={handleReorderDishes}
+            scrollEnabled={false}
           />
-        ))}
+        )}
 
         {ungroupedItems.length > 0 && (
           <View style={styles.ungroupedSection}>
@@ -243,9 +246,8 @@ export default function ShoppingListScreen() {
             )}
           </View>
         )}
-      </ScrollView>
+      </NestableScrollContainer>
 
-      {/* FABs - 横並び: 料理(左) アイテム(右) */}
       <View style={styles.fabContainer}>
         <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primaryLight }]} onPress={openAddDish}>
           <Image source={require('../../assets/icon_dish.png')} style={styles.fabDishIcon} />
