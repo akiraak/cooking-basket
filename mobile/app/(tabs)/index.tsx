@@ -1,14 +1,217 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  StyleSheet,
+  Alert,
+} from 'react-native';
 import { useThemeColors } from '../../src/theme/theme-provider';
+import { useShoppingStore } from '../../src/stores/shopping-store';
+import { DishGroup } from '../../src/components/shopping/DishGroup';
+import { ShoppingItemRow } from '../../src/components/shopping/ShoppingItemRow';
+import { AddModal } from '../../src/components/shopping/AddModal';
+import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
+import { Toast } from '../../src/components/ui/Toast';
+import type { Dish } from '../../src/types/models';
+
+type ModalMode = 'item' | 'dish';
 
 export default function ShoppingListScreen() {
   const colors = useThemeColors();
+  const { items, dishes, loading, loadAll, addItem, toggleCheck, deleteItem, addDish, deleteDish, linkItemToDish, deleteCheckedItems } = useShoppingStore();
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMode, setModalMode] = useState<ModalMode>('item');
+  const [presetDishId, setPresetDishId] = useState<number | null>(null);
+  const [confirmDish, setConfirmDish] = useState<Dish | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  // アイテムを料理ごとに振り分け
+  const itemDishMap = new Map<number, number>();
+  for (const dish of dishes) {
+    for (const di of dish.items) {
+      itemDishMap.set(di.id, dish.id);
+    }
+  }
+  const ungroupedItems = items.filter((i) => !itemDishMap.has(i.id) && !i.checked);
+  const checkedItems = items.filter((i) => i.checked);
+
+  const handleToggleCheck = useCallback(async (id: number, checked: number) => {
+    try {
+      await toggleCheck(id, checked);
+    } catch {
+      Alert.alert('エラー', '更新に失敗しました');
+    }
+  }, [toggleCheck]);
+
+  const handleDeleteItem = useCallback(async (id: number) => {
+    try {
+      await deleteItem(id);
+    } catch {
+      Alert.alert('エラー', '削除に失敗しました');
+    }
+  }, [deleteItem]);
+
+  const handleDeleteDish = useCallback(async () => {
+    if (!confirmDish) return;
+    try {
+      await deleteDish(confirmDish.id);
+      setToast(`${confirmDish.name} を削除しました`);
+    } catch {
+      Alert.alert('エラー', '削除に失敗しました');
+    }
+    setConfirmDish(null);
+  }, [confirmDish, deleteDish]);
+
+  const openAddItem = useCallback((dishId?: number) => {
+    setModalMode('item');
+    setPresetDishId(dishId ?? null);
+    setModalVisible(true);
+  }, []);
+
+  const openAddDish = useCallback(() => {
+    setModalMode('dish');
+    setPresetDishId(null);
+    setModalVisible(true);
+  }, []);
+
+  const handleSubmitItem = useCallback(async (name: string, dishId: number | null) => {
+    setModalVisible(false);
+    try {
+      const item = await addItem(name);
+      if (dishId) {
+        await linkItemToDish(dishId, item.id);
+      }
+      setToast(`${name} を追加しました`);
+    } catch {
+      Alert.alert('エラー', '追加に失敗しました');
+    }
+  }, [addItem, linkItemToDish]);
+
+  const handleSubmitDish = useCallback(async (name: string) => {
+    setModalVisible(false);
+    try {
+      await addDish(name);
+      setToast(`${name} を追加しました`);
+    } catch {
+      Alert.alert('エラー', '追加に失敗しました');
+    }
+  }, [addDish]);
+
+  const handleDeleteChecked = useCallback(async () => {
+    try {
+      const count = await deleteCheckedItems();
+      if (count > 0) setToast(`${count}件を削除しました`);
+    } catch {
+      Alert.alert('エラー', '削除に失敗しました');
+    }
+  }, [deleteCheckedItems]);
+
+  const isEmpty = dishes.length === 0 && ungroupedItems.length === 0 && checkedItems.length === 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.placeholder, { color: colors.textMuted }]}>
-        買い物リスト（Phase 3 で実装）
-      </Text>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadAll} tintColor={colors.primary} />}
+      >
+        {isEmpty && !loading && (
+          <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+            リストは空です。料理やアイテムを追加しましょう
+          </Text>
+        )}
+
+        {dishes.map((dish) => (
+          <DishGroup
+            key={dish.id}
+            dish={dish}
+            onToggleCheck={handleToggleCheck}
+            onDeleteItem={handleDeleteItem}
+            onDeleteDish={setConfirmDish}
+            onAddItem={openAddItem}
+            onPressDishName={() => {/* Phase 4 で具材画面を開く */}}
+          />
+        ))}
+
+        {ungroupedItems.length > 0 && (
+          <View style={styles.ungroupedSection}>
+            {dishes.length > 0 && (
+              <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>その他</Text>
+            )}
+            {ungroupedItems.map((item) => (
+              <ShoppingItemRow
+                key={item.id}
+                id={item.id}
+                name={item.name}
+                checked={item.checked}
+                onToggleCheck={handleToggleCheck}
+                onDelete={handleDeleteItem}
+              />
+            ))}
+          </View>
+        )}
+
+        {checkedItems.length > 0 && (
+          <View style={styles.checkedSection}>
+            <View style={styles.checkedHeader}>
+              <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
+                チェック済み ({checkedItems.length})
+              </Text>
+              <TouchableOpacity onPress={handleDeleteChecked}>
+                <Text style={[styles.clearBtn, { color: colors.danger }]}>すべて削除</Text>
+              </TouchableOpacity>
+            </View>
+            {checkedItems.map((item) => (
+              <ShoppingItemRow
+                key={item.id}
+                id={item.id}
+                name={item.name}
+                checked={item.checked}
+                onToggleCheck={handleToggleCheck}
+                onDelete={handleDeleteItem}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* FABs */}
+      <View style={styles.fabContainer}>
+        <TouchableOpacity style={[styles.fab, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={openAddDish}>
+          <Text style={[styles.fabIcon, { color: colors.primaryLight }]}>🍳</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => openAddItem()}>
+          <Text style={styles.fabIconWhite}>+</Text>
+        </TouchableOpacity>
+      </View>
+
+      <AddModal
+        visible={modalVisible}
+        mode={modalMode}
+        dishes={dishes}
+        presetDishId={presetDishId}
+        onClose={() => setModalVisible(false)}
+        onSubmitItem={handleSubmitItem}
+        onSubmitDish={handleSubmitDish}
+      />
+
+      <ConfirmDialog
+        visible={!!confirmDish}
+        title="料理を削除"
+        message={`「${confirmDish?.name}」を削除しますか？アイテムはリストに残ります。`}
+        onConfirm={handleDeleteDish}
+        onCancel={() => setConfirmDish(null)}
+      />
+
+      <Toast message={toast} onHide={() => setToast(null)} />
     </View>
   );
 }
@@ -16,10 +219,67 @@ export default function ShoppingListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 15,
+  },
+  ungroupedSection: {
+    marginBottom: 12,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  checkedSection: {
+    marginTop: 16,
+    opacity: 0.6,
+  },
+  checkedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  clearBtn: {
+    fontSize: 13,
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    gap: 12,
     alignItems: 'center',
   },
-  placeholder: {
-    fontSize: 16,
+  fab: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  fabIcon: {
+    fontSize: 22,
+  },
+  fabIconWhite: {
+    fontSize: 28,
+    color: '#fff',
+    fontWeight: '300',
+    marginTop: -2,
   },
 });
