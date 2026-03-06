@@ -68,12 +68,14 @@ export function RecipeCard({
           {recipe.steps.map((step, i) => (
             <View key={i} style={styles.step}>
               <Text style={[styles.stepNum, { color: colors.primaryLight }]}>{i + 1}.</Text>
-              <HighlightedText
-                text={step}
-                ingredients={allIngredients}
-                addedNames={addedNames}
-                onPressIngredient={onPressIngredient}
-              />
+              <View style={styles.stepText}>
+                <HighlightedText
+                  text={step}
+                  ingredients={allIngredients}
+                  addedNames={addedNames}
+                  onPressIngredient={onPressIngredient}
+                />
+              </View>
             </View>
           ))}
         </View>
@@ -134,5 +136,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
     minWidth: 20,
+  },
+  stepText: {
+    flex: 1,
   },
 });
