@@ -25,7 +25,7 @@
       "package": "me.chobi.basket",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1c1c1c"
+        "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "userInterfaceStyle": "automatic",
