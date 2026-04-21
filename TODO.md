@@ -35,7 +35,7 @@
         docs/plans/dev-admin.md
 - [x] Step1: dev-admin/ ディレクトリ作成、package.json / tsconfig.json 作成
 - [x] Step2: dev-admin/src/index.ts で Express サーバ実装（API + 静的配信、ポート 3010）
-- [ ] Step3: dev-admin/src/web/ に HTML / CSS / JS を作成
+- [x] Step3: dev-admin/src/web/ に HTML / CSS / JS を作成
 - [ ] Step4: ルートに dev-admin.sh 起動スクリプトを追加
 - [ ] Step5: 動作確認（plans / specs / design が閲覧できる）
 - [ ] Step6: 既存 admin からドキュメント関連機能を削除
