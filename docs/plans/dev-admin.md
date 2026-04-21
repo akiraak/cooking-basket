@@ -96,7 +96,7 @@ dev-admin 公開後、以下を削除する:
 ## 実装ステップ
 
 - [x] Step1: `dev-admin/` ディレクトリ作成、`package.json` / `tsconfig.json` 作成
-- [ ] Step2: `dev-admin/src/index.ts` で Express サーバ実装（API 3エンドポイント + 静的配信）
+- [x] Step2: `dev-admin/src/index.ts` で Express サーバ実装（API 3エンドポイント + 静的配信）
 - [ ] Step3: `dev-admin/src/web/` に HTML / CSS / JS を作成
 - [ ] Step4: ルートに `dev-admin.sh` 起動スクリプトを追加
 - [ ] Step5: 動作確認（`http://localhost:3010` で plans / specs / design が閲覧できる）
