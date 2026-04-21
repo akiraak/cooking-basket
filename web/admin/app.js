@@ -209,6 +209,8 @@ const Pages = {
   'react-native-plan': { title: 'React Native 開発計画', render: renderReactNativePlan, parent: 'docs' },
 };
 
+const DOC_CATEGORY_LABELS = { plans: '計画 (docs/plans)', specs: '仕様 (docs/specs)' };
+
 // ============================================================
 // Router
 // ============================================================
@@ -221,6 +223,23 @@ const Router = {
   navigate() {
     const hash = location.hash.slice(1) || 'dashboard';
     this.currentPage = hash;
+
+    // doc-file/<category>/<file> 形式: docs/plans, docs/specs の markdown 閲覧
+    if (hash.startsWith('doc-file/')) {
+      const rest = hash.slice('doc-file/'.length);
+      const slash = rest.indexOf('/');
+      if (slash > 0) {
+        const category = rest.slice(0, slash);
+        const file = rest.slice(slash + 1);
+        document.querySelectorAll('.nav-item').forEach(el => {
+          el.classList.toggle('active', el.dataset.page === 'docs');
+        });
+        document.getElementById('page-title').textContent = file;
+        renderDocFile(category, file);
+        return;
+      }
+    }
+
     const page = Pages[hash];
     // サブページの場合は親のナビをアクティブにする
     const navTarget = (page && page.parent) || hash;
@@ -493,7 +512,7 @@ async function renderSystem() {
 // ============================================================
 // Docs (企画ドキュメント一覧)
 // ============================================================
-function renderDocs() {
+async function renderDocs() {
   const docs = [
     { hash: 'icon-preview', icon: '&#127912;', title: 'アイコン候補', desc: 'ヘッダーアイコンの組み合わせ比較' },
     { hash: 'app-name', icon: '&#9998;', title: 'アプリ名候補', desc: 'アプリ名の候補一覧（決定：お料理バスケット）' },
@@ -504,7 +523,8 @@ function renderDocs() {
   ];
 
   const area = document.getElementById('content-area');
-  let html = '<div class="docs-grid">';
+  let html = '<div class="info-section-title" style="font-size:16px;margin-bottom:12px;">管理画面内ドキュメント</div>';
+  html += '<div class="docs-grid">';
   for (const d of docs) {
     html += `
       <a href="#${d.hash}" class="docs-card">
@@ -516,7 +536,67 @@ function renderDocs() {
       </a>`;
   }
   html += '</div>';
+
+  // docs/plans, docs/specs のリポジトリ上のドキュメント
+  html += '<div id="repo-docs-area" style="margin-top:28px"><div class="loading-text">読み込み中...</div></div>';
   area.innerHTML = html;
+
+  const res = await api('GET', `${API}/docs-files`);
+  const repoArea = document.getElementById('repo-docs-area');
+  if (!repoArea) return;
+  if (!res.success) {
+    repoArea.innerHTML = '<div class="empty-state">ドキュメントの取得に失敗しました</div>';
+    return;
+  }
+
+  let repoHtml = '';
+  for (const category of ['plans', 'specs']) {
+    const list = res.data[category] || [];
+    const label = DOC_CATEGORY_LABELS[category] || category;
+    repoHtml += `<div class="info-section-title" style="font-size:16px;margin:20px 0 12px;">${escapeHtml(label)}</div>`;
+    if (list.length === 0) {
+      repoHtml += '<div class="empty-state" style="padding:24px">ファイルがありません</div>';
+      continue;
+    }
+    repoHtml += '<div class="docs-grid">';
+    for (const f of list) {
+      const hash = `doc-file/${category}/${f.file}`;
+      repoHtml += `
+        <a href="#${escapeHtml(hash)}" class="docs-card">
+          <div class="docs-card-icon">&#128196;</div>
+          <div class="docs-card-body">
+            <div class="docs-card-title">${escapeHtml(f.title)}</div>
+            <div class="docs-card-desc">${escapeHtml(category + '/' + f.file)}</div>
+          </div>
+        </a>`;
+    }
+    repoHtml += '</div>';
+  }
+  repoArea.innerHTML = repoHtml;
+}
+
+// ============================================================
+// Doc File Viewer (docs/plans, docs/specs の markdown 閲覧)
+// ============================================================
+async function renderDocFile(category, file) {
+  const area = document.getElementById('content-area');
+  area.innerHTML = '<div class="loading-text">読み込み中...</div>';
+
+  const encCategory = encodeURIComponent(category);
+  const encFile = encodeURIComponent(file);
+  const res = await api('GET', `${API}/docs-files/${encCategory}/${encFile}`);
+  if (!res.success) {
+    area.innerHTML = `<a href="#docs" class="back-link">&larr; ドキュメント一覧</a>
+      <div class="empty-state">${escapeHtml(res.error || 'ドキュメントを取得できませんでした')}</div>`;
+    return;
+  }
+
+  const { title, html } = res.data;
+  document.getElementById('page-title').textContent = title || file;
+  area.innerHTML = `
+    <a href="#docs" class="back-link">&larr; ドキュメント一覧</a>
+    <div class="md-content">${html}</div>
+  `;
 }
 
 // ============================================================

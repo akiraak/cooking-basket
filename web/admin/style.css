@@ -634,3 +634,124 @@ td input[type="text"]:focus {
   font-size: 14px;
   padding: 20px;
 }
+
+/* Back link (used in doc sub-pages) */
+.back-link {
+  display: inline-block;
+  font-size: 13px;
+  color: #007aff;
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+.back-link:hover {
+  text-decoration: underline;
+}
+
+/* Rendered markdown content (docs/plans, docs/specs viewer) */
+.md-content {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 28px 32px;
+  color: #1e293b;
+  line-height: 1.75;
+  font-size: 14px;
+}
+.md-content h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 16px;
+  color: #0f172a;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+.md-content h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 28px 0 12px;
+  color: #0f172a;
+}
+.md-content h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 20px 0 8px;
+  color: #334155;
+}
+.md-content h4 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 16px 0 6px;
+  color: #334155;
+}
+.md-content p {
+  margin: 0 0 12px;
+}
+.md-content ul, .md-content ol {
+  margin: 0 0 12px 24px;
+}
+.md-content li {
+  margin-bottom: 4px;
+}
+.md-content a {
+  color: #007aff;
+  text-decoration: none;
+}
+.md-content a:hover {
+  text-decoration: underline;
+}
+.md-content code {
+  font-family: 'SF Mono', Menlo, Monaco, monospace;
+  font-size: 0.88em;
+  background: #f1f5f9;
+  color: #b91c1c;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.md-content pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 14px 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.md-content pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+.md-content blockquote {
+  border-left: 4px solid #cbd5e1;
+  background: #f8fafc;
+  padding: 10px 14px;
+  margin: 12px 0;
+  color: #475569;
+  border-radius: 0 6px 6px 0;
+}
+.md-content hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 24px 0;
+}
+.md-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.md-content th, .md-content td {
+  border: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.md-content th {
+  background: #f1f5f9;
+  font-weight: 700;
+  color: #0f172a;
+}
+.md-content img {
+  max-width: 100%;
+  height: auto;
+}
