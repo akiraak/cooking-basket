@@ -23,6 +23,16 @@ eas build -p android --profile production # Android 本番ビルド
 eas submit -p ios    # App Store 提出
 ```
 
+### 開発用管理サーバ (dev-admin/)
+```bash
+./dev-admin.sh       # ルートから起動 (ポート 3010、127.0.0.1 バインド)
+# または
+cd dev-admin && npm run dev
+```
+- `http://localhost:3010` で `docs/plans`, `docs/specs`, `docs/specs/design` を閲覧できる
+- ローカル開発専用（本番 admin とは独立）
+- ポート変更は `DEV_ADMIN_PORT` 環境変数で指定可能
+
 ## Git ルール
 
 - `git push` はユーザーから明示的に指示があった場合のみ実行する（勝手に push しない）
