@@ -115,3 +115,4 @@
 
 ## 2026-04
 - 2026-04-21 管理画面で docs/plans, docs/specs のマークダウンドキュメントを閲覧可能に（API追加 + 一覧/閲覧画面）
+- 2026-04-21 dev-admin Step1: dev-admin/ ディレクトリ作成、package.json / tsconfig.json 作成
