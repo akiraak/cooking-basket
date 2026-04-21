@@ -118,3 +118,4 @@
 - 2026-04-21 dev-admin Step1: dev-admin/ ディレクトリ作成、package.json / tsconfig.json 作成
 - 2026-04-21 dev-admin Step2: Express サーバ実装（/api/docs, /api/docs/:category/:file, /api/design/:file、ポート 3010、127.0.0.1 バインド）
 - 2026-04-21 dev-admin Step3: dev-admin/src/web/ に index.html / style.css / app.js を作成（サイドバー + markdown 表示 + design iframe プレビュー）
+- 2026-04-21 dev-admin Step4: ルートに dev-admin.sh 起動スクリプトを追加
