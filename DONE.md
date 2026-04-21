@@ -120,3 +120,4 @@
 - 2026-04-21 dev-admin Step3: dev-admin/src/web/ に index.html / style.css / app.js を作成（サイドバー + markdown 表示 + design iframe プレビュー）
 - 2026-04-21 dev-admin Step4: ルートに dev-admin.sh 起動スクリプトを追加
 - 2026-04-21 dev-admin Step5: 動作確認（/api/docs で plans / specs / design 一覧、/api/docs/:category/:file の markdown→HTML 変換、/api/design/:file の HTML 配信、静的 Web UI、path traversal / 拡張子チェックが正しく動作）
+- 2026-04-21 dev-admin Step6: 既存 admin からドキュメント関連機能を削除（server/src/routes/admin.ts の /docs-files エンドポイント・関連コード・未使用 import、web/admin/app.js の renderDocs / renderDocFile / DOC_CATEGORY_LABELS / doc-file ルーター、web/admin/index.html のサイドバー「企画ドキュメント」項目）
