@@ -63,7 +63,7 @@ function renderFileItem(category, file, depth) {
   a.href = `#${category}/${encodePath(file.path)}`;
   a.dataset.category = category;
   a.dataset.path = file.path;
-  a.style.paddingLeft = `${20 + depth * 16}px`;
+  if (depth > 0) a.style.marginLeft = `${depth * 22}px`;
 
   const title = document.createElement('div');
   title.textContent = file.title;
@@ -87,7 +87,7 @@ function renderDir(category, dir, parentPath, depth) {
 
   const header = document.createElement('div');
   header.className = 'nav-dir' + (isExpanded ? ' expanded' : '');
-  header.style.paddingLeft = `${20 + depth * 16}px`;
+  if (depth > 0) header.style.marginLeft = `${depth * 22}px`;
   header.dataset.expandKey = expandKey;
 
   const toggle = document.createElement('span');
