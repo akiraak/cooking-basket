@@ -130,3 +130,4 @@
 - 2026-04-21 dev-admin 画面全体を上下2段レイアウトに変更（上段: `dev-admin` ブランド + Plans/Specs タブ + ページタイトル + パス、下段: サイドバーのファイルツリー + コンテンツ。トップバーをフル幅に昇格、サイドバーは固定配置から flex レイアウト内のスクロール領域に変更）
 - 2026-04-21 dev-admin を GitHub 風ライトテーマに再配色（サイドバーを角丸ピル化、アクティブタブをオレンジ下線に、インデントを margin ベースに変更）
 - 2026-04-21 plans の md ドキュメントに「アーカイブする」ボタンを追加（`docs/plans/<file>.md` → `docs/plans/archive/<file>.md` に移動する `POST /api/docs/plans/:file/archive` エンドポイントを追加、`docs/plans/archive/` ディレクトリを用意）
+- 2026-04-22 dev-admin TODO エディタ Phase 1: サーバ側 API（`EDITABLE_FILES` ホワイトリスト追加、`GET /api/files/:name` / `GET /api/files/:name/render` / `PUT /api/files/:name` 実装、mtime 楽観ロックで 409、tmp→rename のアトミック書き込み、curl で 200/409/400/404 動作確認）

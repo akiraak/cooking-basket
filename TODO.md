@@ -139,12 +139,6 @@
 - [ ] TODO.md を表示と編集できるようにする。Claude Code や外部で変更を加えたときもリアルタイム反映されるようにする
         docs/plans/dev-admin-todo-editor.md
 
-### Phase 1: サーバ側 API
-- [ ] 1. `dev-admin/src/index.ts` に `EDITABLE_FILES` ホワイトリスト（TODO.md / DONE.md）を追加
-- [ ] 2. `GET /api/files/:name` / `GET /api/files/:name/render` / `PUT /api/files/:name` 実装（mtime 楽観ロック）
-- [ ] 3. `PUT` はアトミック書き込み（tmp → rename）で実装
-- [ ] (動作確認) curl で GET/PUT、mtime 不一致時 409、ホワイトリスト外で 400
-
 ### Phase 2: SSE 変更通知
 - [ ] 4. `GET /api/files/watch` を SSE で実装
 - [ ] 5. `fs.watch` + `stat` による変更検知 → `event: change` 送信

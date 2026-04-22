@@ -4,12 +4,20 @@ import path from 'path';
 import { marked } from 'marked';
 
 const app = express();
+app.use(express.json({ limit: '1mb' }));
 const PORT = Number(process.env.DEV_ADMIN_PORT) || 3010;
 const HOST = '127.0.0.1';
 
-const DOCS_DIR = path.join(__dirname, '../../docs');
+const ROOT_DIR = path.join(__dirname, '../..');
+const DOCS_DIR = path.join(ROOT_DIR, 'docs');
 const MD_CATEGORIES = ['plans', 'specs'] as const;
 type MdCategory = typeof MD_CATEGORIES[number];
+
+// ルート直下の編集可能ファイル（パストラバーサル防止の固定マップ）
+const EDITABLE_FILES: Record<string, string> = {
+  'TODO.md': path.join(ROOT_DIR, 'TODO.md'),
+  'DONE.md': path.join(ROOT_DIR, 'DONE.md'),
+};
 
 interface TreeFile {
   name: string;
@@ -250,6 +258,84 @@ app.get('/api/design/:file', (req: Request, res: Response) => {
     return;
   }
   res.type('html').sendFile(filePath);
+});
+
+// ルート直下の編集可能ファイル: 生 Markdown + mtime
+app.get('/api/files/:name', (req: Request, res: Response) => {
+  const name = req.params.name as string;
+  const abs = EDITABLE_FILES[name];
+  if (!abs) {
+    res.status(400).json({ success: false, data: null, error: '編集対象外のファイルです' });
+    return;
+  }
+  if (!fs.existsSync(abs)) {
+    res.status(404).json({ success: false, data: null, error: 'ファイルが見つかりません' });
+    return;
+  }
+  const content = fs.readFileSync(abs, 'utf-8');
+  const mtime = fs.statSync(abs).mtimeMs;
+  res.json({ success: true, data: { content, mtime }, error: null });
+});
+
+// ルート直下の編集可能ファイル: marked で HTML 化
+app.get('/api/files/:name/render', (req: Request, res: Response) => {
+  const name = req.params.name as string;
+  const abs = EDITABLE_FILES[name];
+  if (!abs) {
+    res.status(400).json({ success: false, data: null, error: '編集対象外のファイルです' });
+    return;
+  }
+  if (!fs.existsSync(abs)) {
+    res.status(404).json({ success: false, data: null, error: 'ファイルが見つかりません' });
+    return;
+  }
+  const raw = fs.readFileSync(abs, 'utf-8');
+  const mtime = fs.statSync(abs).mtimeMs;
+  const title = extractMdTitle(raw, name.replace(/\.md$/, ''));
+  const md = raw.replace(/^---[\s\S]*?---\n*/, '');
+  const html = marked(md) as string;
+  res.json({ success: true, data: { title, html, mtime }, error: null });
+});
+
+// ルート直下の編集可能ファイル: 保存（mtime 楽観ロック + tmp → rename のアトミック書き込み）
+app.put('/api/files/:name', (req: Request, res: Response) => {
+  const name = req.params.name as string;
+  const abs = EDITABLE_FILES[name];
+  if (!abs) {
+    res.status(400).json({ success: false, data: null, error: '編集対象外のファイルです' });
+    return;
+  }
+  const body = req.body as { content?: unknown; baseMtime?: unknown } | undefined;
+  if (!body || typeof body.content !== 'string' || typeof body.baseMtime !== 'number') {
+    res.status(400).json({ success: false, data: null, error: 'content / baseMtime が不正です' });
+    return;
+  }
+  if (!fs.existsSync(abs)) {
+    res.status(404).json({ success: false, data: null, error: 'ファイルが見つかりません' });
+    return;
+  }
+  const currentMtime = fs.statSync(abs).mtimeMs;
+  if (currentMtime !== body.baseMtime) {
+    res.status(409).json({
+      success: false,
+      data: { currentMtime },
+      error: '外部で更新されています',
+    });
+    return;
+  }
+  const tmp = `${abs}.tmp.${process.pid}.${Date.now()}`;
+  try {
+    fs.writeFileSync(tmp, body.content, 'utf-8');
+    fs.renameSync(tmp, abs);
+  } catch (e) {
+    if (fs.existsSync(tmp)) {
+      try { fs.unlinkSync(tmp); } catch { /* ignore */ }
+    }
+    res.status(500).json({ success: false, data: null, error: '書き込みに失敗しました' });
+    return;
+  }
+  const newMtime = fs.statSync(abs).mtimeMs;
+  res.json({ success: true, data: { mtime: newMtime }, error: null });
 });
 
 // 静的配信（dev-admin/src/web/）
