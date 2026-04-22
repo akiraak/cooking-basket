@@ -43,7 +43,7 @@ cd dev-admin && npm run dev
 ## Git ルール
 
 - `git push` はユーザーから明示的に指示があった場合のみ実行する（勝手に push しない）
-- clone 直後に `git config core.hooksPath .husky` を実行して pre-push フックを有効化する（`.husky/pre-push` が server/mobile のテストを流す）
+- clone 直後に `git config core.hooksPath .husky` を実行して pre-commit フックを有効化する（`.husky/pre-commit` が server/mobile のテストを流す）
 - `--no-verify` / `--no-gpg-sign` 等のフックスキップは、ユーザーからの明示指示があった時のみ使う
 
 ## コーディング規約

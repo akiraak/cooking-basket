@@ -224,15 +224,15 @@ cd mobile && npm test
 
 `push` / `pull_request` で GitHub Actions (`.github/workflows/test.yml`) が `server` と `mobile` を並列で実行します。テスト追加時のガイドは [docs/plans/testing.md](docs/plans/testing.md) を参照。
 
-### pre-push フック（任意）
+### pre-commit フック（任意）
 
-push 前にローカルで全テストを走らせるフックを `.husky/pre-push` に用意しています。clone 後に一度だけ以下を実行すると有効化されます:
+commit 前にローカルで全テストを走らせるフックを `.husky/pre-commit` に用意しています。clone 後に一度だけ以下を実行すると有効化されます:
 
 ```bash
 git config core.hooksPath .husky
 ```
 
-緊急時は `git push --no-verify` でスキップ可。
+緊急時は `git commit --no-verify` でスキップ可。
 
 ## ライセンス
 
