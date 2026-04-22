@@ -1,6 +1,7 @@
 'use strict';
 
-const CATEGORIES = ['plans', 'specs'];
+const CATEGORIES = ['plans', 'specs', 'todo'];
+const TODO_FILES = ['TODO.md', 'DONE.md'];
 const STORAGE_CATEGORY = 'dev-admin.activeCategory';
 const STORAGE_EXPANDED = 'dev-admin.expanded';
 
@@ -149,7 +150,37 @@ function renderDir(category, dir, parentPath, depth) {
   return block;
 }
 
+function renderTodoSidebar() {
+  sidebarNav.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const name of TODO_FILES) {
+    const a = document.createElement('a');
+    a.className = 'nav-item';
+    a.href = `#todo/${encodeURIComponent(name)}`;
+    a.dataset.category = 'todo';
+    a.dataset.path = name;
+
+    const title = document.createElement('div');
+    title.textContent = name.replace(/\.md$/, '');
+    a.appendChild(title);
+
+    const fileName = document.createElement('div');
+    fileName.className = 'nav-item-file';
+    fileName.textContent = name;
+    a.appendChild(fileName);
+
+    frag.appendChild(a);
+  }
+  sidebarNav.appendChild(frag);
+  refreshActiveHighlight();
+}
+
 function renderSidebar() {
+  if (activeCategory === 'todo') {
+    renderTodoSidebar();
+    return;
+  }
+
   const tree = docsTree[activeCategory] || { files: [], dirs: [] };
   sidebarNav.innerHTML = '';
 
@@ -283,6 +314,23 @@ async function archivePlan(filename) {
   }
 }
 
+async function renderTodoView(name) {
+  contentArea.innerHTML = '<div class="loading-text">読み込み中...</div>';
+  try {
+    const data = await fetchJson(`/api/files/${encodeURIComponent(name)}/render`);
+    pageTitle.textContent = data.title;
+    topbarSub.textContent = name;
+    contentArea.innerHTML = '';
+
+    const div = document.createElement('div');
+    div.className = 'md-content';
+    div.innerHTML = data.html;
+    contentArea.appendChild(div);
+  } catch (err) {
+    showError(err.message);
+  }
+}
+
 function renderDesign(category, filePath) {
   const filename = filePath.split('/').pop();
   const meta = findFileMeta(category, filePath);
@@ -388,6 +436,20 @@ function handleRoute() {
     renderTabs();
     needSidebarRerender = true;
   }
+
+  if (category === 'todo') {
+    if (!TODO_FILES.includes(filePath)) {
+      if (needSidebarRerender) renderSidebar();
+      else refreshActiveHighlight();
+      showError('対応していないファイルです');
+      return;
+    }
+    if (needSidebarRerender) renderSidebar();
+    else refreshActiveHighlight();
+    renderTodoView(filePath);
+    return;
+  }
+
   if (expandAncestors(category, filePath)) {
     needSidebarRerender = true;
   }

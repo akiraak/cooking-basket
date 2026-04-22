@@ -140,10 +140,10 @@
         docs/plans/dev-admin-todo-editor.md
 
 ### Phase 3: クライアント UI（閲覧）
-- [ ] 8. topbar に「TODO」タブ追加、`CATEGORIES` 拡張
-- [ ] 9. `renderTodoView()` 追加（左: TODO/DONE リンク、右: プレビュー）
-- [ ] 10. プレビューは `/api/files/:name/render` の HTML を表示
-- [ ] (動作確認) TODO タブで TODO.md / DONE.md が整形表示されること
+- [x] 8. topbar に「TODO」タブ追加、`CATEGORIES` 拡張
+- [x] 9. `renderTodoView()` 追加（左: TODO/DONE リンク、右: プレビュー）
+- [x] 10. プレビューは `/api/files/:name/render` の HTML を表示
+- [x] (動作確認) TODO タブで TODO.md / DONE.md が整形表示されること
 
 ### Phase 4: クライアント UI（編集）
 - [ ] 11. プレビュー/編集のサブタブ + textarea + 保存/破棄ボタン
