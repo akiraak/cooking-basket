@@ -41,6 +41,18 @@ function isTodoDirty() {
   return todoState.content !== todoState.savedContent;
 }
 
+function formatMtime(mtime) {
+  if (typeof mtime !== 'number' || !mtime) return '';
+  const dt = new Date(mtime);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const d = String(dt.getDate()).padStart(2, '0');
+  const hh = String(dt.getHours()).padStart(2, '0');
+  const mm = String(dt.getMinutes()).padStart(2, '0');
+  const ss = String(dt.getSeconds()).padStart(2, '0');
+  return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+}
+
 function loadPersisted() {
   const cat = localStorage.getItem(STORAGE_CATEGORY);
   if (cat && CATEGORIES.includes(cat)) activeCategory = cat;
@@ -397,6 +409,15 @@ function buildTodoLayout() {
 
   const actions = document.createElement('div');
   actions.className = 'todo-actions';
+
+  const refreshBtn = document.createElement('button');
+  refreshBtn.type = 'button';
+  refreshBtn.className = 'doc-action doc-action-refresh';
+  refreshBtn.dataset.role = 'refresh';
+  refreshBtn.textContent = '↻ 再取得';
+  refreshBtn.addEventListener('click', () => refetchTodoFile());
+  actions.appendChild(refreshBtn);
+
   if (todoState.mode === 'edit') {
     const discardBtn = document.createElement('button');
     discardBtn.type = 'button';
@@ -495,6 +516,46 @@ function discardTodoChanges() {
   todoState.conflict = null;
   renderTodoEditBody();
   updateConflictIndicators();
+}
+
+async function refetchTodoFile() {
+  if (!todoState.name) return;
+  if (todoState.mode === 'edit' && isTodoDirty()) {
+    if (!confirm('未保存の変更があります。再取得すると失われます。続行しますか？')) return;
+  }
+  try {
+    if (todoState.mode === 'preview') {
+      const data = await fetchJson(`/api/files/${encodeURIComponent(todoState.name)}/render`);
+      const body = document.getElementById('todo-body');
+      if (body) {
+        body.innerHTML = '';
+        const div = document.createElement('div');
+        div.className = 'md-content';
+        div.innerHTML = data.html;
+        body.appendChild(div);
+      }
+      if (typeof data.mtime === 'number') todoState.mtime = data.mtime;
+    } else {
+      const data = await fetchJson(`/api/files/${encodeURIComponent(todoState.name)}`);
+      todoState.content = data.content;
+      todoState.savedContent = data.content;
+      todoState.mtime = data.mtime;
+      renderTodoEditBody();
+    }
+    todoState.conflict = null;
+    updateConflictIndicators();
+    showToast('最新を読み込みました', 1500);
+  } catch (err) {
+    alert(`再取得に失敗しました: ${err.message}`);
+  }
+}
+
+function updateRefreshButton() {
+  const btn = document.querySelector('.todo-toolbar [data-role="refresh"]');
+  if (!btn) return;
+  const label = formatMtime(todoState.mtime);
+  btn.title = label ? `最終取得: ${label}\nショートカット: R` : 'ショートカット: R';
+  btn.classList.toggle('emphasized', !!todoState.conflict);
 }
 
 async function saveTodoFile(options = {}) {
@@ -825,6 +886,23 @@ function setupBeforeUnload() {
   });
 }
 
+// `R` 単独キーで TODO を再取得。Cmd/Ctrl+R は奪わずブラウザリロードに任せる
+function setupRefreshShortcut() {
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'r' && e.key !== 'R') return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (activeCategory !== 'todo' || !todoState.name) return;
+    const target = e.target;
+    if (target) {
+      const tag = target.tagName;
+      if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
+      if (target.isContentEditable) return;
+    }
+    e.preventDefault();
+    refetchTodoFile();
+  });
+}
+
 // === SSE: 外部変更のリアルタイム反映 ===
 
 function connectEventSource() {
@@ -975,6 +1053,8 @@ function updateConflictIndicators() {
   renderConflictBar();
   // サイドバー赤●バッジ
   refreshSidebarConflictBadge();
+  // 再取得ボタンの tooltip / 強調
+  updateRefreshButton();
 }
 
 function renderConflictBar() {
@@ -992,14 +1072,7 @@ function renderConflictBar() {
 
   const msg = document.createElement('div');
   msg.className = 'todo-conflict-message';
-  const dt = new Date(todoState.conflict.mtime);
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth() + 1).padStart(2, '0');
-  const d = String(dt.getDate()).padStart(2, '0');
-  const hh = String(dt.getHours()).padStart(2, '0');
-  const mm = String(dt.getMinutes()).padStart(2, '0');
-  const ss = String(dt.getSeconds()).padStart(2, '0');
-  const fmt = `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+  const fmt = formatMtime(todoState.conflict.mtime);
   msg.textContent = `⚠ 競合: 外部で ${todoState.name} が更新されています（${fmt}）。保存すると外部の変更を上書きします`;
   bar.appendChild(msg);
 
@@ -1116,6 +1189,7 @@ async function init() {
   loadPersisted();
   setupTabs();
   setupBeforeUnload();
+  setupRefreshShortcut();
   renderTabs();
   updateSseIndicator();
   connectEventSource();
