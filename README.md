@@ -1,5 +1,7 @@
 # Cooking Basket
 
+[![test](https://github.com/akiraak/cooking-basket/actions/workflows/test.yml/badge.svg)](https://github.com/akiraak/cooking-basket/actions/workflows/test.yml)
+
 スマホ向けの買い物リストアプリ（iOS / Android / Web PWA）。料理を登録すると AI が具材とレシピを提案してくれます。
 
 **Web アプリ**: https://basket.chobi.me/
@@ -209,6 +211,28 @@ npm start
   "error": null
 }
 ```
+
+## テスト
+
+```bash
+# サーバ (Vitest + supertest)
+cd server && npm test
+
+# モバイル (Jest + jest-expo)
+cd mobile && npm test
+```
+
+`push` / `pull_request` で GitHub Actions (`.github/workflows/test.yml`) が `server` と `mobile` を並列で実行します。テスト追加時のガイドは [docs/plans/testing.md](docs/plans/testing.md) を参照。
+
+### pre-push フック（任意）
+
+push 前にローカルで全テストを走らせるフックを `.husky/pre-push` に用意しています。clone 後に一度だけ以下を実行すると有効化されます:
+
+```bash
+git config core.hooksPath .husky
+```
+
+緊急時は `git push --no-verify` でスキップ可。
 
 ## ライセンス
 

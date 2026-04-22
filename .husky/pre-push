@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+repo_root=$(git rev-parse --show-toplevel)
+
+echo "[pre-push] server tests"
+(cd "$repo_root/server" && npm test --silent)
+
+echo "[pre-push] mobile tests"
+(cd "$repo_root/mobile" && npm test --silent)

@@ -88,11 +88,7 @@
 
 ## テストの導入
         docs/plans/testing.md
-
-### Phase 5: CI 連携
-- [ ] 23. `.github/workflows/test.yml` 作成（push / PR トリガ、matrix で server/mobile 並列、Node 20、npm ci + npm test）
-- [ ] 24. 初回 PR で全テスト緑を確認
-- [ ] 25. README にテスト実行方法と CI バッジを追記（任意）
+- [ ] 初回 PR で GitHub Actions が両プロジェクト緑になることを確認
 
 ## 小修整
 - [ ] 料理レシピページの料理名をページの「買い物リスト」の表示の場所を差し替えて
