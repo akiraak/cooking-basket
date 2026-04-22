@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { __resetDeviceIdCacheForTests } from '../../src/utils/device-id';
 import client from '../../src/api/client';
 
 const secure = SecureStore as jest.Mocked<typeof SecureStore> & { __reset: () => void };
@@ -7,6 +8,7 @@ const TOKEN_KEY = 'auth_token';
 
 beforeEach(() => {
   secure.__reset();
+  __resetDeviceIdCacheForTests();
   jest.clearAllMocks();
 });
 
@@ -38,18 +40,20 @@ async function runResponseErrorInterceptor(error: { response?: { status: number 
 
 describe('api client', () => {
   describe('request interceptor', () => {
-    it('attaches Authorization header when token is present', async () => {
+    it('attaches Authorization header (and no X-Device-Id) when a token is present', async () => {
       await secure.setItemAsync(TOKEN_KEY, 'jwt-token');
 
       const result = await runRequestInterceptor({ headers: {} });
 
       expect(result.headers.Authorization).toBe('Bearer jwt-token');
+      expect(result.headers['X-Device-Id']).toBeUndefined();
     });
 
-    it('leaves Authorization header unset when no token is stored', async () => {
+    it('attaches X-Device-Id when no token is stored', async () => {
       const result = await runRequestInterceptor({ headers: {} });
 
       expect(result.headers.Authorization).toBeUndefined();
+      expect(result.headers['X-Device-Id']).toBeTruthy();
     });
   });
 

@@ -21,15 +21,18 @@ beforeEach(() => {
     isLoading: true,
     email: null,
     userId: null,
+    authModalVisible: false,
+    authModalReason: null,
+    authModalOnSuccess: null,
   });
 });
 
 describe('auth-store', () => {
-  describe('login', () => {
-    it('calls requestLogin and does not flip isAuthenticated', async () => {
+  describe('sendMagicCode', () => {
+    it('calls the auth API and does not flip isAuthenticated', async () => {
       auth.requestLogin.mockResolvedValue({ message: 'sent' });
 
-      await useAuthStore.getState().login('user@example.com');
+      await useAuthStore.getState().sendMagicCode('user@example.com');
 
       expect(auth.requestLogin).toHaveBeenCalledWith('user@example.com');
       expect(useAuthStore.getState().isAuthenticated).toBe(false);
@@ -37,8 +40,14 @@ describe('auth-store', () => {
   });
 
   describe('verify', () => {
-    it('persists token to secure store and marks authenticated', async () => {
+    it('persists token, marks authenticated, closes modal, and fires onSuccess', async () => {
       auth.verifyCode.mockResolvedValue({ token: 'jwt-token', email: 'user@example.com' });
+      const onSuccess = jest.fn();
+      useAuthStore.setState({
+        authModalVisible: true,
+        authModalReason: 'AI 回数を増やす',
+        authModalOnSuccess: onSuccess,
+      });
 
       await useAuthStore.getState().verify('user@example.com', '123456');
 
@@ -47,6 +56,10 @@ describe('auth-store', () => {
       const state = useAuthStore.getState();
       expect(state.isAuthenticated).toBe(true);
       expect(state.email).toBe('user@example.com');
+      expect(state.authModalVisible).toBe(false);
+      expect(state.authModalReason).toBeNull();
+      expect(state.authModalOnSuccess).toBeNull();
+      expect(onSuccess).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -105,6 +118,45 @@ describe('auth-store', () => {
       expect(state.isAuthenticated).toBe(false);
       expect(state.email).toBeNull();
       expect(state.isLoading).toBe(false);
+    });
+  });
+
+  describe('requestLogin / closeAuthModal', () => {
+    it('opens the modal with optional reason and onSuccess', () => {
+      const onSuccess = jest.fn();
+
+      useAuthStore.getState().requestLogin({ reason: 'いいねする', onSuccess });
+
+      const state = useAuthStore.getState();
+      expect(state.authModalVisible).toBe(true);
+      expect(state.authModalReason).toBe('いいねする');
+      expect(state.authModalOnSuccess).toBe(onSuccess);
+    });
+
+    it('opens the modal without arguments', () => {
+      useAuthStore.getState().requestLogin();
+
+      const state = useAuthStore.getState();
+      expect(state.authModalVisible).toBe(true);
+      expect(state.authModalReason).toBeNull();
+      expect(state.authModalOnSuccess).toBeNull();
+    });
+
+    it('closeAuthModal clears modal state without firing onSuccess', () => {
+      const onSuccess = jest.fn();
+      useAuthStore.setState({
+        authModalVisible: true,
+        authModalReason: 'reason',
+        authModalOnSuccess: onSuccess,
+      });
+
+      useAuthStore.getState().closeAuthModal();
+
+      const state = useAuthStore.getState();
+      expect(state.authModalVisible).toBe(false);
+      expect(state.authModalReason).toBeNull();
+      expect(state.authModalOnSuccess).toBeNull();
+      expect(onSuccess).not.toHaveBeenCalled();
     });
   });
 });

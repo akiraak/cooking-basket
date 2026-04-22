@@ -40,14 +40,14 @@
 - [ ] (動作確認) curl でサーバ単体動作確認（未ログイン `/api/ai/suggest`、`shared`、`migrate`、上限エラー）
 
 ### Phase 2: モバイル側認証 UI 差し替え
-- [ ] 11. `expo-application` 導入（`npx expo install expo-application`）
-- [ ] 12. `mobile/src/utils/device-id.ts` 新規作成（iOS IDFV / Android SSAID、null fallback は UUID + secure-store）
-- [ ] 13. `mobile/src/api/client.ts` で未ログイン時に `X-Device-Id` ヘッダ自動付与
-- [ ] 14. `mobile/src/components/auth/AuthModal.tsx` 新規作成（メール→コードの 2 ステップ）
-- [ ] 15. `mobile/src/stores/auth-store.ts` 拡張（`requestLogin` / `closeAuthModal` / モーダル state）
-- [ ] 16. `mobile/app/_layout.tsx` から未認証リダイレクト削除、`<AuthModal>` 常設
-- [ ] 17. `mobile/app/(auth)/` 配下削除、関連ナビゲーション参照整理
-- [ ] 18. `mobile/app/(tabs)/_layout.tsx` メニュー改修（未ログイン時「ログイン」、ログイン時 `<email>` + 「ログアウト」）
+- [x] 11. `expo-application` 導入（`expo-crypto` も併せて導入）
+- [x] 12. `mobile/src/utils/device-id.ts` 新規作成（iOS IDFV / Android SSAID、null fallback は UUID + secure-store）
+- [x] 13. `mobile/src/api/client.ts` で未ログイン時に `X-Device-Id` ヘッダ自動付与
+- [x] 14. `mobile/src/components/auth/AuthModal.tsx` 新規作成（メール→コードの 2 ステップ）
+- [x] 15. `mobile/src/stores/auth-store.ts` 拡張（`requestLogin` / `closeAuthModal` / モーダル state、既存 `login` は `sendMagicCode` にリネーム）
+- [x] 16. `mobile/app/_layout.tsx` から未認証リダイレクト削除、`<AuthModal>` 常設
+- [x] 17. `mobile/app/(auth)/` 配下削除
+- [x] 18. `mobile/app/(tabs)/_layout.tsx` メニュー改修（未ログイン時「ログイン」、ログイン時 `<email>` + 「ログアウト」）
 - [ ] (動作確認) 新規起動でタブが開け、☰メニューからモーダル経由でログインできることを実機確認
 
 ### Phase 3: モバイル側ローカルストア化

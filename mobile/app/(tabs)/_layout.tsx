@@ -7,11 +7,16 @@ import { useAuthStore } from '../../src/stores/auth-store';
 export default function TabsLayout() {
   const colors = useThemeColors();
   const [menuVisible, setMenuVisible] = useState(false);
-  const { email, logout } = useAuthStore();
+  const { isAuthenticated, email, logout, requestLogin } = useAuthStore();
 
   const handleLogout = () => {
     setMenuVisible(false);
     logout();
+  };
+
+  const handleLogin = () => {
+    setMenuVisible(false);
+    requestLogin();
   };
 
   const headerRight = () => (
@@ -65,14 +70,22 @@ export default function TabsLayout() {
       <Modal visible={menuVisible} transparent animationType="fade">
         <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setMenuVisible(false)}>
           <View style={[styles.menu, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {email && (
-              <Text style={[styles.menuEmail, { color: colors.textMuted, borderBottomColor: colors.border }]}>
-                {email}
-              </Text>
+            {isAuthenticated ? (
+              <>
+                {email && (
+                  <Text style={[styles.menuEmail, { color: colors.textMuted, borderBottomColor: colors.border }]}>
+                    {email}
+                  </Text>
+                )}
+                <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
+                  <Text style={[styles.menuItemText, { color: colors.danger }]}>ログアウト</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity style={styles.menuItem} onPress={handleLogin}>
+                <Text style={[styles.menuItemText, { color: colors.primaryLight }]}>ログイン</Text>
+              </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
-              <Text style={[styles.menuItemText, { color: colors.danger }]}>ログアウト</Text>
-            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getToken, removeToken } from '../utils/token';
+import { getDeviceId } from '../utils/device-id';
 
 const client = axios.create({
   baseURL: 'https://basket.chobi.me',
@@ -10,6 +11,13 @@ client.interceptors.request.use(async (config) => {
   const token = await getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    try {
+      const deviceId = await getDeviceId();
+      config.headers['X-Device-Id'] = deviceId;
+    } catch {
+      // device id is best-effort; server endpoints that need it will 400
+    }
   }
   return config;
 });

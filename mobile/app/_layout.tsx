@@ -1,31 +1,18 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider, useThemeColors } from '../src/theme/theme-provider';
 import { useAuthStore } from '../src/stores/auth-store';
+import { AuthModal } from '../src/components/auth/AuthModal';
 
 function RootNavigator() {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
-  const segments = useSegments();
-  const router = useRouter();
+  const { isLoading, checkAuth } = useAuthStore();
   const colors = useThemeColors();
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
-
-  useEffect(() => {
-    if (isLoading) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-
-    if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(tabs)');
-    }
-  }, [isAuthenticated, isLoading, segments, router]);
 
   if (isLoading) {
     return (
@@ -35,7 +22,12 @@ function RootNavigator() {
     );
   }
 
-  return <Slot />;
+  return (
+    <>
+      <Slot />
+      <AuthModal />
+    </>
+  );
 }
 
 export default function RootLayout() {
