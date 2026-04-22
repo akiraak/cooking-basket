@@ -136,6 +136,54 @@
 
 
 ## 管理画面
+- [ ] TODO.md を表示と編集できるようにする。Claude Code や外部で変更を加えたときもリアルタイム反映されるようにする
+        docs/plans/dev-admin-todo-editor.md
+
+### Phase 1: サーバ側 API
+- [ ] 1. `dev-admin/src/index.ts` に `EDITABLE_FILES` ホワイトリスト（TODO.md / DONE.md）を追加
+- [ ] 2. `GET /api/files/:name` / `GET /api/files/:name/render` / `PUT /api/files/:name` 実装（mtime 楽観ロック）
+- [ ] 3. `PUT` はアトミック書き込み（tmp → rename）で実装
+- [ ] (動作確認) curl で GET/PUT、mtime 不一致時 409、ホワイトリスト外で 400
+
+### Phase 2: SSE 変更通知
+- [ ] 4. `GET /api/files/watch` を SSE で実装
+- [ ] 5. `fs.watch` + `stat` による変更検知 → `event: change` 送信
+- [ ] 6. 2 秒ポーリングのフォールバックと 30 秒 keep-alive ping
+- [ ] 7. 接続切断時の watcher 解除
+- [ ] (動作確認) `curl -N /api/files/watch` で外部変更の通知が届くこと
+
+### Phase 3: クライアント UI（閲覧）
+- [ ] 8. topbar に「TODO」タブ追加、`CATEGORIES` 拡張
+- [ ] 9. `renderTodoView()` 追加（左: TODO/DONE リンク、右: プレビュー）
+- [ ] 10. プレビューは `/api/files/:name/render` の HTML を表示
+- [ ] (動作確認) TODO タブで TODO.md / DONE.md が整形表示されること
+
+### Phase 4: クライアント UI（編集）
+- [ ] 11. プレビュー/編集のサブタブ + textarea + 保存/破棄ボタン
+- [ ] 12. `PUT` 保存処理と 409 ダイアログ（リロード / 維持 / 強制上書き）
+- [ ] 13. `isDirty` 管理と `beforeunload` 離脱警告
+- [ ] 14. 保存成功トースト
+- [ ] (動作確認) 編集・保存で実ファイル更新、外部更新時の 409 動作
+
+### Phase 5: リアルタイム反映と競合表示
+- [ ] 15. `EventSource('/api/files/watch')` 接続と自動再接続
+- [ ] 16. プレビュー受信時: 自動リフレッシュ + 「外部で更新されました」バッジ
+- [ ] 17. 編集モード（clean）: 内容と mtime を差し替え + 情報バー通知
+- [ ] 18. 編集モード（dirty）: 黄色警告バー + [差分を見る] + [外部版を読み込む] + [編集を続ける]
+- [ ] 19. 多層サイン（サイドバー赤●バッジ、タブタイトル `(!) ` prepend）と SSE 切断中インジケータ
+- [ ] (動作確認) 外部編集の即時反映（プレビュー / clean / dirty / SSE 切断中）
+
+### Phase 5b: 手動再取得
+- [ ] 20. TODO ビューに「↻ 再取得」ボタン常設（tooltip に最終取得時刻）
+- [ ] 21. プレビュー/clean は即取得 + トースト、dirty は confirm で破棄確認
+- [ ] 22. 直近の外部更新通知が未反映なら再取得ボタンを色強調
+- [ ] 23. `R` 単独キーショートカット（textarea 非フォーカス時のみ）
+- [ ] (動作確認) SSE を切った状態で再取得ボタンが最新を取得できること
+
+### Phase 6: 仕上げ
+- [ ] 24. style.css に TODO ビュー用スタイル（textarea・トースト・警告バー・バッジ・接続インジケータ）
+- [ ] 25. README / CLAUDE.md の dev-admin セクションに編集機能を追記
+- [ ] (動作確認) Plans / Specs タブが既存通り動くこと（回帰）
 
 ## バグ
 - [ ] Google認証を他のアカウントでチェック
