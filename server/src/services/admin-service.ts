@@ -210,6 +210,14 @@ export function getAiQuotaStats() {
 
 // --- System Info ---
 
+function getDeployedAt(): string | null {
+  const raw = process.env.DEPLOYED_AT;
+  if (!raw) return null;
+  const parsed = Date.parse(raw);
+  if (Number.isNaN(parsed)) return null;
+  return raw;
+}
+
 export function getSystemInfo() {
   const db = getDatabase();
   const dbPath = process.env.DB_PATH || path.join(__dirname, '../../../shopping.db');
@@ -237,5 +245,6 @@ export function getSystemInfo() {
     uptime: process.uptime(),
     nodeVersion: process.version,
     tableCounts,
+    deployedAt: getDeployedAt(),
   };
 }
