@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { logger } from './lib/logger';
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../shopping.db');
 const SCHEMA_VERSION = 2; // バージョン1→2: マルチユーザー対応
@@ -231,5 +232,5 @@ export function initDatabase(): void {
     )
   `);
 
-  console.log('Database initialized');
+  logger.info('Database initialized');
 }

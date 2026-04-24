@@ -2,6 +2,7 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import pinoHttp from 'pino-http';
 import { errorHandler } from './middleware/error-handler';
 import { requireAuth, requireAdmin, optionalAuth } from './middleware/auth';
 import { rateLimitAi } from './middleware/rate-limit-ai';
@@ -14,6 +15,7 @@ import { savedRecipesRouter, savedRecipesSharedRouter } from './routes/saved-rec
 import { migrateRouter } from './routes/migrate';
 import { docsRouter } from './routes/docs';
 import { initDatabase } from './database';
+import { logger } from './lib/logger';
 
 export interface CreateAppOptions {
   /** DB 初期化をスキップする場合（既に初期化済み・テスト内で独自管理する場合に使用） */
@@ -27,6 +29,19 @@ export function createApp(options: CreateAppOptions = {}): Express {
   // ミドルウェア
   app.use(cors());
   app.use(express.json());
+
+  // 構造化ロギング（リクエスト毎に req.id を採番し、レスポンス終了時に 1 行出す）
+  app.use(
+    pinoHttp({
+      logger,
+      customProps: (req) => ({ reqId: (req as { id?: string }).id }),
+    })
+  );
+  app.use((req, res, next) => {
+    const id = (req as { id?: string }).id;
+    if (id) res.setHeader('X-Request-Id', id);
+    next();
+  });
 
   // index.html にキャッシュバージョンを埋め込んで返す
   const webDir = path.join(__dirname, '../../web');

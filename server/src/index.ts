@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { createApp } from './app';
 import { cleanupExpiredTokens } from './services/auth-service';
+import { logger } from './lib/logger';
 
 dotenv.config();
 
@@ -13,5 +14,5 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  logger.info({ port: PORT }, `Server running on http://localhost:${PORT}`);
 });

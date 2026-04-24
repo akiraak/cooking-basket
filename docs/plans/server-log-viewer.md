@@ -46,17 +46,17 @@
 ## フェーズ
 
 ### Phase 1: 構造化ロガー導入（redact 必須）
-- [ ] `server/package.json` に `pino`, `pino-http` を追加
-- [ ] `server/src/lib/logger.ts` 新規
+- [x] `server/package.json` に `pino`, `pino-http` を追加
+- [x] `server/src/lib/logger.ts` 新規
   - レベル: `LOG_LEVEL` 環境変数（デフォルト `info`）
   - `redact`: `req.headers.authorization`, `req.headers.cookie`,
     `*.password`, `*.otp`, `*.token`, `*.jwt`, `*.email`
   - 本番は JSON、開発は `pino-pretty` 任意
-- [ ] `server/src/app.ts` に `pino-http` middleware を追加
+- [x] `server/src/app.ts` に `pino-http` middleware を追加
   - 各リクエストに `x-request-id` 付与、リクエスト／レスポンスをログ
-- [ ] `server/src/index.ts` と `server/src/middleware/error-handler.ts` の
-  `console.*` を logger 呼び出しに置換
-- [ ] `npm test` がグリーンであること（`console` スパイを使ってるテストがあれば更新）
+- [x] `server/src/index.ts` と `server/src/middleware/error-handler.ts` の
+  `console.*` を logger 呼び出しに置換（`database.ts` / `routes/auth.ts` も同様）
+- [x] `npm test` がグリーンであること（`console` スパイを使ってるテストがあれば更新）
 
 ### Phase 2: ファイル出力とローテーション
 - [ ] pino の `transport` で stdout に加えて

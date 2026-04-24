@@ -35,7 +35,7 @@
 
 ## 本番サーバログを外部から安全に閲覧
         docs/plans/server-log-viewer.md
-- [ ] Phase 1: 構造化ロガー（pino）導入と redact 設定、既存 console.* 置換
+- [x] Phase 1: 構造化ロガー（pino）導入と redact 設定、既存 console.* 置換
 - [ ] Phase 2: ログファイル出力とローテーション（pino-roll）
 - [ ] Phase 3: 管理 API `/api/admin/logs` と SSE `/api/admin/logs/stream` 追加
 - [ ] Phase 4: `/admin/` 管理画面にログタブ追加

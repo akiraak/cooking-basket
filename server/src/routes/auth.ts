@@ -8,6 +8,7 @@ import {
   verifyGoogleToken,
 } from '../services/auth-service';
 import { requireAuth } from '../middleware/auth';
+import { logger } from '../lib/logger';
 
 export const authRouter = Router();
 
@@ -64,7 +65,8 @@ authRouter.post('/google', async (req: Request, res: Response, next: NextFunctio
     const jwt = generateJwt(user.id, user.email);
     res.json({ success: true, data: { token: jwt, email: user.email }, error: null });
   } catch (err) {
-    console.error('Google認証エラー:', err);
+    const reqLogger = (req as Request & { log?: typeof logger }).log ?? logger;
+    reqLogger.error({ err }, 'Google認証エラー');
 
     res.status(401).json({ success: false, data: null, error: 'Google認証に失敗しました' });
   }
