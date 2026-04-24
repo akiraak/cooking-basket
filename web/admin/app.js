@@ -201,6 +201,7 @@ const Pages = {
   'purchase-history': { title: '購入履歴',         render: renderPurchaseHistory },
   'ai-quota':         { title: 'AI 利用状況',      render: renderAiQuota },
   system:             { title: 'システム情報',     render: renderSystem },
+  logs:               { title: 'ログ',             render: renderLogs },
   'icon-preview':     { title: 'アイコン候補',     render: renderIconPreview },
   'app-name':         { title: 'アプリ名候補',     render: renderAppName },
   'monetization':     { title: 'マネタイズ検討',   render: renderMonetization },
@@ -212,6 +213,9 @@ const Pages = {
 // ============================================================
 // Router
 // ============================================================
+let activeCleanup = null;
+function registerPageCleanup(fn) { activeCleanup = fn; }
+
 const Router = {
   currentPage: null,
   init() {
@@ -219,6 +223,11 @@ const Router = {
     this.navigate();
   },
   navigate() {
+    if (activeCleanup) {
+      try { activeCleanup(); } catch (_) { /* ignore */ }
+      activeCleanup = null;
+    }
+
     const hash = location.hash.slice(1) || 'dashboard';
     this.currentPage = hash;
 
@@ -575,6 +584,254 @@ async function renderSystem() {
     <div style="margin-top:16px">
       <button class="btn btn-primary" onclick="renderSystem()">更新</button>
     </div>`;
+}
+
+// ============================================================
+// Logs
+// ============================================================
+const LOG_LEVEL_LABELS = {
+  10: { name: 'TRACE', cls: 'log-level-trace' },
+  20: { name: 'DEBUG', cls: 'log-level-debug' },
+  30: { name: 'INFO',  cls: 'log-level-info' },
+  40: { name: 'WARN',  cls: 'log-level-warn' },
+  50: { name: 'ERROR', cls: 'log-level-error' },
+  60: { name: 'FATAL', cls: 'log-level-fatal' },
+};
+const LOG_MAX_ROWS = 500;
+
+function formatLogTime(ms) {
+  if (!ms) return '-';
+  const d = new Date(ms);
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function buildLogMeta(entry) {
+  // time/level/msg/reqId 以外の補助フィールドを JSON で表示
+  const skip = new Set(['time', 'level', 'msg', 'reqId', 'pid', 'hostname', 'v']);
+  const rest = {};
+  for (const [k, v] of Object.entries(entry)) {
+    if (!skip.has(k)) rest[k] = v;
+  }
+  if (Object.keys(rest).length === 0) return '';
+  try { return JSON.stringify(rest); } catch (_) { return ''; }
+}
+
+function renderLogRowHtml(entry) {
+  const lvl = LOG_LEVEL_LABELS[entry.level] || { name: String(entry.level || ''), cls: 'log-level-info' };
+  const meta = buildLogMeta(entry);
+  return `
+    <div class="log-row ${lvl.cls}">
+      <span class="log-time">${escapeHtml(formatLogTime(entry.time))}</span>
+      <span class="log-level-badge ${lvl.cls}">${lvl.name}</span>
+      <span class="log-reqid">${escapeHtml(entry.reqId || '')}</span>
+      <span class="log-msg">${escapeHtml(entry.msg || '')}</span>
+      ${meta ? `<span class="log-meta">${escapeHtml(meta)}</span>` : ''}
+    </div>`;
+}
+
+async function renderLogs() {
+  const area = document.getElementById('content-area');
+  area.innerHTML = `
+    <div class="log-toolbar">
+      <label class="log-field">
+        <span class="log-field-label">レベル</span>
+        <select id="log-level" class="log-select">
+          <option value="">すべて</option>
+          <option value="info" selected>info 以上</option>
+          <option value="warn">warn 以上</option>
+          <option value="error">error のみ</option>
+        </select>
+      </label>
+      <label class="log-field log-field-grow">
+        <span class="log-field-label">キーワード</span>
+        <input id="log-q" type="text" class="search-input log-search" placeholder="メッセージを含む...">
+      </label>
+      <label class="log-field log-field-inline">
+        <input id="log-wrap" type="checkbox" checked>
+        <span>折返し</span>
+      </label>
+      <label class="log-field log-field-inline">
+        <input id="log-follow" type="checkbox" checked>
+        <span>自動追尾</span>
+      </label>
+      <div class="log-toolbar-actions">
+        <span id="log-status" class="log-status log-status-connecting">接続中...</span>
+        <button id="log-clear" class="btn btn-save btn-sm">クリア</button>
+      </div>
+    </div>
+    <div id="log-viewer" class="log-viewer log-wrap"></div>
+  `;
+
+  const viewer = document.getElementById('log-viewer');
+  const levelSel = document.getElementById('log-level');
+  const qInput = document.getElementById('log-q');
+  const wrapInput = document.getElementById('log-wrap');
+  const followInput = document.getElementById('log-follow');
+  const statusEl = document.getElementById('log-status');
+  const clearBtn = document.getElementById('log-clear');
+
+  const state = {
+    abort: null,
+    closed: false,
+    retryMs: 1000,
+    retryTimer: null,
+    reloadTimer: null,
+  };
+
+  function setStatus(text, cls) {
+    statusEl.textContent = text;
+    statusEl.className = `log-status ${cls}`;
+  }
+
+  function trimToMax() {
+    while (viewer.childElementCount > LOG_MAX_ROWS) {
+      viewer.removeChild(viewer.firstChild);
+    }
+  }
+
+  function appendEntry(entry) {
+    const wasAtBottom = followInput.checked;
+    viewer.insertAdjacentHTML('beforeend', renderLogRowHtml(entry));
+    trimToMax();
+    if (wasAtBottom) viewer.scrollTop = viewer.scrollHeight;
+  }
+
+  function buildQuery() {
+    const params = new URLSearchParams();
+    if (levelSel.value) params.set('level', levelSel.value);
+    const q = qInput.value.trim();
+    if (q) params.set('q', q);
+    return params;
+  }
+
+  function cancelStream() {
+    if (state.retryTimer) { clearTimeout(state.retryTimer); state.retryTimer = null; }
+    if (state.abort) {
+      try { state.abort.abort(); } catch (_) { /* ignore */ }
+      state.abort = null;
+    }
+  }
+
+  async function connectStream() {
+    if (state.closed) return;
+    cancelStream();
+    setStatus('接続中...', 'log-status-connecting');
+
+    const token = getAuthToken();
+    const params = buildQuery();
+    const url = `${API}/logs/stream${params.toString() ? '?' + params : ''}`;
+    const ctrl = new AbortController();
+    state.abort = ctrl;
+
+    let res;
+    try {
+      res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal: ctrl.signal,
+      });
+    } catch (err) {
+      if (state.closed || ctrl.signal.aborted) return;
+      scheduleReconnect();
+      return;
+    }
+
+    if (!res.ok || !res.body) {
+      if (res.status === 401) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_email');
+        location.href = '/';
+        return;
+      }
+      if (res.status === 403) {
+        setStatus('権限がありません', 'log-status-error');
+        return;
+      }
+      scheduleReconnect();
+      return;
+    }
+
+    setStatus('接続中', 'log-status-connected');
+    state.retryMs = 1000;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buffer.indexOf('\n\n')) >= 0) {
+          const chunk = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          // chunk は複数行に分かれうる。data: 行だけ拾う。
+          const dataLines = chunk
+            .split('\n')
+            .filter(l => l.startsWith('data:'))
+            .map(l => l.slice(5).trimStart());
+          if (dataLines.length === 0) continue;
+          const payload = dataLines.join('\n');
+          try {
+            const entry = JSON.parse(payload);
+            appendEntry(entry);
+          } catch (_) {
+            // 壊れた行は無視
+          }
+        }
+      }
+    } catch (_) {
+      // 中断または切断
+    }
+
+    if (!state.closed && !ctrl.signal.aborted) {
+      scheduleReconnect();
+    }
+  }
+
+  function scheduleReconnect() {
+    if (state.closed) return;
+    setStatus(`切断: ${Math.round(state.retryMs / 1000)} 秒後に再接続`, 'log-status-error');
+    state.retryTimer = setTimeout(() => {
+      state.retryTimer = null;
+      connectStream();
+    }, state.retryMs);
+    state.retryMs = Math.min(state.retryMs * 2, 30000);
+  }
+
+  async function reload() {
+    viewer.innerHTML = '';
+    const params = buildQuery();
+    params.set('lines', '200');
+    const res = await api('GET', `${API}/logs?${params}`);
+    if (!res.success) return;
+    (res.data || []).forEach(appendEntry);
+    if (followInput.checked) viewer.scrollTop = viewer.scrollHeight;
+    connectStream();
+  }
+
+  function scheduleReload() {
+    clearTimeout(state.reloadTimer);
+    state.reloadTimer = setTimeout(() => { state.reloadTimer = null; reload(); }, 250);
+  }
+
+  levelSel.addEventListener('change', scheduleReload);
+  qInput.addEventListener('input', scheduleReload);
+  wrapInput.addEventListener('change', () => {
+    viewer.classList.toggle('log-wrap', wrapInput.checked);
+    viewer.classList.toggle('log-nowrap', !wrapInput.checked);
+  });
+  clearBtn.addEventListener('click', () => { viewer.innerHTML = ''; });
+
+  registerPageCleanup(() => {
+    state.closed = true;
+    clearTimeout(state.reloadTimer);
+    cancelStream();
+  });
+
+  await reload();
 }
 
 // ============================================================
