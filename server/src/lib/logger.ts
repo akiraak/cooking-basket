@@ -6,21 +6,25 @@ const level = process.env.LOG_LEVEL || 'info';
 const logFile = process.env.LOG_FILE_PATH;
 
 // 機密情報はログに載せる前に落とす。consumer 側マスクだと誤って他経路で流出しうる。
-const redactPaths = [
+// pino の `*.foo` は「第一階層の子」にしか当たらないため、
+// ペイロード直下（例: `logger.info({ email })`）も塞ぐには素のキー名も並べる必要がある。
+export const redactPaths = [
   'req.headers.authorization',
   'req.headers.cookie',
   'headers.authorization',
   'headers.cookie',
+  // ペイロード直下
+  'password',
+  'otp',
+  'token',
+  'jwt',
+  'email',
+  // 第一階層の子（body.* / user.* など）
   '*.password',
   '*.otp',
   '*.token',
   '*.jwt',
   '*.email',
-  'body.password',
-  'body.otp',
-  'body.token',
-  'body.jwt',
-  'body.email',
 ];
 
 // LOG_FILE_PATH が設定されている場合だけ、stdout に加えて日次ローテのファイルにも書く。
