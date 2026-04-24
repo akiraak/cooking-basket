@@ -15,6 +15,9 @@ coverage/
 *.db-shm
 *.db-wal
 
+# Server runtime logs (contain request metadata; do not commit)
+data/logs/
+
 # OS
 .DS_Store
 Thumbs.db

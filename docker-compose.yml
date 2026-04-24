@@ -6,6 +6,7 @@ services:
     environment:
       - PORT=3002
       - DB_PATH=/app/data/shopping.db
+      - LOG_FILE_PATH=/app/data/logs/server.log
       - TZ=America/Los_Angeles
     ports:
       - "3002:3002"
