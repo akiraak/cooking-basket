@@ -28,6 +28,14 @@ const SAMPLE_RESPONSE = JSON.stringify({
   ],
 });
 
+const INGREDIENTS_ONLY_RESPONSE = JSON.stringify({
+  ingredients: [
+    { name: '玉ねぎ', category: '野菜' },
+    { name: '豚肉', category: '肉類' },
+    { name: 'じゃがいも', category: '野菜' },
+  ],
+});
+
 describe('POST /api/ai/suggest', () => {
   const app = createApp();
 
@@ -149,5 +157,84 @@ describe('POST /api/ai/suggest', () => {
     const blank = await request(app).post('/api/ai/suggest')
       .set('X-Device-Id', 'dev-validation').send({ dishName: '   ' });
     expect(blank.status).toBe(400);
+  });
+
+  describe('mode parameter', () => {
+    it("mode='ingredients' returns ingredients only (recipes empty) and uses ingredients prompt", async () => {
+      askGeminiMock.mockResolvedValue(INGREDIENTS_ONLY_RESPONSE);
+      const res = await request(app)
+        .post('/api/ai/suggest')
+        .set('X-Device-Id', 'dev-mode-ing')
+        .send({ dishName: '肉じゃが', mode: 'ingredients' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.recipes).toEqual([]);
+      expect(res.body.data.ingredients).toHaveLength(3);
+      // 渡されたプロンプトに recipes/steps が含まれないこと
+      expect(askGeminiMock).toHaveBeenCalledOnce();
+      const sentPrompt = askGeminiMock.mock.calls[0][0] as string;
+      expect(sentPrompt).not.toContain('"recipes"');
+      expect(sentPrompt).not.toContain('"steps"');
+    });
+
+    it("mode='recipes' returns both ingredients and recipes via the recipes prompt", async () => {
+      const res = await request(app)
+        .post('/api/ai/suggest')
+        .set('X-Device-Id', 'dev-mode-rec')
+        .send({ dishName: 'カレー', mode: 'recipes' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.recipes).toHaveLength(1);
+      expect(res.body.data.ingredients.length).toBeGreaterThan(0);
+      const sentPrompt = askGeminiMock.mock.calls[0][0] as string;
+      expect(sentPrompt).toContain('"recipes"');
+    });
+
+    it("mode='both' (default when omitted) keeps existing behavior", async () => {
+      const res = await request(app)
+        .post('/api/ai/suggest')
+        .set('X-Device-Id', 'dev-mode-both')
+        .send({ dishName: 'カレー' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.recipes).toHaveLength(1);
+      expect(res.body.data.ingredients).toHaveLength(2);
+    });
+
+    it('returns 400 invalid_mode for unknown mode value', async () => {
+      const res = await request(app)
+        .post('/api/ai/suggest')
+        .set('X-Device-Id', 'dev-mode-bad')
+        .send({ dishName: 'カレー', mode: 'xxx' });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('invalid_mode');
+      expect(askGeminiMock).not.toHaveBeenCalled();
+    });
+
+    it('counts quota +1 regardless of mode', async () => {
+      // 上限 3 (guest) を mode 切替えで使い切る
+      askGeminiMock.mockResolvedValue(INGREDIENTS_ONLY_RESPONSE);
+      const send = (mode: string) => request(app)
+        .post('/api/ai/suggest')
+        .set('X-Device-Id', 'dev-mode-quota')
+        .send({ dishName: 'カレー', mode });
+
+      const r1 = await send('ingredients');
+      expect(r1.status).toBe(200);
+      expect(r1.headers['x-ai-remaining']).toBe('2');
+
+      askGeminiMock.mockResolvedValue(SAMPLE_RESPONSE);
+      const r2 = await send('recipes');
+      expect(r2.status).toBe(200);
+      expect(r2.headers['x-ai-remaining']).toBe('1');
+
+      const r3 = await send('both');
+      expect(r3.status).toBe(200);
+      expect(r3.headers['x-ai-remaining']).toBe('0');
+
+      const r4 = await send('ingredients');
+      expect(r4.status).toBe(429);
+    });
   });
 });

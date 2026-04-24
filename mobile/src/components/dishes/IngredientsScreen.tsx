@@ -15,7 +15,7 @@ import { RecipeCard } from './RecipeCard';
 import { useRecipeStore } from '../../stores/recipe-store';
 import { useAiStore } from '../../stores/ai-store';
 import { useAuthStore } from '../../stores/auth-store';
-import { AiQuotaError } from '../../api/ai';
+import { AiQuotaError, type SuggestAiMode } from '../../api/ai';
 import type { Dish, Ingredient, Recipe, RecipeState } from '../../types/models';
 import type { SuggestIngredientsResult } from '../../stores/shopping-store';
 
@@ -74,16 +74,19 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
   }, [dish.id]);
 
   const fetchSuggestions = useCallback(
-    async (extras?: string[]) => {
+    async (extras?: string[], mode: SuggestAiMode = 'both') => {
       setLoading(true);
       try {
         const data: SuggestIngredientsResult = await useShoppingStore.getState().suggestIngredients(
           dish.id,
           extras && extras.length > 0 ? extras : undefined,
+          mode,
         );
         setIngredients(data.ingredients);
-        setRecipes(data.recipes);
-        setRecipeStates(data.recipeStates);
+        if (mode !== 'ingredients') {
+          setRecipes(data.recipes);
+          setRecipeStates(data.recipeStates);
+        }
         const existing = new Set<string>();
         for (const ing of data.ingredients) {
           if (dishItemNames.has(ing.name)) existing.add(ing.name);
@@ -94,7 +97,7 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
           if (!isAuthenticated) {
             requestLogin({
               reason: 'AI 提案の残り回数を増やすにはログインしてください',
-              onSuccess: () => fetchSuggestions(extras),
+              onSuccess: () => fetchSuggestions(extras, mode),
             });
           } else {
             Alert.alert('本日の上限に達しました', '明日また使えます');
@@ -110,10 +113,10 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
     [dish.id, dishItemNames, isAuthenticated, requestLogin],
   );
 
-  // 初回読み込み: キャッシュが無ければ AI 呼出
+  // 初回読み込み: キャッシュが無ければ具材のみを自動取得（レシピは生成しない）
   useEffect(() => {
     if (!dish.ingredients_json && !dish.recipes_json) {
-      fetchSuggestions();
+      fetchSuggestions(undefined, 'ingredients');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -351,6 +354,17 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
                     onPressIngredient={handleToggleIngredient}
                   />
                 ))}
+                <TouchableOpacity
+                  style={[
+                    styles.extraSearchBtn,
+                    styles.recipesFooterBtn,
+                    { backgroundColor: colors.primaryLight },
+                  ]}
+                  onPress={extraIngredients.length > 0 ? handleSearchWithExtras : handleRefresh}
+                  disabled={loading}
+                >
+                  <Text style={styles.extraSearchBtnText}>{refreshLabel}</Text>
+                </TouchableOpacity>
               </>
             )}
           </>
@@ -464,5 +478,8 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 15,
     fontWeight: '600',
+  },
+  recipesFooterBtn: {
+    marginTop: 16,
   },
 });
