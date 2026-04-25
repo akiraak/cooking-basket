@@ -13,6 +13,8 @@ import {
   deleteSavedRecipeAdmin,
   getAiQuotaStats,
   getSystemInfo,
+  resetAiQuota,
+  type AiQuotaResetScope,
 } from '../services/admin-service';
 import { setAiLimits } from '../services/settings-service';
 import {
@@ -21,6 +23,15 @@ import {
   type LogEntry,
   type LogFilter,
 } from '../services/logs-service';
+import { logger } from '../lib/logger';
+
+const AI_QUOTA_RESET_SCOPES: ReadonlyArray<AiQuotaResetScope> = [
+  'user',
+  'guest',
+  'all',
+  'key',
+];
+const AI_QUOTA_KEY_PATTERN = /^(user:\d+|device:[0-9a-f]{64})$/;
 
 export const adminRouter = Router();
 
@@ -154,6 +165,50 @@ adminRouter.put('/ai-limits', (req: Request, res: Response) => {
   } catch (err) {
     if (err instanceof Error && err.message.startsWith('invalid_ai_limit')) {
       res.status(400).json({ success: false, data: null, error: 'invalid_ai_limit' });
+      return;
+    }
+    throw err;
+  }
+});
+
+// 今日の AI 消化数のリセット
+adminRouter.post('/ai-quota/reset', (req: Request, res: Response) => {
+  const body = req.body ?? {};
+  const { scope, key } = body;
+
+  if (
+    typeof scope !== 'string' ||
+    !AI_QUOTA_RESET_SCOPES.includes(scope as AiQuotaResetScope)
+  ) {
+    res.status(400).json({ success: false, data: null, error: 'invalid_scope' });
+    return;
+  }
+
+  if (scope === 'key') {
+    if (typeof key !== 'string' || !AI_QUOTA_KEY_PATTERN.test(key)) {
+      res.status(400).json({ success: false, data: null, error: 'invalid_scope' });
+      return;
+    }
+  }
+
+  try {
+    const result = resetAiQuota(
+      scope as AiQuotaResetScope,
+      scope === 'key' ? { key: key as string } : undefined,
+    );
+    logger.info(
+      {
+        scope: result.scope,
+        deleted: result.deleted,
+        adminUserId: req.userId,
+        ...(scope === 'key' ? { key } : {}),
+      },
+      'ai_quota_reset',
+    );
+    res.json({ success: true, data: result, error: null });
+  } catch (err) {
+    if (err instanceof Error && err.message === 'invalid_scope') {
+      res.status(400).json({ success: false, data: null, error: 'invalid_scope' });
       return;
     }
     throw err;

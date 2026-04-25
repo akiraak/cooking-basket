@@ -8,6 +8,12 @@ import { createApp } from '../helpers/app';
 import { setupTestDatabase } from '../helpers/db';
 import { createAuthedUser } from '../helpers/auth';
 import { _resetAiLimitsCacheForTest } from '../../src/services/settings-service';
+import { getDatabase } from '../../src/database';
+
+function jstDate(now: Date = new Date()): string {
+  const jstMs = now.getTime() + 9 * 60 * 60 * 1000;
+  return new Date(jstMs).toISOString().slice(0, 10);
+}
 
 setupTestDatabase();
 
@@ -356,5 +362,161 @@ describe('admin AI limits routes', () => {
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('invalid_ai_limit');
     });
+  });
+});
+
+describe('POST /api/admin/ai-quota/reset', () => {
+  const app = createApp();
+  const createAdmin = () => createAuthedUser('admin@test.local');
+  const today = jstDate();
+  const yesterday = jstDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  const deviceHash = 'a'.repeat(64);
+
+  function seed() {
+    const db = getDatabase();
+    const insert = db.prepare(
+      'INSERT INTO ai_quota (key, date, count) VALUES (?, ?, ?)',
+    );
+    insert.run('user:1', today, 5);
+    insert.run('user:2', today, 3);
+    insert.run(`device:${deviceHash}`, today, 2);
+    insert.run('user:1', yesterday, 9);
+  }
+
+  function todayKeys(): string[] {
+    const db = getDatabase();
+    return (
+      db
+        .prepare('SELECT key FROM ai_quota WHERE date = ? ORDER BY key')
+        .all(today) as Array<{ key: string }>
+    ).map((r) => r.key);
+  }
+
+  it('returns 401 without Authorization header', async () => {
+    const res = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .send({ scope: 'all' });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 for a non-admin user', async () => {
+    const { headers } = createAuthedUser('reset-not-admin@example.com');
+    const res = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .set(headers)
+      .send({ scope: 'all' });
+    expect(res.status).toBe(403);
+  });
+
+  it("scope='all' clears today's todaySummary.total_calls", async () => {
+    const { headers } = createAdmin();
+    seed();
+
+    const post = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .set(headers)
+      .send({ scope: 'all' });
+    expect(post.status).toBe(200);
+    expect(post.body.data).toEqual({ scope: 'all', deleted: 3 });
+
+    const get = await request(app).get('/api/admin/ai-quota').set(headers);
+    expect(get.body.data.todaySummary.total_calls).toBe(0);
+  });
+
+  it("scope='user' leaves guest rows intact", async () => {
+    const { headers } = createAdmin();
+    seed();
+
+    const post = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .set(headers)
+      .send({ scope: 'user' });
+    expect(post.status).toBe(200);
+    expect(post.body.data).toEqual({ scope: 'user', deleted: 2 });
+    expect(todayKeys()).toEqual([`device:${deviceHash}`]);
+  });
+
+  it("scope='guest' leaves user rows intact", async () => {
+    const { headers } = createAdmin();
+    seed();
+
+    const post = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .set(headers)
+      .send({ scope: 'guest' });
+    expect(post.status).toBe(200);
+    expect(post.body.data).toEqual({ scope: 'guest', deleted: 1 });
+    expect(todayKeys()).toEqual(['user:1', 'user:2']);
+  });
+
+  it("scope='key' deletes only the specified key for today", async () => {
+    const { headers } = createAdmin();
+    seed();
+
+    const post = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .set(headers)
+      .send({ scope: 'key', key: 'user:1' });
+    expect(post.status).toBe(200);
+    expect(post.body.data).toEqual({ scope: 'key', deleted: 1 });
+    expect(todayKeys()).toEqual([`device:${deviceHash}`, 'user:2']);
+  });
+
+  it('is idempotent: a second call returns deleted: 0 with 200', async () => {
+    const { headers } = createAdmin();
+    seed();
+
+    const first = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .set(headers)
+      .send({ scope: 'all' });
+    expect(first.body.data.deleted).toBe(3);
+
+    const second = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .set(headers)
+      .send({ scope: 'all' });
+    expect(second.status).toBe(200);
+    expect(second.body.data).toEqual({ scope: 'all', deleted: 0 });
+  });
+
+  it("returns 400 invalid_scope for unknown scopes", async () => {
+    const { headers } = createAdmin();
+    const res = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .set(headers)
+      .send({ scope: 'unknown' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_scope');
+  });
+
+  it("returns 400 invalid_scope when scope is missing", async () => {
+    const { headers } = createAdmin();
+    const res = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .set(headers)
+      .send({});
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_scope');
+  });
+
+  it("returns 400 when scope='key' but key is missing", async () => {
+    const { headers } = createAdmin();
+    const res = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .set(headers)
+      .send({ scope: 'key' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_scope');
+  });
+
+  it("returns 400 when scope='key' has malformed key", async () => {
+    const { headers } = createAdmin();
+    const res = await request(app)
+      .post('/api/admin/ai-quota/reset')
+      .set(headers)
+      .send({ scope: 'key', key: 'foo' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_scope');
   });
 });
