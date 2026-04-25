@@ -41,24 +41,10 @@ export function createDish(userId: number, name: string): DishWithItems {
   // 既存の position をシフト（先頭に追加するため）
   db.prepare('UPDATE dishes SET position = position + 1 WHERE user_id = ?').run(userId);
 
-  // 同名の最新料理からAI情報を引き継ぐ
-  const prev = db.prepare(
-    'SELECT ingredients_json, recipes_json FROM dishes WHERE user_id = ? AND name = ? COLLATE NOCASE AND ingredients_json IS NOT NULL ORDER BY created_at DESC LIMIT 1'
-  ).get(userId, name) as { ingredients_json: string; recipes_json: string } | undefined;
+  const result = db.prepare('INSERT INTO dishes (user_id, name, position) VALUES (?, ?, 0)').run(userId, name);
+  const dish = db.prepare('SELECT * FROM dishes WHERE id = ?').get(result.lastInsertRowid) as Dish;
 
-  if (prev) {
-    const result = db.prepare(
-      'INSERT INTO dishes (user_id, name, ingredients_json, recipes_json, position) VALUES (?, ?, ?, ?, 0)'
-    ).run(userId, name, prev.ingredients_json, prev.recipes_json);
-    const dish = db.prepare('SELECT * FROM dishes WHERE id = ?').get(result.lastInsertRowid) as Dish;
-
-    return { ...dish, items: [] };
-  } else {
-    const result = db.prepare('INSERT INTO dishes (user_id, name, position) VALUES (?, ?, 0)').run(userId, name);
-    const dish = db.prepare('SELECT * FROM dishes WHERE id = ?').get(result.lastInsertRowid) as Dish;
-
-    return { ...dish, items: [] };
-  }
+  return { ...dish, items: [] };
 }
 
 export function deleteDish(userId: number, id: number): boolean {
@@ -127,29 +113,3 @@ export function reorderDishItems(userId: number, dishId: number, orderedItemIds:
   })();
 }
 
-export interface DishSuggestion {
-  name: string;
-  count: number;
-}
-
-export function getDishSuggestions(userId: number, query: string, limit: number = 10): DishSuggestion[] {
-  const db = getDatabase();
-  if (!query) {
-    return db.prepare(`
-      SELECT name, COUNT(*) AS count
-      FROM dishes
-      WHERE user_id = ? AND active = 0
-      GROUP BY name COLLATE NOCASE
-      ORDER BY count DESC, MAX(created_at) DESC
-      LIMIT ?
-    `).all(userId, limit) as DishSuggestion[];
-  }
-  return db.prepare(`
-    SELECT name, COUNT(*) AS count
-    FROM dishes
-    WHERE user_id = ? AND active = 0 AND name LIKE ? COLLATE NOCASE
-    GROUP BY name COLLATE NOCASE
-    ORDER BY count DESC, MAX(created_at) DESC
-    LIMIT ?
-  `).all(userId, `${query}%`, limit) as DishSuggestion[];
-}

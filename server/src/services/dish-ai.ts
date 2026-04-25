@@ -43,25 +43,6 @@ ${extraSection}
 }`;
 }
 
-export function buildIngredientsOnlyPrompt(dishName: string, extraIngredients?: string[]): string {
-  const extraSection = extraIngredients && extraIngredients.length > 0
-    ? `\nユーザーが以下の食材を必ず使いたいと指定しています：${extraIngredients.join('、')}
-上記の食材は必ず含めてください。上記以外の食材も自由に追加してかまいません。\n`
-    : '';
-
-  return `あなたは料理の専門家です。「${dishName}」を作るのに必要な主要な具材リストをJSON形式で返してください。
-${extraSection}
-一般的な調味料（塩・砂糖・醤油・酒・みりん・油など）は含めず、買い物リストに入れるべき主要な食材のみを列挙してください。
-
-回答は以下のJSON形式のみで返してください。JSON以外のテキストは含めないでください:
-
-{
-  "ingredients": [
-    { "name": "具材名", "category": "野菜|肉類|魚介類|乳製品|穀類|その他" }
-  ]
-}`;
-}
-
 export function parseDishInfo(raw: string): DishInfo {
   try {
     const cleaned = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
@@ -94,13 +75,6 @@ export function parseDishInfo(raw: string): DishInfo {
         ingredients: Array.from(ingredientMap.values()),
         recipes,
       };
-    }
-    // 具材のみ形式: { ingredients: [...] }（recipes 無し）
-    if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.ingredients)) {
-      const ingredients = (parsed.ingredients as Ingredient[]).filter(
-        (ing) => ing && typeof ing.name === 'string' && ing.name !== '',
-      );
-      return { ingredients, recipes: [] };
     }
     // 旧形式: 配列のみ（後方互換）
     if (Array.isArray(parsed)) {

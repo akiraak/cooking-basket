@@ -303,19 +303,4 @@ describe('dishes routes', () => {
     });
   });
 
-  describe('GET /api/dishes/suggestions', () => {
-    it('returns previously used dish names from inactive (deleted) dishes', async () => {
-      const { headers } = createAuthedUser('dish-sug@example.com');
-      const created = await request(app)
-        .post('/api/dishes')
-        .set(headers)
-        .send({ name: 'カレー' });
-      // 削除するとサジェスト候補に回る
-      await request(app).delete(`/api/dishes/${created.body.data.id}`).set(headers);
-
-      const res = await request(app).get('/api/dishes/suggestions').set(headers);
-      expect(res.status).toBe(200);
-      expect(res.body.data.map((s: { name: string }) => s.name)).toContain('カレー');
-    });
-  });
 });

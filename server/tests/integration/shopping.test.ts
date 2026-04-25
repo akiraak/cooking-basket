@@ -3,7 +3,6 @@ import request from 'supertest';
 import { createApp } from '../helpers/app';
 import { setupTestDatabase } from '../helpers/db';
 import { createAuthedUser } from '../helpers/auth';
-import { recordPurchase } from '../../src/services/shopping-service';
 
 setupTestDatabase();
 
@@ -212,31 +211,4 @@ describe('shopping routes', () => {
     });
   });
 
-  describe('GET /api/shopping/suggestions', () => {
-    it('returns purchase history excluding items already in the cart (unchecked)', async () => {
-      const { user, headers } = createAuthedUser('sug@example.com');
-      recordPurchase(user.id, '牛乳');
-      recordPurchase(user.id, '牛乳');
-      recordPurchase(user.id, 'パン');
-
-      // 牛乳はカートにあるので除外される
-      await request(app).post('/api/shopping').set(headers).send({ name: '牛乳' });
-
-      const res = await request(app).get('/api/shopping/suggestions').set(headers);
-      const names = res.body.data.map((s: { name: string }) => s.name);
-      expect(names).toContain('パン');
-      expect(names).not.toContain('牛乳');
-    });
-
-    it('filters by ?q= prefix', async () => {
-      const { user, headers } = createAuthedUser('qfilter@example.com');
-      recordPurchase(user.id, 'Apple');
-      recordPurchase(user.id, 'avocado');
-      recordPurchase(user.id, 'Banana');
-
-      const res = await request(app).get('/api/shopping/suggestions?q=a').set(headers);
-      const names = res.body.data.map((s: { name: string }) => s.name).sort();
-      expect(names).toEqual(['Apple', 'avocado']);
-    });
-  });
 });

@@ -5,7 +5,6 @@ import {
   updateItem,
   deleteItem,
   deleteCheckedItems,
-  getSuggestions,
   reorderItems,
 } from '../services/shopping-service';
 
@@ -26,15 +25,6 @@ shoppingRouter.post('/', (req: Request, res: Response) => {
   }
   const item = createItem(req.userId!, { name: name.trim(), category });
   res.status(201).json({ success: true, data: item, error: null });
-});
-
-// 食材名サジェスト (/:id より先に定義)
-shoppingRouter.get('/suggestions', (req: Request, res: Response) => {
-  const q = req.query.q;
-  const query = (typeof q === 'string') ? q.trim() : '';
-  const limit = query ? 10 : 3;
-  const suggestions = getSuggestions(req.userId!, query, limit);
-  res.json({ success: true, data: suggestions, error: null });
 });
 
 // 並べ替え (/:id より先に定義)

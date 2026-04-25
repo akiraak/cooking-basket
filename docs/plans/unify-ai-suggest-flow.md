@@ -28,6 +28,40 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
   いる」という挙動になっており、ユーザの意思（= 削除）を裏切っている
 - 同名は別物として扱う（料理ごとに `id` が一意なので、それで識別）
 
+#### (3) 料理名サジェスト機能（削除済み料理名の候補表示）
+- サーバ `GET /api/dishes/suggestions` ルート
+  ([`dishes.ts:43-50`](../../server/src/routes/dishes.ts))
+- サーバ `getDishSuggestions` / `DishSuggestion`
+  ([`dish-service.ts:130-155`](../../server/src/services/dish-service.ts))
+- モバイル `getDishSuggestions` API クライアント関数
+  ([`mobile/src/api/dishes.ts:61-66`](../../mobile/src/api/dishes.ts))
+- 「削除済みの料理名（`active = 0`）を入力補助の候補として返す」機能。
+  もともと `(2)` の同名キャッシュ継承と対になって設計されていた
+  （削除した料理名を候補から再度作ると AI 結果も復活するセット）
+- **モバイル UI からは現在この API を呼んでいない**（`mobile/src/api/dishes.ts`
+  に export はあるが、画面側からの呼び出し箇所なし）。dead code 寄り
+- `(2)` で同名キャッシュ継承を廃止する以上、候補だけ残しても意味がない
+  （「候補から選んでも別物として作られる」という分裂が残る）ので同時に削除
+
+#### (4) 食材名サジェスト機能（購入履歴からの候補表示）
+- サーバ `GET /api/shopping/suggestions` ルート
+  ([`shopping.ts:31-38`](../../server/src/routes/shopping.ts))
+- サーバ `getSuggestions` / `PurchaseSuggestion`
+  ([`shopping-service.ts:23, 107-128`](../../server/src/services/shopping-service.ts))
+- モバイル `getItemSuggestions` API クライアント関数
+  ([`mobile/src/api/shopping.ts:39-44`](../../mobile/src/api/shopping.ts))
+- `purchase_history` テーブルから「カートに今ない過去の食材名」を候補として
+  返す機能
+- **こちらもモバイル UI からは呼ばれていない**（`mobile/src/api/shopping.ts`
+  に export はあるが画面側からの呼び出しなし）。料理名サジェストと同じ
+  状況の dead code
+- `(3)` と一貫させて同時に削除する
+- **重要**: `recordPurchase` ([`shopping-service.ts:102-105`](../../server/src/services/shopping-service.ts)
+  = `updateItem` でチェック時に呼ばれる) と `purchase_history` テーブル
+  自体は **admin 画面**（統計の `totalPurchases`、ユーザ一覧の
+  `purchase_count`、`getAllPurchaseHistory`）で参照されているので**残す**。
+  削除するのは「読み出し（サジェスト）側」だけ
+
 ### 残すもの
 - `dishes.ingredients_json` / `dishes.recipes_json` カラム … **キャッシュ
   として引き続き使う**
@@ -51,6 +85,13 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
   分岐ロジックが複雑
 
 ### 廃止後の UX ルール
+0. **料理名・食材名の入力補助はどちらも廃止**:
+   - `GET /api/dishes/suggestions` を削除
+   - `GET /api/shopping/suggestions` を削除
+   - 料理追加 / 食材追加 UI は候補を出さず自由入力のみとする
+   - （モバイル UI は両 API とも元々呼んでいないので体感の変化なし）
+   - ただし `purchase_history` テーブルと `recordPurchase` は admin 画面の
+     ために残す（書き込みは継続、読み出し側だけ削除）
 1. **料理画面（`IngredientsScreen`）を開いたとき、`dish.ingredients_json` /
    `dish.recipes_json` に DB キャッシュがあれば読み込んで表示する**
    （現状の useEffect 仕様を維持）
@@ -156,6 +197,14 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
      ものが引き続き「追加素材」セクションに残る（ボタン文言も同じ）
 7. **型の下位互換は作らない**。`SuggestAiMode` を optional として残さない。
    完全に消す（参照が消えれば型エラーで検出できる）
+8. **AI 再取得は常に両キャッシュを上書きする**。`mode` を消した結果、
+   AI 呼び出しが成功すると `ingredients_json` と `recipes_json` の両方が
+   常に新しい値で上書きされる（旧 `mode='both'` 時の挙動と同じ）。
+   「具材だけ更新してレシピは温存」という分岐はもう存在しない
+9. **`active = 0` の旧料理レコードはそのまま残す**。サジェスト機能と
+   キャッシュ継承の両方を廃止すると `active = 0` レコードはどこからも
+   参照されなくなるが、データ消失リスクを避けるため hard delete には
+   しない。将来的なクリーンアップは別 plan で扱う
 
 ## 選択肢と比較
 
@@ -189,6 +238,20 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
   挙動はユーザの意思（= 削除）に反する。料理 ID と関係ない隠れた状態継承
   は読みづらく、同名異物のときに誤った結果を見せるリスクもある。却下
 
+### 案 E: 料理名・食材名サジェストを残す
+- 利点: 将来モバイル UI から補完候補を出す実装を入れたくなったときに
+  API がある
+- 欠点: モバイル UI からの呼び出しが両方とも現時点でゼロ。サーバルート /
+  サービス / モバイル API クライアント関数 / テスト 1 ブロックずつが
+  すべて呼び出し元なし。かつ料理側は `(2)` のキャッシュ継承を捨てる以上
+  「候補から選んでも別物」になり機能価値も薄い。YAGNI。却下
+
+### 案 F: 食材名サジェストだけ残す（料理側のみ削除）
+- 利点: スコープが小さい
+- 欠点: 「片方は削除、片方は dead code として温存」という一貫性のない状態
+  になる。読み手が「なぜ食材だけ残っているのか」を毎回考える羽目になる。
+  どちらも UI から未使用なので一括処理が自然。却下
+
 ## API 設計
 
 ### 変更
@@ -199,6 +262,16 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
   - レスポンス形 `{ ingredients, recipes }` は変更なし
   - 旧クライアントから `mode` 付きで POST されても無視（バリデーション
     エラーにはしない）
+
+### 削除
+- `GET /api/dishes/suggestions` … ルートごと削除。サーバ側
+  `getDishSuggestions` / `DishSuggestion` も削除。モバイル
+  `getDishSuggestions` API クライアント関数も削除（呼び出し元なし）
+- `GET /api/shopping/suggestions` … ルートごと削除。サーバ側
+  `getSuggestions` / `PurchaseSuggestion` も削除。モバイル
+  `getItemSuggestions` API クライアント関数も削除（呼び出し元なし）。
+  `recordPurchase` と `purchase_history` テーブルは残す（admin 画面で
+  使用中）
 
 ### 変更なし
 - `PUT /api/dishes/:id/ai-cache` … キャッシュ書き戻しエンドポイント、
@@ -227,13 +300,33 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
   - `createDish()` の「同名過去料理からキャッシュ継承」ロジック（44-55
     行目）を削除。`UPDATE position` のあとは `INSERT INTO dishes (user_id,
     name, position) VALUES (?, ?, 0)` の単純版だけ残す（57-60 行目相当）
+  - `DishSuggestion` interface（130-133 行目）と `getDishSuggestions`
+    関数（135-155 行目）を削除
   - `Dish` 型 / `updateDishInfo` / 他の `ingredients_json` / `recipes_json`
     参照は触らない（キャッシュ機能は維持）
+- [ ] [`server/src/routes/dishes.ts`](../../server/src/routes/dishes.ts)
+  - `getDishSuggestions` の import（9 行目）を削除
+  - `GET /suggestions` ルート（43-50 行目）を削除
+- [ ] [`server/src/services/shopping-service.ts`](../../server/src/services/shopping-service.ts)
+  - `PurchaseSuggestion` interface（23 行目）を削除
+  - `getSuggestions` 関数（107-128 行目）を削除
+  - `recordPurchase`（102-105 行目）と `purchase_history` テーブルへの
+    INSERT は**残す**（`updateItem` の 57-59 行目から呼ばれており、
+    admin 画面で履歴を表示している）
+- [ ] [`server/src/routes/shopping.ts`](../../server/src/routes/shopping.ts)
+  - `getSuggestions` の import（8 行目）を削除
+  - `GET /suggestions` ルート（31-38 行目）を削除
 
 ### Phase 2: サーバ側テストの更新
 - [ ] [`server/tests/integration/ai.test.ts`](../../server/tests/integration/ai.test.ts)
-  - `describe('mode parameter', ...)` ブロック（162-240 行目付近）を
+  - `describe('mode parameter', ...)` ブロック（162-239 行目）を
     丸ごと削除
+  - **削除前に確認**: 同 describe 内の `it('counts quota +1 regardless of
+    mode', ...)`（215-238 行目）が「呼び出しごとに quota が +1 される」
+    という mode 非依存の挙動も検証している。同じ挙動は同ファイル冒頭
+    付近の quota 関連テスト（126-139 行目の連続 POST → 429 シナリオ）
+    でも担保されているので、削除しても回帰リスクなし。確認したうえで
+    `mode parameter` describe を一括削除する
   - 他のテストで `.send({ ..., mode })` を渡している箇所が残っていないか
     `grep -n "mode" server/tests/integration/ai.test.ts` で確認し、あれば
     削除
@@ -243,10 +336,22 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
     を丸ごと削除
   - `parseDishInfo` の「具材のみ形式」を扱うテストがあれば削除
 - [ ] [`server/tests/unit/dish-service.test.ts`](../../server/tests/unit/dish-service.test.ts)
-  （ファイル有無は `ls server/tests/unit/` で確認）に、
-  「同名再登録時に新しい料理は `ingredients_json = NULL` で作られる
-  （= 過去のキャッシュを継承しない）」テストを追加。なければ
-  `tests/integration/dishes.test.ts` に同等のテストを追加
+  に、「同名再登録時に新しい料理は `ingredients_json = NULL` で作られる
+  （= 過去のキャッシュを継承しない）」テストを追加
+- [ ] [`server/tests/integration/dishes.test.ts`](../../server/tests/integration/dishes.test.ts)
+  - `describe('GET /api/dishes/suggestions', ...)` ブロック（306-320
+    行目）を丸ごと削除
+- [ ] [`server/tests/integration/shopping.test.ts`](../../server/tests/integration/shopping.test.ts)
+  - `describe('GET /api/shopping/suggestions', ...)` ブロック（215-241
+    行目）を丸ごと削除
+  - `import { recordPurchase } from ...`（6 行目）が他で使われていなければ
+    削除（grep で確認）
+- [ ] [`server/tests/unit/shopping-service.test.ts`](../../server/tests/unit/shopping-service.test.ts)
+  - `describe('getSuggestions', ...)` ブロック（145 行目以降）を丸ごと削除
+  - import（6 行目の `getSuggestions`、7 行目の `recordPurchase`）から
+    `getSuggestions` を外す。`recordPurchase` は他テスト（`updateItem`
+    のチェック時記録テスト 66-97 行目、および 145 行目以降）でも使用
+    されているので、削除後の使用状況に応じて整理
 - [ ] `npm test` がサーバ側で通ることを確認
 
 ### Phase 3: クライアント側 API / ストア
@@ -265,7 +370,11 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
     それを使う分岐をすべて削除。常に「ingredients + recipes 両方を Zustand
     に書き戻し、サーバ DB にも `updateDishAiCache` する」1 ルートに統合
   - キャッシュ書き戻し（323-346 行目）はそのまま残す（DB 保存は維持）
-- [ ] `mobile/src/api/dishes.ts` の `updateDishAiCache` は触らない（残す）
+- [ ] [`mobile/src/api/dishes.ts`](../../mobile/src/api/dishes.ts)
+  - `getDishSuggestions` 関数（61-66 行目）を削除
+  - `updateDishAiCache` は触らない（残す）
+- [ ] [`mobile/src/api/shopping.ts`](../../mobile/src/api/shopping.ts)
+  - `getItemSuggestions` 関数（39-44 行目）を削除
 
 ### Phase 4: `IngredientsScreen` の表示ロジック
 - [ ] [`mobile/src/components/dishes/IngredientsScreen.tsx`](../../mobile/src/components/dishes/IngredientsScreen.tsx)
@@ -313,22 +422,43 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
       新しい `refreshLabel` 文言になる）
   - 結果として AI 呼び出しの onPress は `handleRefresh`（extras なし）と
     `handleSearchWithExtras`（extras あり）の 2 種類だけになる
+  - **ローディングテキストの更新**: `'具材を検索中...'`（272 行目）は
+    レシピも同時に取得するようになるので **`'AI で検索中...'`** に変更
   - **削除する文字列リテラル**: `'具材を AI で取得'`、`'レシピを AI で取得'`、
     `'レシピを再検索'`、`'この素材でレシピを再検索'`、
     `'この料理の具材はまだ取得していません。'`
 
 ### Phase 5: クライアント側テストの更新
 - [ ] [`mobile/__tests__/stores/shopping-store.test.ts`](../../mobile/__tests__/stores/shopping-store.test.ts)
-  - `suggestIngredients(..., mode)` の第 3 引数を渡しているテストを修正
-    （`mode` 引数自体が消えるので呼び出しシグネチャが変わる）
-  - `mode='ingredients'` で `recipes_json` を温存する枝のテストを削除
-    （常に両方を書き戻すように挙動が変わる）
+  - **10 行目**: `shopping` モックの `getItemSuggestions: jest.fn()` を
+    削除
+  - **23 行目**: `dishesApi` モックの `getDishSuggestions: jest.fn()` を
+    削除（API 関数自体が消えるため）
+  - **265 行目**: `expect(ai.suggestAi).toHaveBeenCalledWith('カレー',
+    undefined, 'both')` → `expect(ai.suggestAi).toHaveBeenCalledWith(
+    'カレー', undefined)` に変更（mode 引数廃止）
+  - **284-316 行目**: `it("suggestIngredients with mode='ingredients'
+    skips recipe auto-save and preserves recipes_json", ...)` を削除
+    （`mode='ingredients'` 経路自体が消えるため。常に両方を書き戻す挙動
+    に変わる）
+  - **318-343 行目**: `it("suggestIngredients with mode='recipes'
+    generates recipes and auto-saves them", ...)` を削除（mode 廃止後は
+    248 行目の通常テストとシナリオが重複する）
   - `updateDishAiCache` 呼び出しのテスト・モック・assertion はそのまま
     残す（書き戻し挙動は維持）
   - `ingredients_json` / `recipes_json` を assert する箇所もそのまま残す
-- [ ] `mobile/__tests__/api/ai.test.ts` 相当があれば、`suggestAi(..., mode)`
-  を呼ぶテストの第 3 引数を削除し、`SuggestAiMode` import も外す
-  （ファイル有無は要確認: `ls mobile/__tests__/api/`）
+- [ ] [`mobile/__tests__/utils/migration.test.ts`](../../mobile/__tests__/utils/migration.test.ts)
+  - **14 行目**: `shoppingApi` モックの `getItemSuggestions: jest.fn()` を
+    削除
+  - **27 行目**: `dishesApi` モックの `getDishSuggestions: jest.fn()` を
+    削除
+- [ ] [`mobile/__tests__/api/ai.test.ts`](../../mobile/__tests__/api/ai.test.ts)
+  - **35, 81 行目**: `expect(mockClient.post).toHaveBeenCalledWith(...)`
+    の第 2 引数から `mode: 'both'` フィールドを削除
+  - **85-96 行目**: `it("sends mode='ingredients' when requested", ...)`
+    を丸ごと削除
+  - **98-109 行目**: `it("sends mode='recipes' when requested", ...)` を
+    丸ごと削除
 - [ ] `SuggestAiMode` を参照しているテストが残っていないか
   `grep -rn "SuggestAiMode" mobile/` で確認
 - [ ] `npm test` がモバイル側で通ることを確認
@@ -363,6 +493,15 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
   `{ "dishName": "カレー", "mode": "ingredients" }` で curl を投げて、
   `mode` が無視されてレシピ + 具材の通常レスポンスが返ることを確認
   （旧クライアント互換）
+- [ ] `GET /api/dishes/suggestions` に curl を投げて 404 が返ることを
+  確認（ルート削除済み）
+- [ ] `GET /api/shopping/suggestions` に curl を投げて 404 が返ることを
+  確認（ルート削除済み）
+- [ ] **admin 画面の購入履歴系がそのまま動く**ことを確認:
+  - `dev-admin` で統計の `totalPurchases` が表示される
+  - ユーザ一覧の `purchase_count` カラムが表示される
+  - 食材をチェックすると `purchase_history` に行が増える（admin 画面の
+    購入履歴一覧で確認）
 
 ## 非スコープ（やらないこと）
 - **DB スキーマ変更**: `dishes.ingredients_json` / `recipes_json` は
@@ -379,34 +518,60 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
 - 管理画面（`web/admin/`）の関連 UI 変更
 - 旧バージョンのモバイルクライアントとの完全な後方互換（同時リリース
   前提だが、`mode` 付きで POST されても無害なので致命ではない）
+- **`active = 0` の旧料理レコードの hard delete / クリーンアップ**:
+  サジェスト機能とキャッシュ継承の両方を廃止すると `active = 0` 行は
+  どこからも参照されなくなるが、データ消失リスクを避けるため今回は
+  そのまま残す（別 plan でクリーンアップ）
+- **`deleteDish` の挙動変更**: 引き続き soft delete (`active = 0`) のまま
+- **`recordPurchase` / `purchase_history` テーブル**: admin 画面で
+  使用中のため残す。書き込み（`updateItem` のチェック時）も継続
 
 ## 影響ファイル
 
 ### 変更
 - `server/src/services/dish-service.ts` … `createDish` の同名キャッシュ
-  継承削除
+  継承削除、`getDishSuggestions` / `DishSuggestion` 削除
 - `server/src/services/dish-ai.ts` … `buildIngredientsOnlyPrompt` 削除、
   `parseDishInfo` の「具材のみ形式」分岐削除
+- `server/src/services/shopping-service.ts` … `getSuggestions` /
+  `PurchaseSuggestion` 削除（`recordPurchase` と `purchase_history` への
+  INSERT は維持）
 - `server/src/routes/ai.ts` … `mode` パラメータ廃止、`buildDishInfoPrompt`
   直呼びに単純化
+- `server/src/routes/dishes.ts` … `GET /suggestions` ルート削除、
+  `getDishSuggestions` の import 削除
+- `server/src/routes/shopping.ts` … `GET /suggestions` ルート削除、
+  `getSuggestions` の import 削除
 - `mobile/src/api/ai.ts` … `SuggestAiMode` 型削除、`suggestAi` から `mode`
   引数削除
+- `mobile/src/api/dishes.ts` … `getDishSuggestions` 関数削除
+- `mobile/src/api/shopping.ts` … `getItemSuggestions` 関数削除
 - `mobile/src/stores/shopping-store.ts` … `suggestIngredients` の `mode`
   引数削除、`ingredientsOnly` 分岐削除（書き戻しロジックは維持）
 - `mobile/src/components/dishes/IngredientsScreen.tsx` …
   `handleFetchIngredients` / 専用ボタン削除、`fetchSuggestions` の `mode`
-  引数削除、`refreshLabel` 文言を 2 種類に統合（キャッシュ読み込み
-  useEffect は残す）
+  引数削除、`refreshLabel` 文言を 2 種類に統合、ローディングテキスト
+  更新（キャッシュ読み込み useEffect は残す）
 - `server/tests/integration/ai.test.ts` … `mode parameter` describe
   ブロック削除
+- `server/tests/integration/dishes.test.ts` …
+  `GET /api/dishes/suggestions` describe ブロック削除
+- `server/tests/integration/shopping.test.ts` …
+  `GET /api/shopping/suggestions` describe ブロック削除
 - `server/tests/unit/dish-ai.test.ts` … `buildIngredientsOnlyPrompt`
   describe ブロック削除
+- `server/tests/unit/shopping-service.test.ts` … `getSuggestions`
+  describe ブロック削除（`recordPurchase` テストは維持）
 - `mobile/__tests__/stores/shopping-store.test.ts` … `mode` 引数 /
-  `ingredientsOnly` 関連テスト整理（`updateDishAiCache` 関連はそのまま）
+  `ingredientsOnly` 関連テスト整理、`getDishSuggestions` /
+  `getItemSuggestions` モック削除（`updateDishAiCache` 関連はそのまま）
+- `mobile/__tests__/api/ai.test.ts` … `mode` 引数を含むテスト整理
+- `mobile/__tests__/utils/migration.test.ts` … `getDishSuggestions` /
+  `getItemSuggestions` モック削除
 
 ### 追加
-- `server/tests/unit/dish-service.test.ts` または同等の場所に「同名再登録
-  時にキャッシュが継承されないこと」を検証するテストを追加
+- `server/tests/unit/dish-service.test.ts` に「同名再登録時にキャッシュが
+  継承されないこと」を検証するテストを追加
 
 ### 削除
 - なし（関数 / ルート単位での削除はあるがファイル単位は残る）
@@ -418,7 +583,16 @@ AI フロー周りで「2 系統あって複雑になっている」部分を整
   返る。旧クライアントは `mode='ingredients'` で叩いた場合 `recipes` を
   表示しない実装なので、ユーザから見ると挙動は従来通り（具材のみ表示）。
   新クライアントへ更新後はレシピも見える
+- ただし副作用として、旧クライアントが `mode='ingredients'` で叩いた場合
+  でも **サーバは Gemini にレシピ込みで問い合わせる**ためトークン消費が
+  わずかに増える。過渡期のみなので致命ではない
 - 同名再登録時のキャッシュ継承削除は**ユーザに見える挙動変化**:
   「料理を消して同じ名前で作り直したら AI 結果が消えた」体験になる。
   意図通り（削除した料理は別物）
+- `GET /api/dishes/suggestions` / `GET /api/shopping/suggestions` を
+  叩いていた外部ツールがあれば 404 になる。モバイル UI は両方とも元々
+  呼んでいないので公式アプリへの影響はなし
+- `purchase_history` テーブルは admin 画面（統計・ユーザ別購入数・
+  購入履歴一覧）で使い続ける。書き込み（食材チェック時の `recordPurchase`）
+  も継続。サジェスト読み出し側だけ消える
 - DB スキーマ変更がないのでマイグレーションのリスクなし

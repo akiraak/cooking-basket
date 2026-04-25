@@ -20,11 +20,6 @@ export interface UpdateItemInput {
   checked?: number;
 }
 
-export interface PurchaseSuggestion {
-  name: string;
-  count: number;
-}
-
 export function getAllItems(userId: number): ShoppingItem[] {
   const db = getDatabase();
   return db.prepare('SELECT * FROM shopping_items WHERE user_id = ? ORDER BY checked ASC, position ASC, created_at DESC').all(userId) as ShoppingItem[];
@@ -102,27 +97,4 @@ export function reorderItems(userId: number, orderedIds: number[]): void {
 export function recordPurchase(userId: number, itemName: string): void {
   const db = getDatabase();
   db.prepare('INSERT INTO purchase_history (user_id, item_name) VALUES (?, ?)').run(userId, itemName);
-}
-
-export function getSuggestions(userId: number, query: string, limit: number = 10): PurchaseSuggestion[] {
-  const db = getDatabase();
-  const excludeClause = 'AND item_name COLLATE NOCASE NOT IN (SELECT name COLLATE NOCASE FROM shopping_items WHERE user_id = ? AND checked = 0)';
-  if (!query) {
-    return db.prepare(`
-      SELECT item_name AS name, COUNT(*) AS count
-      FROM purchase_history
-      WHERE user_id = ? ${excludeClause}
-      GROUP BY item_name COLLATE NOCASE
-      ORDER BY count DESC, MAX(purchased_at) DESC
-      LIMIT ?
-    `).all(userId, userId, limit) as PurchaseSuggestion[];
-  }
-  return db.prepare(`
-    SELECT item_name AS name, COUNT(*) AS count
-    FROM purchase_history
-    WHERE user_id = ? AND item_name LIKE ? COLLATE NOCASE ${excludeClause}
-    GROUP BY item_name COLLATE NOCASE
-    ORDER BY count DESC, MAX(purchased_at) DESC
-    LIMIT ?
-  `).all(userId, `${query}%`, userId, limit) as PurchaseSuggestion[];
 }

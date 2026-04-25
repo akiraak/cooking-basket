@@ -8,6 +8,7 @@ import {
   reorderDishes,
   reorderDishItems,
   unlinkItemFromDish,
+  updateDishInfo,
 } from '../../src/services/dish-service';
 import { createItem } from '../../src/services/shopping-service';
 import { getDatabase } from '../../src/database';
@@ -71,6 +72,34 @@ describe('dish-service', () => {
         .prepare('SELECT active FROM dishes WHERE id = ?')
         .get(dish.id) as { active: number };
       expect(dishRow.active).toBe(0);
+    });
+
+    it('does not inherit AI cache when re-creating a dish with the same name', () => {
+      const user = createTestUser();
+
+      // 1. 料理を作成して AI キャッシュを書き込む
+      const original = createDish(user.id, 'カレー');
+      const ingredients = [{ name: '玉ねぎ', category: '野菜' }];
+      const recipes = [
+        { title: '基本のカレー', summary: '王道', steps: ['切る'], ingredients },
+      ];
+      updateDishInfo(user.id, original.id, ingredients, recipes);
+
+      // 2. 削除（soft delete: active=0）
+      expect(deleteDish(user.id, original.id)).toBe(true);
+
+      // 3. 同じ名前で再登録
+      const recreated = createDish(user.id, 'カレー');
+
+      // 新規料理は別 id で、AI キャッシュは継承されない（NULL のまま）
+      expect(recreated.id).not.toBe(original.id);
+
+      const db = getDatabase();
+      const row = db
+        .prepare('SELECT ingredients_json, recipes_json FROM dishes WHERE id = ?')
+        .get(recreated.id) as { ingredients_json: string | null; recipes_json: string | null };
+      expect(row.ingredients_json).toBeNull();
+      expect(row.recipes_json).toBeNull();
     });
 
     it('does not allow one user to link another user\'s item to their dish', () => {

@@ -3,8 +3,6 @@ import {
   createItem,
   deleteCheckedItems,
   getAllItems,
-  getSuggestions,
-  recordPurchase,
   updateItem,
 } from '../../src/services/shopping-service';
 import { getDatabase } from '../../src/database';
@@ -142,51 +140,4 @@ describe('shopping-service', () => {
     });
   });
 
-  describe('getSuggestions', () => {
-    it('excludes items that are currently in shopping_items with checked=0', () => {
-      const user = createTestUser();
-      recordPurchase(user.id, '牛乳');
-      recordPurchase(user.id, '牛乳');
-      recordPurchase(user.id, 'パン');
-
-      // 牛乳を未チェックでカートに入れる → 候補から除外されるはず
-      createItem(user.id, { name: '牛乳' });
-
-      const suggestions = getSuggestions(user.id, '');
-      const names = suggestions.map((s) => s.name);
-
-      expect(names).not.toContain('牛乳');
-      expect(names).toContain('パン');
-    });
-
-    it('still suggests items that are in shopping_items but already checked', () => {
-      const user = createTestUser();
-      recordPurchase(user.id, 'にんじん');
-      const item = createItem(user.id, { name: 'にんじん' });
-      updateItem(user.id, item.id, { checked: 1 });
-
-      const suggestions = getSuggestions(user.id, '');
-      expect(suggestions.map((s) => s.name)).toContain('にんじん');
-    });
-
-    it('filters by query prefix (case-insensitive)', () => {
-      const user = createTestUser();
-      recordPurchase(user.id, 'Apple');
-      recordPurchase(user.id, 'avocado');
-      recordPurchase(user.id, 'Banana');
-
-      const suggestions = getSuggestions(user.id, 'a');
-      const names = suggestions.map((s) => s.name).sort();
-      expect(names).toEqual(['Apple', 'avocado']);
-    });
-
-    it('does not leak suggestions across users', () => {
-      const alice = createTestUser('alice@example.com');
-      const bob = createTestUser('bob@example.com');
-      recordPurchase(alice.id, 'シークレット');
-
-      const bobSuggestions = getSuggestions(bob.id, '');
-      expect(bobSuggestions.map((s) => s.name)).not.toContain('シークレット');
-    });
-  });
 });
