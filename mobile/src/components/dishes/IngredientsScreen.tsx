@@ -113,14 +113,6 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
     [dish.id, dishItemNames, isAuthenticated, requestLogin],
   );
 
-  // 初回読み込み: キャッシュが無ければ具材のみを自動取得（レシピは生成しない）
-  useEffect(() => {
-    if (!dish.ingredients_json && !dish.recipes_json) {
-      fetchSuggestions(undefined, 'ingredients');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handleToggleIngredient = useCallback(
     async (name: string) => {
       if (addedNames.has(name)) {
@@ -146,6 +138,10 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
     },
     [addedNames, ingredients, addItem, linkItemToDish, dish.id],
   );
+
+  const handleFetchIngredients = useCallback(() => {
+    fetchSuggestions(undefined, 'ingredients');
+  }, [fetchSuggestions]);
 
   const handleRefresh = useCallback(() => {
     fetchSuggestions();
@@ -207,11 +203,21 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
     }
   }, [dishName, dish.id, dish.name, updateDish]);
 
+  const withRemaining = useCallback(
+    (base: string) => (remaining === null ? base : `${base}（残り ${remaining} 回）`),
+    [remaining],
+  );
+
+  const fetchIngredientsLabel = useMemo(
+    () => withRemaining('具材を AI で取得'),
+    [withRemaining],
+  );
+
   const refreshLabel = useMemo(() => {
-    const base = extraIngredients.length > 0 ? 'この素材でレシピを再検索' : 'レシピを再検索';
-    if (remaining === null) return base;
-    return `${base}（残り ${remaining} 回）`;
-  }, [extraIngredients.length, remaining]);
+    if (extraIngredients.length > 0) return withRemaining('この素材でレシピを再検索');
+    if (recipes.length === 0) return withRemaining('レシピを AI で取得');
+    return withRemaining('レシピを再検索');
+  }, [extraIngredients.length, recipes.length, withRemaining]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -300,7 +306,20 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
               </>
             )}
 
-            {extraIngredients.length > 0 ? (
+            {ingredients.length === 0 ? (
+              <View style={styles.emptySection}>
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                  この料理の具材はまだ取得していません。
+                </Text>
+                <TouchableOpacity
+                  style={[styles.extraSearchBtn, { backgroundColor: colors.primaryLight }]}
+                  onPress={handleFetchIngredients}
+                  disabled={loading}
+                >
+                  <Text style={styles.extraSearchBtnText}>{fetchIngredientsLabel}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : extraIngredients.length > 0 ? (
               <View style={[styles.extraSection, { borderTopColor: colors.border }]}>
                 <Text style={[styles.extraLabel, { color: colors.textMuted }]}>
                   追加素材（買い物リストから）
@@ -468,6 +487,16 @@ const styles = StyleSheet.create({
   extraChip: {
     borderWidth: 1,
     borderStyle: 'dashed',
+  },
+  emptySection: {
+    alignItems: 'stretch',
+    gap: 16,
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 14,
+    textAlign: 'center',
   },
   extraSearchBtn: {
     borderRadius: 8,

@@ -301,6 +301,7 @@ async function renderMarkdown(category, filePath) {
     div.className = 'md-content';
     div.innerHTML = data.html;
     contentArea.appendChild(div);
+    renderMermaidIn(div);
   } catch (err) {
     showError(err.message);
   }
@@ -477,6 +478,7 @@ async function renderTodoPreviewBody() {
     div.className = 'md-content';
     div.innerHTML = data.html;
     body.appendChild(div);
+    renderMermaidIn(div);
   } catch (err) {
     body.innerHTML = '';
     const div = document.createElement('div');
@@ -533,6 +535,7 @@ async function refetchTodoFile() {
         div.className = 'md-content';
         div.innerHTML = data.html;
         body.appendChild(div);
+        renderMermaidIn(div);
       }
       if (typeof data.mtime === 'number') todoState.mtime = data.mtime;
     } else {
@@ -680,6 +683,31 @@ function showConflictDialog({ onReload, onKeep, onForce }) {
   modal.appendChild(actions);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
+}
+
+// marked は ```mermaid を <pre><code class="language-mermaid"> で出力するので
+// Mermaid 公式形式 <pre class="mermaid"> に置換し、未描画要素を mermaid.run() に渡す。
+function renderMermaidIn(root) {
+  if (!root) return;
+  const codeBlocks = root.querySelectorAll('pre > code.language-mermaid');
+  codeBlocks.forEach((code) => {
+    const pre = code.parentElement;
+    const el = document.createElement('div');
+    el.className = 'mermaid';
+    el.textContent = code.textContent;
+    pre.replaceWith(el);
+  });
+  const targets = root.querySelectorAll('div.mermaid:not([data-processed])');
+  if (targets.length === 0) return;
+  if (!window.mermaid) {
+    window.addEventListener('mermaid-ready', () => renderMermaidIn(root), { once: true });
+    return;
+  }
+  try {
+    window.mermaid.run({ nodes: Array.from(targets) }).catch(() => { /* noop */ });
+  } catch {
+    /* noop */
+  }
 }
 
 function showToast(message, durationMs = 2000) {
@@ -978,6 +1006,7 @@ async function refetchPreviewForExternalChange() {
     div.className = 'md-content';
     div.innerHTML = data.html;
     body.appendChild(div);
+    renderMermaidIn(div);
     flashExternalUpdateBadge();
   } catch {
     // ignore

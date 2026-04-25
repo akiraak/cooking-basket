@@ -114,6 +114,8 @@
       font-size: 14px;
     }
     .doc-content pre code { background: none; padding: 0; color: #f5ebe0; }
+    .doc-content div.mermaid { text-align: center; margin: 16px 0; }
+    .doc-content div.mermaid svg { max-width: 100%; height: auto; }
     .doc-content blockquote {
       border-left: 4px solid #ddb892;
       padding: 12px 16px;
@@ -213,6 +215,19 @@
         sidebar.appendChild(a);
       });
     });
+  </script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    // kramdown は ```mermaid を <pre><code class="language-mermaid"> として出力するので、
+    // Mermaid が認識する <pre class="mermaid"> 形式に変換してから初期化する。
+    document.querySelectorAll('pre > code.language-mermaid').forEach(function(code) {
+      var pre = code.parentElement;
+      var div = document.createElement('div');
+      div.className = 'mermaid';
+      div.textContent = code.textContent;
+      pre.replaceWith(div);
+    });
+    mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
   </script>
 </body>
 </html>
