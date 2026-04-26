@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { requestLogin as apiRequestMagicCode, verifyCode, getMe } from '../api/auth';
 import { getToken, setToken, removeToken } from '../utils/token';
@@ -15,6 +16,10 @@ interface AuthState {
   isLoading: boolean;
   email: string | null;
   userId: number | null;
+  // verify 直後〜finishLogin 完了までの一時的なメール保持。
+  // isAuthenticated を立てる前にローカルデータの移行可否をユーザに問うため、
+  // この間 email / userId は意図的に空のままにする。
+  pendingEmail: string | null;
 
   authModalVisible: boolean;
   authModalReason: string | null;
@@ -23,7 +28,7 @@ interface AuthState {
   checkAuth: () => Promise<void>;
   sendMagicCode: (email: string) => Promise<void>;
   verify: (email: string, code: string) => Promise<void>;
-  finishLogin: () => void;
+  finishLogin: () => Promise<void>;
   cancelLogin: () => Promise<void>;
   logout: () => Promise<void>;
 
@@ -36,7 +41,7 @@ function resetLocalStores() {
   useShoppingStore.getState().setMode('local');
   useRecipeStore.getState().clearLocalData();
   useRecipeStore.getState().setMode('local');
-  // ユーザー枠の残量を引き継がず、_layout の loadQuota でゲスト枠を取り直す
+  // ユーザー枠の残量を引き継がず、後段の loadQuota でゲスト枠を取り直す
   useAiStore.getState().reset();
 }
 
@@ -45,6 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   email: null,
   userId: null,
+  pendingEmail: null,
 
   authModalVisible: false,
   authModalReason: null,
@@ -69,18 +75,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await apiRequestMagicCode(email);
   },
 
+  // token を保存して pendingEmail に控えるだけ。isAuthenticated は立てない。
+  // ここで isAuthenticated=true にすると _layout の effect が setMode('server') を呼んで
+  // ローカルデータを空配列で潰してしまうため、認証フラグの反転は finishLogin に集約する。
   verify: async (email: string, code: string) => {
     const result = await verifyCode(email, code);
     await setToken(result.token);
-    set({
-      isAuthenticated: true,
-      email: result.email,
-    });
+    set({ pendingEmail: result.email });
   },
 
-  finishLogin: () => {
+  // 移行/破棄が確定した後に呼ばれ、サーバモードへの切替・データロード・認証フラグ反転を一括で行う。
+  // verifyCode の戻り値には userId が含まれないため、ここで getMe() を呼んで補う。
+  finishLogin: async () => {
+    const me = await getMe();
+    useShoppingStore.getState().setMode('server');
+    useRecipeStore.getState().setMode('server');
+    try {
+      await Promise.all([
+        useShoppingStore.getState().loadAll(),
+        useRecipeStore.getState().loadSavedRecipes(),
+      ]);
+      await useAiStore.getState().loadQuota();
+    } catch (e: unknown) {
+      // migrate API は既に成功しているのでログイン自体はロールバックしない。
+      // ユーザーが下に引いて再試行できる旨だけ伝える。
+      const message = e instanceof Error ? e.message : 'データの読み込みに失敗しました';
+      Alert.alert('エラー', `${message}\n下に引いて再試行してください`);
+    }
     const onSuccess = get().authModalOnSuccess;
     set({
+      isAuthenticated: true,
+      email: me.email,
+      userId: me.userId,
+      pendingEmail: null,
       authModalVisible: false,
       authModalReason: null,
       authModalOnSuccess: null,
@@ -88,12 +115,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (onSuccess) onSuccess();
   },
 
+  // ローカルデータには触れない。token を消して認証フラグを倒すだけ。
   cancelLogin: async () => {
     await removeToken();
     set({
       isAuthenticated: false,
       email: null,
       userId: null,
+      pendingEmail: null,
       authModalVisible: false,
       authModalReason: null,
       authModalOnSuccess: null,
@@ -103,7 +132,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     await removeToken();
     resetLocalStores();
-    set({ isAuthenticated: false, email: null, userId: null });
+    set({ isAuthenticated: false, email: null, userId: null, pendingEmail: null });
+    // _layout の effect を起動時専用に絞った後でも AI 残量がゲスト枠に切り替わるよう、ここで明示的に取り直す。
+    await useAiStore.getState().loadQuota();
   },
 
   requestLogin: (options) => {
