@@ -29,6 +29,10 @@ client.interceptors.response.use(
     if (error.response?.status === 401) {
       await removeToken();
     }
+    const serverMessage = error.response?.data?.error;
+    if (typeof serverMessage === 'string' && serverMessage.length > 0) {
+      error.message = serverMessage;
+    }
     return Promise.reject(error);
   },
 );

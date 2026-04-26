@@ -23,10 +23,15 @@ async function runRequestInterceptor(config: { headers: Record<string, string> }
   return result;
 }
 
-async function runResponseErrorInterceptor(error: { response?: { status: number } }) {
+type InterceptedError = {
+  response?: { status: number; data?: { error?: unknown } };
+  message?: string;
+};
+
+async function runResponseErrorInterceptor(error: InterceptedError) {
   const handlers = (client.interceptors.response as unknown as {
-    handlers: Array<{ rejected?: (e: typeof error) => Promise<unknown> } | null>;
-  }).handlers.filter(Boolean) as Array<{ rejected?: (e: typeof error) => Promise<unknown> }>;
+    handlers: Array<{ rejected?: (e: InterceptedError) => Promise<unknown> } | null>;
+  }).handlers.filter(Boolean) as Array<{ rejected?: (e: InterceptedError) => Promise<unknown> }>;
   for (const handler of handlers) {
     if (handler.rejected) {
       try {
@@ -74,6 +79,39 @@ describe('api client', () => {
 
       expect(secure.deleteItemAsync).not.toHaveBeenCalled();
       expect(await secure.getItemAsync(TOKEN_KEY)).toBe('jwt-token');
+    });
+
+    it("rewrites error.message from response data.error when it's a non-empty string", async () => {
+      const error: InterceptedError = {
+        message: 'Request failed with status code 401',
+        response: { status: 401, data: { error: 'コードが無効または期限切れです' } },
+      };
+
+      await runResponseErrorInterceptor(error);
+
+      expect(error.message).toBe('コードが無効または期限切れです');
+    });
+
+    it('leaves error.message untouched when response has no error string', async () => {
+      const error: InterceptedError = {
+        message: 'Network Error',
+        response: { status: 500, data: {} },
+      };
+
+      await runResponseErrorInterceptor(error);
+
+      expect(error.message).toBe('Network Error');
+    });
+
+    it('leaves error.message untouched when data.error is not a string', async () => {
+      const error: InterceptedError = {
+        message: 'Request failed with status code 400',
+        response: { status: 400, data: { error: { code: 1 } } },
+      };
+
+      await runResponseErrorInterceptor(error);
+
+      expect(error.message).toBe('Request failed with status code 400');
     });
   });
 });
