@@ -31,6 +31,7 @@ export function AuthModal() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
     if (visible) {
@@ -38,8 +39,17 @@ export function AuthModal() {
       setEmail('');
       setCode('');
       setLoading(false);
+      setResendCooldown(0);
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = setInterval(() => {
+      setResendCooldown((n) => (n <= 1 ? 0 : n - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [resendCooldown]);
 
   const handleSendCode = async () => {
     const trimmed = email.trim();
@@ -90,10 +100,19 @@ export function AuthModal() {
     closeAuthModal();
   };
 
-  const handleBackToEmail = () => {
-    if (loading) return;
-    setStep('email');
-    setCode('');
+  const handleResendCode = async () => {
+    if (loading || resendCooldown > 0) return;
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    try {
+      await sendMagicCode(trimmed);
+      setCode('');
+      setResendCooldown(30);
+      Alert.alert('送信しました', '新しいコードをメールで送信しました');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'エラーが発生しました';
+      Alert.alert('エラー', message);
+    }
   };
 
   const styles = makeStyles(colors);
@@ -169,8 +188,14 @@ export function AuthModal() {
                     <Text style={styles.primaryBtnText}>ログイン</Text>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.linkBtn} onPress={handleBackToEmail} disabled={loading}>
-                  <Text style={styles.linkText}>別のメールアドレスで試す</Text>
+                <TouchableOpacity
+                  style={styles.linkBtn}
+                  onPress={handleResendCode}
+                  disabled={loading || resendCooldown > 0}
+                >
+                  <Text style={[styles.linkText, (loading || resendCooldown > 0) && styles.linkTextDisabled]}>
+                    {resendCooldown > 0 ? `再送（残り ${resendCooldown} 秒）` : 'ログインコードの再送'}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.linkBtn} onPress={handleCancel} disabled={loading}>
                   <Text style={styles.linkText}>キャンセル</Text>
@@ -261,6 +286,9 @@ function makeStyles(colors: ReturnType<typeof useThemeColors>) {
     linkText: {
       color: colors.primaryLight,
       fontSize: 14,
+    },
+    linkTextDisabled: {
+      opacity: 0.5,
     },
   });
 }
