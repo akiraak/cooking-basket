@@ -101,6 +101,16 @@ exec eas submit --platform ios --latest
 ./mobile-submit-testflight.sh
 ```
 
+LAN の device discovery が不安定なときは `--tunnel` を付けて ngrok 経由で起動する
+（`"$@"` で `expo start` に透過渡しされる）。詳細は
+[mobile-tunnel-toggle.md](mobile-tunnel-toggle.md) 参照。
+
+```bash
+./mobile-build-local.sh --tunnel              # tunnel 経由
+./mobile-build-local.sh --tunnel --port 8088  # 追加引数と併用
+./mobile-build-prod.sh --tunnel               # prod 接続でも同様
+```
+
 ## 影響ファイル
 - `mobile-build-local.sh`（新規、実行権限付き）
 - `mobile-build-prod.sh`（新規、実行権限付き）
