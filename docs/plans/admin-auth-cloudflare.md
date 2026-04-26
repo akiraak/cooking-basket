@@ -88,7 +88,7 @@ Browser ──> Cloudflare Edge ──[Access policy: Google SSO]──> Origin 
 
 完了条件「Phase 5 で取るべき封鎖手段が確定」を満たした。
 
-### Phase 1 — Cloudflare Access の設定（インフラ作業）
+### Phase 1 — Cloudflare Access の設定（インフラ作業） ✅ 完了 (2026-04-25)
 - Cloudflare Zero Trust → Access → Applications で Self-hosted application を新規作成
   - Application domain: `basket.chobi.me`
   - Path: `/admin` および `/api/admin`（2 アプリに分けるか、1 アプリで複数 path）
@@ -102,6 +102,18 @@ Browser ──> Cloudflare Edge ──[Access policy: Google SSO]──> Origin 
   Enforce へ切り替える運用にする（Phase 5 のデプロイ順序と合わせる）
 - このフェーズはコード変更なし。完了条件は「Cloudflare 側でアプリケーションが
   作成され AUD/team domain/iss が手元にあること」
+
+**確認結果:**
+- Application: `basket-admin`（Self-hosted, `basket.chobi.me` の `/admin` と `/api/admin` をカバー）
+- IdP: Google（既存の Zero Trust テナント `akiraak` を流用）
+- Team domain: `akiraak.cloudflareaccess.com`
+- Issuer (`iss`): `https://akiraak.cloudflareaccess.com`
+- JWKS: `https://akiraak.cloudflareaccess.com/cdn-cgi/access/certs` 疎通確認済み（RS256 鍵 2 本）
+- AUD タグ: 取得済み（env var `CF_ACCESS_AUD` で本番投入予定。リポジトリには記録しない）
+- Policy 構成:
+  - `basket-admin-bypass-temp`（Action: Bypass / Include: Everyone）→ **現在 attach 中**
+  - `basket-admin-allow`（Action: Allow / Include: 管理者 Gmail）→ Reusable Policy として作成済み、basket-admin から detach。Phase 5-2 ステップ 4 で再 attach
+- 動作: 現状 `/admin/` は Bypass のため Google SSO を通らずにそのまま到達できる（旧 Bearer JWT で動作継続）
 
 ### Phase 2 — サーバ側 Cloudflare Access JWT 検証ミドルウェア
 - 新規ファイル: `server/src/middleware/cloudflare-access.ts`
