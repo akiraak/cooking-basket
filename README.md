@@ -129,10 +129,20 @@ cp server/.env.example server/.env
 | 変数 | デフォルト | 説明 |
 |------|-----------|------|
 | `PORT` | `3000` | サーバのリッスンポート |
-| `JWT_SECRET` | — | JWT 署名用シークレット（32文字以上） |
+| `JWT_SECRET` | — | JWT 署名用シークレット（32文字以上）。アプリ向け Magic Link / Google OAuth 用 |
 | `APP_URL` | — | アプリの URL（例: `https://your-domain.com`） |
 | `RESEND_API_KEY` | — | Resend API キー |
 | `EMAIL_FROM` | — | 送信元メールアドレス |
+| `CF_ACCESS_TEAM_DOMAIN` | — | 管理画面用 Cloudflare Access のチームドメイン（例: `akiraak.cloudflareaccess.com`） |
+| `CF_ACCESS_AUD` | — | 管理画面用 Cloudflare Access アプリケーションの AUD タグ |
+| `ADMIN_AUTH_DEV_BYPASS` | `0` | ローカル開発で `/admin` の Cloudflare Access 検証をバイパスするフラグ。`NODE_ENV` が `development` / `test` のときだけ有効 |
+| `ADMIN_AUTH_DEV_EMAIL` | `dev-admin@local` | バイパス時に `req.adminEmail` に入れるメールアドレス |
+
+管理画面（`/admin/*` および `/api/admin/*`）はアプリ認証とは独立しており、本番では
+Cloudflare Access の Google SSO で前段ゲートしたうえで Origin が JWT
+（`Cf-Access-Jwt-Assertion`）を検証する。`CF_ACCESS_TEAM_DOMAIN` /
+`CF_ACCESS_AUD` の取得手順とポリシー設定は
+[docs/plans/admin-auth-cloudflare.md](docs/plans/admin-auth-cloudflare.md) を参照。
 
 ### 起動
 

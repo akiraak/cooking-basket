@@ -86,9 +86,22 @@ cd dev-admin && npm run dev
 - サーバと Claude Code の連携は `claude --print` (非対話モード) を使用する
 - Web → サーバ間の通信は JSON over HTTPS (REST API)
 - API のレスポンスは `{ "success": bool, "data": any, "error": string? }` の形式で統一
-- 認証は Magic Link (OTP) + JWT
+- アプリ向け認証は Magic Link (OTP) / Google OAuth + JWT（`requireAuth` ミドルウェア、`req.userId` / `req.userEmail`）
+- 管理画面（`/admin/*` および `/api/admin/*`）の認証はアプリ認証と完全に別系統で、本番は Cloudflare Access の Google SSO で前段ゲートしたうえで Origin が `Cf-Access-Jwt-Assertion` を検証する（`requireCloudflareAccess` ミドルウェア、`req.adminEmail`）。詳細は [docs/plans/admin-auth-cloudflare.md](docs/plans/admin-auth-cloudflare.md) 参照
+  - **モバイルアプリは `/api/admin` には到達しない**。誤って `mobile/src/api/` から admin エンドポイントを叩く実装を入れないこと
+  - `requireAuth` と `requireCloudflareAccess` を同じルートに重ね掛けしないこと（フィールド名が `req.userEmail` と `req.adminEmail` で分かれているのは、混入時に型で気づくため）
 - メール送信は Resend (noreply@chobi.me)
 - 環境変数は `.env` ファイルで管理 (Git にコミットしない)
+
+### ローカルで管理画面を触るとき
+本番は Cloudflare Access が前段ゲートになっているので、ローカル `npm run dev` では
+`Cf-Access-Jwt-Assertion` ヘッダが付かず管理画面 API は 401 になる。手元で触るときは
+`server/.env` に以下を追加する（バイパスは `NODE_ENV` が `development` / `test` のときだけ効く）。
+
+```
+ADMIN_AUTH_DEV_BYPASS=1
+ADMIN_AUTH_DEV_EMAIL=dev-admin@local   # 任意。省略時は dev-admin@local
+```
 
 ## タスク管理ルール
 
