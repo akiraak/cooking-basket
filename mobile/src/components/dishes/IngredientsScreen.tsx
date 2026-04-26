@@ -39,10 +39,12 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
   const [dishName, setDishName] = useState(dish.name);
   const [editingName, setEditingName] = useState(false);
 
-  const dishItemNames = useMemo(
-    () => new Set(dish.items.filter((i) => !i.checked).map((i) => i.name)),
+  const pinnedExtras = useMemo(
+    () => dish.items.filter((i) => !i.checked).map((i) => i.name),
     [dish.items],
   );
+
+  const dishItemNames = useMemo(() => new Set(pinnedExtras), [pinnedExtras]);
 
   const extraIngredients = useMemo(() => {
     const aiNames = new Set(ingredients.map((i) => i.name));
@@ -136,13 +138,9 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
     [addedNames, ingredients, addItem, linkItemToDish, dish.id],
   );
 
-  const handleRefresh = useCallback(() => {
-    fetchSuggestions();
-  }, [fetchSuggestions]);
-
-  const handleSearchWithExtras = useCallback(() => {
-    fetchSuggestions(extraIngredients);
-  }, [fetchSuggestions, extraIngredients]);
+  const handleSearch = useCallback(() => {
+    fetchSuggestions(pinnedExtras.length > 0 ? pinnedExtras : undefined);
+  }, [fetchSuggestions, pinnedExtras]);
 
   const handleToggleLike = useCallback(
     async (recipeStateId: number) => {
@@ -322,7 +320,7 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
                 </View>
                 <TouchableOpacity
                   style={[styles.extraSearchBtn, { backgroundColor: colors.primaryLight }]}
-                  onPress={handleSearchWithExtras}
+                  onPress={handleSearch}
                   disabled={loading}
                 >
                   <Text style={styles.extraSearchBtnText}>{refreshLabel}</Text>
@@ -331,7 +329,7 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
             ) : (
               <TouchableOpacity
                 style={[styles.extraSearchBtn, { backgroundColor: colors.primaryLight }]}
-                onPress={handleRefresh}
+                onPress={handleSearch}
                 disabled={loading}
               >
                 <Text style={styles.extraSearchBtnText}>{refreshLabel}</Text>
@@ -359,7 +357,7 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
                     styles.recipesFooterBtn,
                     { backgroundColor: colors.primaryLight },
                   ]}
-                  onPress={extraIngredients.length > 0 ? handleSearchWithExtras : handleRefresh}
+                  onPress={handleSearch}
                   disabled={loading}
                 >
                   <Text style={styles.extraSearchBtnText}>{refreshLabel}</Text>
