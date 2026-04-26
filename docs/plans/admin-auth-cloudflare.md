@@ -284,13 +284,20 @@ Browser ──> Cloudflare Edge ──[Access policy: Google SSO]──> Origin 
 - ✅ ステップ 4: CF Access ポリシーを `basket-admin-bypass-temp` から `basket-admin-allow` に切替（Enforce 化）
   - 途中で IdP 設定漏れが判明（チーム側に Google IdP 未登録）→ Cloudflare One → Integrations → Identity providers で Google IdP を新規追加（Google Cloud Console で OAuth Client 作成 → Authorized redirect URI に `https://akiraak.cloudflareaccess.com/cdn-cgi/access/callback` を登録）
 - ✅ ステップ 5: ブラウザで `https://basket.chobi.me/admin/` にアクセス → Google SSO → 管理画面表示確認（Identity providers の Test ログインでセッション取得済の状態で確認）
-- ⏳ ステップ 6: curl で 401 検証（未実施）
-  - 6-1: 外部から `curl -sS -o /dev/null -w "%{http_code}" -L https://basket.chobi.me/api/admin/me` → 302 で `cloudflareaccess.com` にリダイレクトされること
-  - 6-2: g3plus 上で `docker logs cooking-basket --since 30m | grep cf_access` → 正常イベントのみ
-  - 6-3: g3plus 内から `curl http://localhost:3002/api/admin/me` → 401（origin が JWT 無しを拒否）
-- ⏳ ステップ 7: Origin 直アクセス封鎖 → Phase 0 で Tunnel 経由確定済のため対応不要（5-1 参照）
-- ⏳ ステップ 8: 本番 `.env` から `ADMIN_EMAILS` 削除 → ステップ 2 で同時に削除済
-- ⏳ ステップ 9: 24 時間監視（5-4）
+- ✅ ステップ 6: curl で 401 検証（2026-04-26 実施）
+  - 6-1: 外部から `curl -sS -o /dev/null -w "%{http_code}" https://basket.chobi.me/api/admin/me`
+    → **302** + Location が `https://akiraak.cloudflareaccess.com/cdn-cgi/access/login/basket.chobi.me?...`、
+    `www-authenticate: Cloudflare-Access` ヘッダ付き
+  - 6-2: `ssh g3plus.lan 'docker logs cooking-basket --since 24h | grep cf_access'`
+    → `event=cf_access_*` の **異常イベント 0 件**。ブラウザ経由（Chrome / `cf-access-jwt-assertion` ヘッダ付）の
+    `/admin/`, `/admin/style.css`, `/admin/app.js`, `/api/admin/me`, `/api/admin/dashboard` は **200/304** で完走
+  - 6-3: `ssh g3plus.lan 'curl http://localhost:3002/api/admin/me'`
+    → **401** + `{"success":false,"data":null,"error":"Cloudflare Access 認証が必要です"}`
+- ✅ ステップ 7: Origin 直アクセス封鎖 → Phase 0 で Tunnel 経由確定済のため対応不要（5-1 参照）
+- ✅ ステップ 8: 本番 `.env` から `ADMIN_EMAILS` 削除 → ステップ 2 で同時に削除済
+- ✅ ステップ 9: 24 時間監視（5-4）→ 初回デプロイ（2026-04-25）から 24h 経過時点で
+  `cf_access_misconfigured` / `cf_access_verify_failed` / `cf_access_missing_email` のいずれも 0 件、
+  admin 401 は 6-3 検証分のみ。本番運用は健全
 
 #### 5-1. Origin 直アクセス封鎖 — **対応不要（Phase 0 で確定）**
 Phase 0 の確認結果より、本番は既に Cloudflare Tunnel 経由で公開されており
