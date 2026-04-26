@@ -39,10 +39,13 @@ export async function suggestAi(
   extraIngredients?: string[],
 ): Promise<SuggestAiResult> {
   try {
-    const res = await client.post<ApiResponse<SuggestAiData>>('/api/ai/suggest', {
-      dishName,
-      extraIngredients,
-    });
+    // Gemini 3 系 preview の tail latency + WSL2/Wi-Fi 経路で client 既定の 30 秒では足りないことがあるため、
+    // AI 提案だけ 60 秒に延長する。操作系 API の 30 秒は UX のため維持。
+    const res = await client.post<ApiResponse<SuggestAiData>>(
+      '/api/ai/suggest',
+      { dishName, extraIngredients },
+      { timeout: 60000 },
+    );
     if (!res.data.success) throw new Error(res.data.error ?? 'AI提案に失敗しました');
     const headerVal = (res.headers ?? {})['x-ai-remaining'];
     const parsed = headerVal != null ? Number(headerVal) : NaN;

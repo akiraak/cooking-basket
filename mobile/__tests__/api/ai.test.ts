@@ -30,10 +30,11 @@ describe('suggestAi', () => {
 
     const result = await suggestAi('豚汁');
 
-    expect(mockClient.post).toHaveBeenCalledWith('/api/ai/suggest', {
-      dishName: '豚汁',
-      extraIngredients: undefined,
-    });
+    expect(mockClient.post).toHaveBeenCalledWith(
+      '/api/ai/suggest',
+      { dishName: '豚汁', extraIngredients: undefined },
+      { timeout: 60000 },
+    );
     expect(result.ingredients).toHaveLength(1);
     expect(result.recipes).toHaveLength(1);
     expect(result.remaining).toBe(2);
@@ -75,10 +76,11 @@ describe('suggestAi', () => {
       headers: {},
     });
     await suggestAi('カレー', ['チキン']);
-    expect(mockClient.post).toHaveBeenCalledWith('/api/ai/suggest', {
-      dishName: 'カレー',
-      extraIngredients: ['チキン'],
-    });
+    expect(mockClient.post).toHaveBeenCalledWith(
+      '/api/ai/suggest',
+      { dishName: 'カレー', extraIngredients: ['チキン'] },
+      { timeout: 60000 },
+    );
   });
 });
 
