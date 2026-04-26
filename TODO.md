@@ -5,7 +5,7 @@
 ## 機能開発
 - [ ] ログインすると未ログインの時の食材と料理が消える。ログアウトしても食材と料理が戻らない [plan](docs/plans/login-data-loss.md)
   - [x] Phase 1: auth-store の責務再構成（verify / finishLogin / cancelLogin / logout）
-  - [ ] Phase 2: _layout.tsx の effect を起動時専用に絞る
+  - [x] Phase 2: _layout.tsx の effect を起動時専用に絞る
   - [ ] Phase 3: AuthModal と migration.ts の整理
   - [ ] Phase 4: テスト追加と実機確認
 - [ ] 自分のレシピに表示されるレシピの判定基準の調査
