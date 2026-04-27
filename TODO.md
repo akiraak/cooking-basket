@@ -4,7 +4,7 @@
 
 ## 機能開発
 - [ ] リファクタリング 8（TODO ストック）: `shopping-store.ts` の local/server 二重実装の解消（数日規模・要設計判断・M1） [plan](docs/plans/refactor-08-shopping-store-dual-impl.md)
-  - [ ] Phase 1: 監査とインベントリ作成
+  - [x] Phase 1: 監査とインベントリ作成
   - [ ] Phase 2: サーバモードの挙動正規化（楽観更新に片寄せ）
   - [ ] Phase 3: `ShoppingBackend` 抽象の導入
   - [ ] Phase 4: recipe-store への同パターン適用

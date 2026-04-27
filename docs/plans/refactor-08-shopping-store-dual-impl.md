@@ -93,13 +93,15 @@ mode 分岐を潰す代わりに backend 抽象は作らず、各アクション
 
 ### Phase 1: 監査とインベントリ作成（実装なし）
 
-- [ ] 全アクションについて `local` / `server` のセマンティクスを表で並べる
+- [x] 全アクションについて `local` / `server` のセマンティクスを表で並べる
   （optimistic vs loadAll-after / state を触るか / 失敗時のロールバック有無）
-- [ ] 呼び出し側（`app/(tabs)/index.tsx`、`recipes.tsx`、`IngredientsScreen.tsx`、
+- [x] 呼び出し側（`app/(tabs)/index.tsx`、`recipes.tsx`、`IngredientsScreen.tsx`、
   `use-dish-suggestions.ts`、`migration.ts`、`auth-store.ts`）からの依存表現を確認し、
   「ストアの API を変えると壊れるところ」を列挙
-- [ ] テスト一覧（`__tests__/stores/shopping-store.test.ts` ほか）から、
+- [x] テスト一覧（`__tests__/stores/shopping-store.test.ts` ほか）から、
   どのケースが local 専用 / server 専用 / 共通かを仕分け
+
+> 結果は本ファイル末尾「Phase 1 監査結果」に集約。
 
 ### Phase 2: サーバモードの挙動正規化（リファクタ準備）
 
@@ -176,3 +178,110 @@ mode 分岐を潰す代わりに backend 抽象は作らず、各アクション
    生成されたフィールド（`created_at` 等）の楽観値が一時的にずれる
 3. **失敗時にロールバックを入れるか**（現状ほぼ throw のみ）
    — 入れるなら抽象化のついでに各アクションでスナップショット → 失敗時 restore
+
+## Phase 1 監査結果（2026-04-27）
+
+### A. アクション別セマンティクス一覧
+
+凡例:
+- **書込パターン**: A = 「API → 共有 state mutation」 / B = 「API → loadAll() 全件再取得」 / C = 「API only, state は呼び出し側」
+- **store が state を触るか**: server モード時の挙動。○=触る / ×=触らない
+- **ロールバック**: 失敗時に store 側で復元するか
+
+| # | アクション | local モード | server モード | 書込 | state 触るか | rollback | 備考 |
+|---|---|---|---|---|---|---|---|
+| 1 | `loadAll` | `rebuildDishItems` で派生 dish.items を再構築 | `getAllItems` + `getAllDishes` 並列取得 → set | — | ○ | × | `loading` フラグはここのみで立つ |
+| 2 | `addItem` | 負 ID 採番 → push → rebuild | `createItem` → `loadAll()` | **B** | ○ (loadAll) | × | 不揃い |
+| 3 | `updateItemName` | 共通の `set` 経由で name 差替 | `updateItem(name)` → 共通 set | A | ○ | × | mode 分岐は API 呼出有無のみで、state 更新は両モード共通 |
+| 4 | `toggleCheck` | 共通 set で checked 差替 | `updateItem(checked)` → 共通 set | A | ○ | × | 同上 |
+| 5 | `deleteItem` | 共通 set で filter | `deleteItem(id)` → 共通 set | A | ○ | × | 同上 |
+| 6 | `deleteCheckedItems` | local で checked id を集めて filter | `deleteCheckedItems()` → `loadAll()` | **B** | ○ (loadAll) | × | 戻り値は server 側カウント |
+| 7 | `reorderItems` | items の `position` 更新 | `reorderItems(ids)` のみ。state は触らない | **C** | × | × | `index.tsx` 側で先に `setState` する設計 |
+| 8 | `addDish` | 負 ID 採番 → push | `createDish` → `loadAll()` | **B** | ○ (loadAll) | × | 不揃い |
+| 9 | `updateDish` | 共通 set で name 差替 | `updateDish(name)` → 共通 set | A | ○ | × | |
+| 10 | `deleteDish` | items の `dish_id` を null 化 → dish 削除 → rebuild | `deleteDish(id)` → `loadAll()` | **B** | ○ (loadAll) | × | local では unlink を内部で行うが、server は loadAll に任せる |
+| 11 | `reorderDishes` | dishes を ordered Ids でソート | `reorderDishes(ids)` のみ | **C** | × | × | 同上 |
+| 12 | `reorderDishItems` | items.position 更新 + dish.items ソート | `reorderDishItems(...)` のみ | **C** | × | × | 同上 |
+| 13 | `suggestIngredients` | AI 呼出 → dish の `ingredients_json/recipes_json` 更新 → recipe-store.autoSave | 同上 + best-effort `updateDishAiCache` | A 派生 | ○ | × | server cache 失敗は noop で潰す唯一の挙動 |
+| 14 | `linkItemToDish` | items の dish_id 更新 → rebuild | `linkItemToDish` → `loadAll()` | **B** | ○ (loadAll) | × | 不揃い |
+| 15 | `unlinkItemFromDish` | items の dish_id null 化 → rebuild | `unlinkItemFromDish` → `loadAll()` | **B** | ○ (loadAll) | × | 不揃い |
+
+要点:
+- パターン B（loadAll-after）は **6 アクション**: `addItem` / `addDish` / `deleteCheckedItems` / `deleteDish` / `linkItemToDish` / `unlinkItemFromDish`。Phase 2 で全部 A に揃えるのが目標
+- パターン C（state 非触り）は **3 つの reorder*** だけ。呼び出し側 (`index.tsx` の `handleReorder*`) が `useShoppingStore.setState(...)` を先に行う前提で動く
+- store 側のロールバックは現状ゼロ。失敗時はほぼ throw → 呼び出し側 Alert。reorder の rollback は呼び出し側で `loadAll()` に任せている
+
+### B. 呼び出し側依存マップ
+
+| 呼出元 | 購読する state | 呼ぶアクション | API 直叩き / setState 迂回 |
+|---|---|---|---|
+| `app/_layout.tsx` | `useAuthStore` | `setMode`, `loadAll`, `loadSavedRecipes` | — (起動時 1 回限定) |
+| `app/(tabs)/index.tsx` | `items`, `dishes`, `loading` | `loadAll` `addItem` `updateItemName` `toggleCheck` `deleteItem` `addDish` `deleteDish` `linkItemToDish` `reorderItems` `reorderDishes` `reorderDishItems` | **直叩き**: L132-134 の `dishesApi.unlinkItemFromDish/linkItemToDish` + `loadAll()`、L240-246 のドラッグ移動も同じ。**setState 迂回**: `handleReorderDishes/DishItems/UngroupedItems` で先に `useShoppingStore.setState(...)` |
+| `app/(tabs)/recipes.tsx` | `savedRecipes`, `loading` (recipe-store) | `loadSavedRecipes`、shopping-store の `addDish` `addItem` `linkItemToDish` | — |
+| `src/components/dishes/IngredientsScreen.tsx` | `dishes`（liveDish セレクタ） | `addItem` `linkItemToDish` `loadAll` | — |
+| `src/components/dishes/DishNameHeader.tsx` | — | `updateDish` | — |
+| `src/hooks/use-dish-suggestions.ts` | — | `suggestIngredients`（`getState()` 経由） | — |
+| `src/utils/migration.ts` | `items` `dishes`（local）、`savedRecipes`（recipe-store） | 読み出しのみ。store の mutation は呼ばない | — |
+| `src/stores/auth-store.ts` | — | `finishLogin`: `setMode('server')` + `loadAll` + `loadSavedRecipes`。`logout`: **`useShoppingStore.setState({ mode: 'local' })` 直書き** で items/dishes を残す | 意図的迂回（`auth-store.ts` L39-49 のコメント参照） |
+
+「ストアの API を変えると壊れるところ」:
+- **アクションのシグネチャ**（戻り値含む）: `addItem` は `Promise<ShoppingItem>` を返し、`index.tsx` `handleSubmitItem` と `IngredientsScreen.handleToggleIngredient` が戻り値の `id` を `linkItemToDish` に渡す。`addDish` も `Promise<Dish>` で `recipes.tsx` `handleAddToList` が `dish.id` を後段で使う。**Phase 2 で `loadAll()` を消す際、必ず API 戻り値の正規 ID を含む `ShoppingItem`/`Dish` を返し続けること**
+- **`reorder*` の "store は state を触らない" 前提**: `index.tsx` の `handleReorderXxx` が先に `setState` してから `reorder*` を呼ぶ。Phase 2 で reorder も store が state を持つようにする場合、呼び出し側の事前 `setState` は冗長になるが結果は変わらない（後から store 側の更新が上書き）。Phase 3 で抽象化したあとに `index.tsx` 側を整理するのは **M2 / refactor-09 のスコープ**
+- **`useShoppingStore.setState({ mode: 'local' })` の意図的迂回**: `auth-store.logout` の挙動。`setMode` を呼ぶと items/dishes が空配列でクリアされてしまうため、**Phase 3 で `setMode` の役割を変える際もこの抜け道を残すこと**（`auth-store.test.ts > logout` がガード）
+- **`linkItemToDish/unlinkItemFromDish` を `index.tsx` が API 直叩きしている件**（L132-134, L240-246）: 本タスクの非スコープ（refactor-09 で畳む）。Phase 2 で store 側の link/unlink を楽観に揃えると、refactor-09 で「直叩き → store 経由」に置換するのが容易になる、という関係
+
+### C. テスト分類
+
+`mobile/__tests__/stores/shopping-store.test.ts`（全 11 ケース）:
+- **server 専用**（mode='server' で resetStore）
+  - `addItem`: API 呼出 + loadAll 後の state を assert → **Phase 2 で loadAll を消すため書き換え必要**
+  - `toggleCheck > optimistically flips ...`: 楽観更新の assert（維持）
+  - `toggleCheck > does not touch unrelated items`（維持）
+  - `reorderItems > forwards ordered ids to the api`: state 非触りを暗黙に確認（維持。Phase 2/3 で store が state も持つ方針にするなら追記）
+  - `deleteItem > removes the item from state and nested dishes without reloading`（維持。すでに楽観）
+- **local 専用**（mode='local'）
+  - `addItem stores locally with a negative id`
+  - `addDish and linkItemToDish wire the item into the dish locally`
+  - `toggleCheck and deleteItem work locally without api calls`
+  - `deleteCheckedItems removes only checked items locally`
+  - `suggestIngredients calls /api/ai/suggest, caches to dish, and auto-saves recipes locally`
+  - `suggestIngredients marks quota exceeded when AiQuotaError is thrown`
+- **mode 切替**
+  - `setMode > clears items/dishes when switching modes`
+  - `setMode > is a no-op when the mode is unchanged`
+- **本来共通であるべき**（現状 local だけにある or 片方だけにあるが、両モードで効くべき）
+  - `suggestIngredients` の cache 書き戻し → server モード版が無い（Phase 5 で追加検討）
+  - `linkItemToDish` の楽観更新後の state 形 → server モードでは存在しない（Phase 2 後に追加）
+  - `addDish` の戻り値が dish オブジェクトとして使える → server モードで未検証
+  - `deleteCheckedItems` の戻り値カウント → server モードで未検証
+
+`mobile/__tests__/stores/recipe-store.test.ts`（全 6 ケース）:
+- **server 専用**: `loadSavedRecipes fetches`、`autoSaveRecipes posts bulk and prepends`
+- **local 専用**: `loadSavedRecipes is a no-op`、`autoSaveRecipes assigns negative ids`、`deleteSavedRecipe removes locally only`
+- **mode 切替**: `setMode clears state`
+- 共通化候補: server 版 `deleteSavedRecipe` の楽観テストが無い（local 側にしか存在しない）
+
+`mobile/__tests__/utils/migration.test.ts`（全 5 ケース）:
+- 全て **mode 横断のシナリオ**（local→server 入口の境界テスト）。Phase 3 以降で抽象化を入れるとき、ここがグリーンであることが「local→server の橋が壊れていない」主要シグナル
+
+`mobile/__tests__/stores/auth-store.test.ts`（要点）:
+- `finishLogin` 系: **`setMode('server')` + `loadAll()` + `loadSavedRecipes()` の流れに依存**。Phase 3 で `setMode` の役割が変わっても、この呼出シーケンスは維持する必要あり
+- `logout` 系: **`useShoppingStore.setState({ mode: 'local' })` 直書きで items/savedRecipes が残ることを assert**。Phase 3 抽象化時に backend 切替と state 保持を独立させること
+- `cancelLogin` / `verify`: ローカルデータが消えないことを assert
+
+### D. Phase 1 結論（次フェーズへの申し送り）
+
+1. **Phase 2 で潰すべき不揃いは 6 アクション**（addItem / addDish / deleteCheckedItems / deleteDish / linkItemToDish / unlinkItemFromDish）。全て「API → loadAll」を「API → 楽観 set」に変える。`addItem`/`addDish` は API 戻り値の正規 ID をそのまま push する形が必要
+2. **reorder 系の "state は呼び出し側"** は本タスクのスコープでは触らず Phase 2/3 で現状維持。store が state も持つように寄せるかは設計判断が必要だが、寄せると `index.tsx` 側の `setState` 直書きと衝突しないので将来的に refactor-09 で吸収できる
+3. **抽象化（Phase 3）で守るべき抜け道**:
+   - `auth-store.logout` の `setState({ mode: 'local' })` 経由の "mode だけ変えてデータ残す" 迂回
+   - `addItem`/`addDish` の戻り値（呼び出し側が `id` を後段で使う）
+   - `migration.ts` がローカル state を **直接読み出す** ので、`items`/`dishes`/`savedRecipes` のフィールド形は変えない
+4. **Phase 5 で追加すべき server-mode テスト**:
+   - `addItem` / `addDish` の楽観 push（loadAll が消えた後の state shape）
+   - `linkItemToDish` / `unlinkItemFromDish` の楽観反映
+   - `deleteCheckedItems` の戻り値 + state filter
+   - `suggestIngredients` server モードの cache 書き戻し（`updateDishAiCache` 失敗が swallow されること）
+   - `deleteSavedRecipe` server モード（recipe-store）
+
+→ 設計案 A（Backend 抽象）への進行は妥当。先に Phase 2 で server モードを楽観に揃えてから抽象化すれば、`LocalBackend` は no-op に近く、`ServerBackend` は ID 採番だけが本質的な分岐になる見込み。
