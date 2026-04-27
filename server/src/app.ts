@@ -11,7 +11,7 @@ import { shoppingRouter } from './routes/shopping';
 import { adminRouter } from './routes/admin';
 import { aiRouter } from './routes/ai';
 import { dishesRouter } from './routes/dishes';
-import { savedRecipesRouter, savedRecipesSharedRouter } from './routes/saved-recipes';
+import { savedRecipesRouter } from './routes/saved-recipes';
 import { migrateRouter } from './routes/migrate';
 import { docsRouter } from './routes/docs';
 import { initDatabase } from './database';
@@ -79,9 +79,6 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   // AI（未ログイン可。レート制限は /suggest 側で個別適用、/quota は読み取り専用なので除外）
   app.use('/api/ai', optionalAuth, aiRouter);
-
-  // みんなのレシピは未ログイン可（/api/saved-recipes より先にマウント）
-  app.use('/api/saved-recipes/shared', savedRecipesSharedRouter);
 
   // 保護された API ルート
   app.use('/api/shopping', requireAuth, shoppingRouter);

@@ -133,8 +133,7 @@ export function getAllPurchaseHistory(limit: number = 500) {
 export function getAllSavedRecipesAdmin() {
   const db = getDatabase();
   return db.prepare(`
-    SELECT sr.*, u.email,
-      (SELECT COUNT(*) FROM recipe_likes WHERE saved_recipe_id = sr.id) as like_count
+    SELECT sr.*, u.email
     FROM saved_recipes sr
     JOIN users u ON sr.user_id = u.id
     ORDER BY sr.created_at DESC
@@ -274,7 +273,7 @@ export function getSystemInfo() {
     dbSizeBytes = stat.size;
   } catch {}
 
-  const tables = ['users', 'shopping_items', 'dishes', 'magic_link_tokens', 'purchase_history', 'saved_recipes', 'recipe_likes', 'ai_quota'];
+  const tables = ['users', 'shopping_items', 'dishes', 'magic_link_tokens', 'purchase_history', 'saved_recipes', 'ai_quota'];
   const tableCounts: Record<string, number> = {};
   for (const table of tables) {
     tableCounts[table] = (db.prepare(`SELECT COUNT(*) as c FROM ${table}`).get() as any).c;

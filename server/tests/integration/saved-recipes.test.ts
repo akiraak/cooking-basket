@@ -42,8 +42,6 @@ describe('saved-recipes routes', () => {
           id: expect.any(Number),
           dish_name: 'カレー',
           title: '基本のビーフカレー',
-          like_count: 0,
-          liked: 0,
         },
         error: null,
       });
@@ -123,49 +121,6 @@ describe('saved-recipes routes', () => {
     });
   });
 
-  describe('PUT /api/saved-recipes/:id/like', () => {
-    it('toggles like on and off, updating like_count', async () => {
-      const { headers } = createAuthedUser('sr-like@example.com');
-      const created = await request(app)
-        .post('/api/saved-recipes')
-        .set(headers)
-        .send(samplePayload);
-      const id = created.body.data.id;
-
-      const on = await request(app).put(`/api/saved-recipes/${id}/like`).set(headers);
-      expect(on.status).toBe(200);
-      expect(on.body.data).toEqual({ liked: 1, like_count: 1 });
-
-      const off = await request(app).put(`/api/saved-recipes/${id}/like`).set(headers);
-      expect(off.body.data).toEqual({ liked: 0, like_count: 0 });
-    });
-
-    it('returns 404 for a non-existent recipe', async () => {
-      const { headers } = createAuthedUser('sr-like-404@example.com');
-      const res = await request(app).put('/api/saved-recipes/999999/like').set(headers);
-      expect(res.status).toBe(404);
-    });
-
-    it('aggregates likes from multiple users', async () => {
-      const alice = createAuthedUser('sr-multi-a@example.com');
-      const bob = createAuthedUser('sr-multi-b@example.com');
-      const carol = createAuthedUser('sr-multi-c@example.com');
-
-      const recipe = await request(app)
-        .post('/api/saved-recipes')
-        .set(alice.headers)
-        .send(samplePayload);
-      const id = recipe.body.data.id;
-
-      await request(app).put(`/api/saved-recipes/${id}/like`).set(alice.headers);
-      await request(app).put(`/api/saved-recipes/${id}/like`).set(bob.headers);
-      const last = await request(app)
-        .put(`/api/saved-recipes/${id}/like`)
-        .set(carol.headers);
-      expect(last.body.data.like_count).toBe(3);
-    });
-  });
-
   describe('POST /api/saved-recipes/bulk', () => {
     it('bulk-inserts multiple recipes and returns the created rows', async () => {
       const { headers } = createAuthedUser('sr-bulk@example.com');
@@ -202,62 +157,6 @@ describe('saved-recipes routes', () => {
         .set(headers)
         .send({ recipes: [{ ...samplePayload }, { ...samplePayload, title: '' }] });
       expect(res.status).toBe(400);
-    });
-  });
-
-  describe('GET /api/saved-recipes/shared', () => {
-    it('is accessible without authentication and returns liked=0 for guests', async () => {
-      const alice = createAuthedUser('sr-shared-guest-a@example.com');
-      const bob = createAuthedUser('sr-shared-guest-b@example.com');
-      const recipe = await request(app)
-        .post('/api/saved-recipes')
-        .set(alice.headers)
-        .send({ ...samplePayload, title: 'for-guest' });
-      await request(app).put(`/api/saved-recipes/${recipe.body.data.id}/like`).set(bob.headers);
-
-      const res = await request(app).get('/api/saved-recipes/shared');
-      expect(res.status).toBe(200);
-      expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0]).toMatchObject({ title: 'for-guest', like_count: 1, liked: 0 });
-    });
-
-    it('returns recipes that have at least one like, across users, with liked reflecting the caller', async () => {
-      const alice = createAuthedUser('sr-shared-a@example.com');
-      const bob = createAuthedUser('sr-shared-b@example.com');
-
-      // Alice の 2 件: liked と unliked
-      const liked = await request(app)
-        .post('/api/saved-recipes')
-        .set(alice.headers)
-        .send({ ...samplePayload, title: 'liked-one' });
-      await request(app)
-        .post('/api/saved-recipes')
-        .set(alice.headers)
-        .send({ ...samplePayload, title: 'unliked-one' });
-
-      // Bob が liked に "いいね"
-      await request(app).put(`/api/saved-recipes/${liked.body.data.id}/like`).set(bob.headers);
-
-      // Alice 視点の shared 一覧
-      const aliceShared = await request(app).get('/api/saved-recipes/shared').set(alice.headers);
-      expect(aliceShared.status).toBe(200);
-      expect(aliceShared.body.data).toHaveLength(1);
-      expect(aliceShared.body.data[0]).toMatchObject({
-        title: 'liked-one',
-        like_count: 1,
-        liked: 0, // Alice 自身はいいねしていない
-      });
-
-      // Bob 視点: liked=1 に切り替わる
-      const bobShared = await request(app).get('/api/saved-recipes/shared').set(bob.headers);
-      expect(bobShared.body.data[0].liked).toBe(1);
-    });
-
-    it('returns an empty list when nothing has been liked', async () => {
-      const { headers } = createAuthedUser('sr-shared-empty@example.com');
-      await request(app).post('/api/saved-recipes').set(headers).send(samplePayload);
-      const res = await request(app).get('/api/saved-recipes/shared').set(headers);
-      expect(res.body.data).toEqual([]);
     });
   });
 

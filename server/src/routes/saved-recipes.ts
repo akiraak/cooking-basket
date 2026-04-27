@@ -1,27 +1,12 @@
 import { Router, Request, Response } from 'express';
-import { optionalAuth } from '../middleware/auth';
 import {
   getAllSavedRecipes,
-  getSharedRecipes,
   getSavedRecipe,
   createSavedRecipe,
   createSavedRecipesBulk,
   deleteSavedRecipe,
-  toggleLike,
   SavedRecipeInput,
 } from '../services/saved-recipe-service';
-
-// みんなのレシピは未ログインでも閲覧可。認証必須ルータとは別に用意する
-// （/api/saved-recipes は requireAuth が先にかかるため、shared は個別マウント）
-export const savedRecipesSharedRouter = Router();
-savedRecipesSharedRouter.get('/', optionalAuth, (req: Request, res: Response) => {
-  try {
-    const recipes = getSharedRecipes(req.userId);
-    res.json({ success: true, data: recipes, error: null });
-  } catch (err) {
-    res.status(500).json({ success: false, data: null, error: String(err) });
-  }
-});
 
 export const savedRecipesRouter = Router();
 
@@ -103,21 +88,6 @@ savedRecipesRouter.post('/', (req: Request, res: Response) => {
       sourceDishId: sourceDishId ? Number(sourceDishId) : undefined,
     });
     res.status(201).json({ success: true, data: recipe, error: null });
-  } catch (err) {
-    res.status(500).json({ success: false, data: null, error: String(err) });
-  }
-});
-
-// PUT /api/saved-recipes/:id/like — いいねトグル
-savedRecipesRouter.put('/:id/like', (req: Request, res: Response) => {
-  try {
-    const id = Number(req.params.id);
-    const result = toggleLike(req.userId!, id);
-    if (result === null) {
-      res.status(404).json({ success: false, data: null, error: 'レシピが見つかりません' });
-      return;
-    }
-    res.json({ success: true, data: result, error: null });
   } catch (err) {
     res.status(500).json({ success: false, data: null, error: String(err) });
   }

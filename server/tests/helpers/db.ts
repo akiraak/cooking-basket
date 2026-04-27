@@ -11,7 +11,6 @@ import { closeDatabase, getDatabase, initDatabase } from '../../src/database';
 
 // 外部キー制約を守るために依存関係の子→親の順で消す
 const TRUNCATE_TABLES = [
-  'recipe_likes',
   'saved_recipes',
   'shopping_items',
   'purchase_history',
