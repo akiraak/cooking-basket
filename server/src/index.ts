@@ -10,7 +10,11 @@ const app = createApp();
 
 // 期限切れトークンの定期クリーンアップ（1時間ごと）
 setInterval(() => {
-  try { cleanupExpiredTokens(); } catch {}
+  try {
+    cleanupExpiredTokens();
+  } catch (err) {
+    logger.error({ err }, 'cleanup_failed');
+  }
 }, 60 * 60 * 1000);
 
 app.listen(PORT, () => {
