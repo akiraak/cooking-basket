@@ -158,8 +158,8 @@ Phase 1 と同じ。**必ず証拠を添える**。
 - [x] Phase 0: 一次データ（行数 / 変更頻度 / `any` 件数 / 未使用 export / 循環依存 / ESLint 警告 / 重複リテラル）が「Phase 0 一次データ」節に追記され、`web/admin/` の扱いが確定している
 - [x] Phase 1: サーバ側候補リスト（証拠付き）が本ファイルに追記され、必須チェックがすべて消化されている
 - [x] Phase 2: モバイル側候補リスト（証拠付き）が本ファイルに追記され、必須チェックがすべて消化されている
-- [ ] Phase 3: 優先度付け済み上位候補が個別プランファイルとして起こされ、`TODO.md` に追加されている
-- [ ] 本プランは `docs/plans/archive/` に移送されている（個別プランの完了は待たない）
+- [x] Phase 3: 優先度付け済み上位候補が個別プランファイルとして起こされ、`TODO.md` に追加されている
+- [x] 本プランは `docs/plans/archive/` に移送されている（個別プランの完了は待たない）
 
 ## Phase 0 一次データ
 
@@ -588,3 +588,59 @@ mobile はハードコード `throw new Error('...')` が 1 件のみ（`'料理
 | コンポーネントの責務（表示 vs 状態管理） | `IngredientsScreen.tsx`（M3）、`DraggableList.tsx`（M4）。他は概ね役割が明確 |
 | `mobile/src/utils/` 配下の凝集度 | `migration.ts`（120 LoC）はログイン直後の一回限りロジックで凝集している。延命要否は M1（shopping-store のローカル/サーバ分離）の結論次第 |
 | `hooks/` `theme/` `config/` の利用状況 | `hooks/use-debounce.ts` は未使用（M7）。`theme/`・`config/` は薄く健全 |
+
+## Phase 3 結果（優先度付け / 個別プランへの分解）
+
+スナップショット日: 2026-04-27。Phase 1 / 2 の候補を以下の軸で評価し、上位を個別プランに分解した。
+
+### 評価軸の集計
+
+| ID | ファイル / テーマ | 工数 | リスク | メンテ性 | 個別プラン化 |
+| --- | --- | --- | --- | --- | --- |
+| S1 | route エラーハンドリング不統一 | 1〜2 日 | 低 | 高 | ✓ → `refactoring-server-error-handling.md`（S7 と統合） |
+| S2 | `routes/migrate.ts` SQL 直叩き | 半日 | 低 | 中 | ✓ → `refactoring-server-cleanup.md` |
+| S3 | `admin-service.ts` 責務肥大 + `any` 集中 | 1〜2 日 | 中 | 高 | ✓ → `refactoring-server-admin-service.md` |
+| S4 | `database.ts` マイグレーション群 | 1〜2 日 | 中〜高 | 高 | ✓ → `refactoring-server-database-migrations.md` |
+| S5 | `routes/docs.ts` タイトル + CSS | 1 日 | 低 | 中 | ✓ → `refactoring-server-cleanup.md` |
+| S6 | サーバ未使用 export 削除 | 半日 | 低 | 中 | ✓ → `refactoring-server-cleanup.md` |
+| S7 | エラーメッセージリテラル重複 | 半日 | 低 | 低〜中 | ✓ → `refactoring-server-error-handling.md`（S1 と統合） |
+| S8 | cleanup interval ロギング | 30 分 | 低 | 低 | ✓ → `refactoring-server-cleanup.md` |
+| M1 | `shopping-store.ts` 二重実装 | **数日** | 中 | 高 | ✗ TODO ストック（規模大） |
+| M2 | `app/(tabs)/index.tsx` 肥大 | **数日** | 中〜高 | 高 | ✗ TODO ストック（規模大、M1 と分担検討） |
+| M3 | `IngredientsScreen.tsx` 多責務 | 1〜2 日 | 中 | 高 | ✓ → `refactoring-mobile-ingredients-screen.md` |
+| M4 | `DraggableList.tsx` global / dead code | 1〜2 日 | 中 | 中〜高 | ✓ → `refactoring-mobile-draggable-list.md` |
+| M5 | API クライアント ボイラープレート | 半日 | 低 | 中 | ✓ → `refactoring-mobile-cleanup.md` |
+| M6 | 型定義の重複 | 半日 | 低 | 中 | ✓ → `refactoring-mobile-cleanup.md` |
+| M7 | モバイル未使用 export 削除 | 半日 | 低 | 中 | ✓ → `refactoring-mobile-cleanup.md` |
+| M8 | TabIcon `require('react-native')` | 30 分 | 低 | 低 | ✓ → `refactoring-mobile-cleanup.md` |
+
+### 個別プラン化結果（7 本）
+
+打ち切り基準「想定工数 1〜2 日以下 × メンテ性インパクト中以上」に該当するものを採用。
+小粒（半日 / 30 分）を意味のある単位で束ねて 7 本に集約した。
+
+1. **[refactoring-server-error-handling.md](refactoring-server-error-handling.md)** ── S1 + S7。route の `try/catch + String(err)` を `next(err)` 経由に統一し、頻出メッセージを `lib/errors.ts` に定数化
+2. **[refactoring-server-admin-service.md](refactoring-server-admin-service.md)** ── S3。型付き DB ヘルパで `any` を撲滅、`getJstDate` 重複解消、必要なら領域別分割
+3. **[refactoring-server-database-migrations.md](refactoring-server-database-migrations.md)** ── S4。マイグレーション登録パターン化、暗黙冪等の明示化、本番状態を確認のうえで死んだ移行ブロック削除
+4. **[refactoring-server-cleanup.md](refactoring-server-cleanup.md)** ── S2 + S5 + S6 + S8。`migrate.ts` の service 抽出、`docs.ts` のタイトル修正と CSS 外出し、未使用 export 削除、cleanup interval ロギング
+5. **[refactoring-mobile-ingredients-screen.md](refactoring-mobile-ingredients-screen.md)** ── M3。状態の一意化、`useDishSuggestions` フック切り出し、dish 名編集を別コンポーネントへ
+6. **[refactoring-mobile-draggable-list.md](refactoring-mobile-draggable-list.md)** ── M4 + DragOverlay 削除（M7 の一部）。`_dragActive` global を Context へ昇格、互換目的の dead export 撤去
+7. **[refactoring-mobile-cleanup.md](refactoring-mobile-cleanup.md)** ── M5 + M6 + M7（残り）+ M8。API クライアント共通化、型重複解消、未使用ファイル削除、`require` 撤去
+
+### TODO ストック（個別プラン化を見送り）
+
+工数「数日」規模で、設計判断（local/server 戦略の分離方針）が必要なため、本監査のスコープ外として TODO に残す:
+
+- **M1**: `mobile/src/stores/shopping-store.ts` の local/server 二重実装の解消（mode 分岐 15 箇所、`suggestIngredients` の 5 責務）
+- **M2**: `mobile/app/(tabs)/index.tsx`（503 LoC）の責務漏出（store 内部 `setState` 直叩き、API 直 import、ドラッグ周りのフック化）
+- M1 と M2 はドラッグ並び替えの楽観更新で繋がっているため、**個別プラン起票時に「先に M1 を整え、M2 はその上で」の順序で進めるのが妥当**。
+
+### `web/admin/` の扱い（Phase 0 判定の確認）
+
+Phase 0.3 の通り本プランのスコープ外。必要なら別プラン `refactoring-web-admin.md` を起こす（現時点では TODO ストックにも残さない）。
+
+### 本プランの後処理
+
+- 上記 7 本を `TODO.md` に追加
+- M1 / M2 を TODO ストックとして `TODO.md` に追加（個別プラン化は将来に持ち越し）
+- 本ファイルは `docs/plans/archive/refactoring.md` へ移送（個別プランの完了は待たない）

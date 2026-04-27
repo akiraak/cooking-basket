@@ -3,11 +3,15 @@
 > 作業が完了した項目を DONE.md に移動する。docs/plans/ にプランファイルがある場合は docs/plans/archive に移動させる。
 
 ## 機能開発
-- [ ] リファクタリング [plan](docs/plans/refactoring.md)
-  - [x] Phase 0: ガードレール確認（心得・注意点・既存テスト網羅範囲の把握）
-  - [x] Phase 1: サーバ側監査（候補リスト作成）
-  - [x] Phase 2: モバイル側監査（候補リスト作成）
-  - [ ] Phase 3: 優先度付けと個別プランへの分解
+- [ ] リファクタリング 1: サーバ小粒整理（migrate.ts 抽出 / docs.ts / 未使用 export / cleanup ロギング） [plan](docs/plans/refactoring-server-cleanup.md)
+- [ ] リファクタリング 2: モバイル小粒整理（API ボイラープレート / 型重複 / 未使用 export / TabIcon require） [plan](docs/plans/refactoring-mobile-cleanup.md)
+- [ ] リファクタリング 3: サーバ route 層のエラーハンドリング統一 + メッセージ定数化 [plan](docs/plans/refactoring-server-error-handling.md)
+- [ ] リファクタリング 4: `admin-service.ts` の責務分割と `any` 解消 [plan](docs/plans/refactoring-server-admin-service.md)
+- [ ] リファクタリング 5: `DraggableList.tsx` のモジュール状態撤去と dead code 削除 [plan](docs/plans/refactoring-mobile-draggable-list.md)
+- [ ] リファクタリング 6: `IngredientsScreen.tsx` の責務分離 [plan](docs/plans/refactoring-mobile-ingredients-screen.md)
+- [ ] リファクタリング 7: `database.ts` のマイグレーション整理 [plan](docs/plans/refactoring-server-database-migrations.md)
+- [ ] リファクタリング 8（TODO ストック）: `shopping-store.ts` の local/server 二重実装の解消（数日規模・要設計判断・M1）
+- [ ] リファクタリング 9（TODO ストック）: `app/(tabs)/index.tsx` の責務漏出整理（数日規模・M1 の上で M2 として進める）
 - [ ] passkeys認証対応
 - [ ] 料理レシピページの料理名をページの「買い物リスト」の表示の場所を差し替えて
 - [ ] アイテム編集ダイアログから削除を削除
