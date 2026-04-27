@@ -975,7 +975,7 @@ function renderIconPreview() {
   const btnStyle = 'display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #444;border-radius:6px;background:none;color:#888;';
 
   let html = `
-    <p style="color:#888;margin-bottom:16px">左: みんなのレシピ / 中: 自分のレシピ / 右: メニュー(固定)</p>
+    <p style="color:#888;margin-bottom:16px">左: みんなのレシピ / 中: レシピノート / 右: メニュー(固定)</p>
     <div style="display:flex;flex-direction:column;gap:12px">`;
 
   for (const c of combos) {
@@ -2239,7 +2239,7 @@ function renderReactNativePlan() {
             <tr><td>5</td><td><strong>レシピページ</strong></td><td><code>app/dish/[id]/recipe</code></td><td>レシピ表示、食材ハイライト、いいね</td></tr>
             <tr><td>6</td><td><strong>食材追加/編集</strong></td><td><code>app/item/add</code></td><td>買い物食材の追加・編集フォーム</td></tr>
             <tr><td>7</td><td><strong>料理追加</strong></td><td><code>app/dish/add</code></td><td>料理名入力 → AI 具材検索をバックグラウンド実行</td></tr>
-            <tr><td>8</td><td><strong>レシピブック</strong></td><td><code>app/(tabs)/recipes</code></td><td>みんなのレシピ / 自分のレシピ（タブ切替）</td></tr>
+            <tr><td>8</td><td><strong>レシピノート</strong></td><td><code>app/(tabs)/recipes</code></td><td>みんなのレシピ / レシピノート（タブ切替）</td></tr>
           </tbody>
         </table>
       `
@@ -2255,7 +2255,7 @@ function renderReactNativePlan() {
 │   ├── (tabs)/
 │   │   ├── _layout.tsx     # タブナビゲーション
 │   │   ├── index.tsx       # 買い物リスト
-│   │   └── recipes.tsx     # レシピブック
+│   │   └── recipes.tsx     # レシピノート
 │   ├── dish/
 │   │   └── [id]/
 │   │       ├── ingredients.tsx
@@ -2365,7 +2365,7 @@ function renderReactNativePlan() {
             </tr>
             <tr>
               <td><span class="badge badge-info">Phase 5</span></td>
-              <td><strong>レシピ機能</strong> — レシピ表示、食材ハイライト、いいね、レシピブック（みんな/自分）</td>
+              <td><strong>レシピ機能</strong> — レシピ表示、食材ハイライト、いいね、レシピノート（みんな/自分）</td>
               <td>3〜4日</td>
             </tr>
             <tr>

@@ -5,8 +5,9 @@
 ## 機能開発
 - [ ] 「自分のレシピ」タブを「レシピノート」にリネーム [plan](docs/plans/recipes-tab-rename.md)
   - [x] Phase 1: モバイルアプリのタブラベル変更
-  - [ ] Phase 2: README / about.html / admin 内表記の整合
+  - [x] Phase 2: README / about.html / admin 内表記の整合
   - [ ] Phase 3: 親タスク DONE.md 移動 + プランをアーカイブ
+- [ ] `web/admin/app.js` / `web/about.html` / `README.md` 内の「みんなのレシピ」「いいね」残存記述を整理（アプリシンプル化以降のズレ）
 - [ ] 空状態メッセージの改善（レシピノート / 買い物リスト） [plan](docs/plans/empty-state-messages.md)
   - [ ] Phase 1: 文言確定（ユーザー確認）
   - [ ] Phase 2: 実装
