@@ -14,15 +14,11 @@ import { dishesRouter } from './routes/dishes';
 import { savedRecipesRouter } from './routes/saved-recipes';
 import { migrateRouter } from './routes/migrate';
 import { docsRouter } from './routes/docs';
-import { initDatabase } from './database';
 import { logger } from './lib/logger';
 
-export interface CreateAppOptions {
-  /** DB 初期化をスキップする場合（既に初期化済み・テスト内で独自管理する場合に使用） */
-  skipDbInit?: boolean;
-}
-
-export function createApp(options: CreateAppOptions = {}): Express {
+// DB の初期化／マイグレーションは呼び出し側（index.ts / テスト helper）の責務にする。
+// createApp 自体は Express アプリの組み立てだけを行う純粋な関数として保つ。
+export function createApp(): Express {
   const app = express();
   const CACHE_VERSION = Date.now().toString();
 
@@ -91,10 +87,6 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   // エラーハンドリング
   app.use(errorHandler);
-
-  if (!options.skipDbInit) {
-    initDatabase();
-  }
 
   return app;
 }
