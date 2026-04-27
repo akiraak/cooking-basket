@@ -5,11 +5,10 @@ import type { SavedRecipe, Ingredient } from '../../types/models';
 
 interface RecipeListItemProps {
   recipe: SavedRecipe;
-  onToggleLike: (id: number) => void;
   onAddToList?: (recipe: SavedRecipe) => void;
 }
 
-export function RecipeListItem({ recipe, onToggleLike, onAddToList }: RecipeListItemProps) {
+export function RecipeListItem({ recipe, onAddToList }: RecipeListItemProps) {
   const colors = useThemeColors();
   const [expanded, setExpanded] = useState(false);
 
@@ -27,11 +26,6 @@ export function RecipeListItem({ recipe, onToggleLike, onAddToList }: RecipeList
           <Text style={[styles.dishName, { color: colors.textMuted }]}>{recipe.dish_name}</Text>
           <Text style={[styles.title, { color: colors.text }]}>{recipe.title}</Text>
         </View>
-        <TouchableOpacity onPress={() => onToggleLike(recipe.id)}>
-          <Text style={styles.heart}>
-            {recipe.liked ? '❤️' : '🤍'} {recipe.like_count > 0 ? recipe.like_count : ''}
-          </Text>
-        </TouchableOpacity>
       </View>
 
       {recipe.summary ? (
@@ -96,9 +90,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: '600',
-  },
-  heart: {
-    fontSize: 18,
   },
   summary: {
     fontSize: 14,

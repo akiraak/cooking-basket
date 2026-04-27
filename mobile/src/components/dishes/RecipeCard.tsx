@@ -2,24 +2,20 @@ import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useThemeColors } from '../../theme/theme-provider';
 import { HighlightedText } from './HighlightedText';
-import type { Recipe, Ingredient, RecipeState } from '../../types/models';
+import type { Recipe, Ingredient } from '../../types/models';
 
 interface RecipeCardProps {
   recipe: Recipe;
-  recipeState?: RecipeState;
   allIngredients: Ingredient[];
   addedNames: Set<string>;
-  onToggleLike?: (recipeStateId: number) => void;
   onAddToList?: (recipe: Recipe) => void;
   onPressIngredient?: (name: string) => void;
 }
 
 export function RecipeCard({
   recipe,
-  recipeState,
   allIngredients,
   addedNames,
-  onToggleLike,
   onAddToList,
   onPressIngredient,
 }: RecipeCardProps) {
@@ -32,11 +28,6 @@ export function RecipeCard({
         <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
           {recipe.title}
         </Text>
-        {recipeState && onToggleLike && (
-          <TouchableOpacity onPress={() => onToggleLike(recipeState.id)}>
-            <Text style={styles.heart}>{recipeState.liked ? '❤️' : '🤍'}</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
       <View style={styles.summary}>
@@ -102,9 +93,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
     marginRight: 8,
-  },
-  heart: {
-    fontSize: 20,
   },
   summary: {
     marginBottom: 10,

@@ -12,11 +12,10 @@ import {
 import { useThemeColors } from '../../theme/theme-provider';
 import { useShoppingStore } from '../../stores/shopping-store';
 import { RecipeCard } from './RecipeCard';
-import { useRecipeStore } from '../../stores/recipe-store';
 import { useAiStore } from '../../stores/ai-store';
 import { useAuthStore } from '../../stores/auth-store';
 import { AiQuotaError } from '../../api/ai';
-import type { Dish, Ingredient, Recipe, RecipeState } from '../../types/models';
+import type { Dish, Ingredient, Recipe } from '../../types/models';
 import type { SuggestIngredientsResult } from '../../stores/shopping-store';
 
 interface IngredientsScreenProps {
@@ -27,14 +26,12 @@ interface IngredientsScreenProps {
 export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
   const colors = useThemeColors();
   const { addItem, linkItemToDish, loadAll, updateDish } = useShoppingStore();
-  const { toggleLike } = useRecipeStore();
   const { remaining } = useAiStore();
   const { isAuthenticated, requestLogin } = useAuthStore();
 
   const [loading, setLoading] = useState(false);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [recipeStates, setRecipeStates] = useState<RecipeState[]>([]);
   const [addedNames, setAddedNames] = useState<Set<string>>(new Set());
   const [dishName, setDishName] = useState(dish.name);
   const [editingName, setEditingName] = useState(false);
@@ -85,7 +82,6 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
         );
         setIngredients(data.ingredients);
         setRecipes(data.recipes);
-        setRecipeStates(data.recipeStates);
         const existing = new Set<string>();
         for (const ing of data.ingredients) {
           if (dishItemNames.has(ing.name)) existing.add(ing.name);
@@ -141,25 +137,6 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
   const handleSearch = useCallback(() => {
     fetchSuggestions(pinnedExtras.length > 0 ? pinnedExtras : undefined);
   }, [fetchSuggestions, pinnedExtras]);
-
-  const handleToggleLike = useCallback(
-    async (recipeStateId: number) => {
-      try {
-        await toggleLike(recipeStateId);
-        // local モード（未認証）時は toggleLike 内で requestLogin を呼ぶのみで状態は変化しない
-        if (useRecipeStore.getState().mode === 'server') {
-          setRecipeStates((prev) =>
-            prev.map((rs) =>
-              rs.id === recipeStateId ? { ...rs, liked: rs.liked ? 0 : 1 } : rs,
-            ),
-          );
-        }
-      } catch {
-        Alert.alert('エラー', 'いいねに失敗しました');
-      }
-    },
-    [toggleLike],
-  );
 
   const handleAddRecipeToList = useCallback(
     async (recipe: Recipe) => {
@@ -343,10 +320,8 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
                   <RecipeCard
                     key={i}
                     recipe={recipe}
-                    recipeState={recipeStates[i]}
                     allIngredients={ingredients}
                     addedNames={addedNames}
-                    onToggleLike={handleToggleLike}
                     onAddToList={handleAddRecipeToList}
                     onPressIngredient={handleToggleIngredient}
                   />

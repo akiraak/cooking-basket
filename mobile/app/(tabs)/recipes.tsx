@@ -3,16 +3,14 @@ import { View, Text, TextInput, FlatList, RefreshControl, StyleSheet, Alert } fr
 import { useThemeColors } from '../../src/theme/theme-provider';
 import { useRecipeStore } from '../../src/stores/recipe-store';
 import { useShoppingStore } from '../../src/stores/shopping-store';
-import { useAuthStore } from '../../src/stores/auth-store';
 import { RecipeListItem } from '../../src/components/recipes/RecipeListItem';
 import { Toast } from '../../src/components/ui/Toast';
 import type { SavedRecipe } from '../../src/types/models';
 
 export default function RecipesScreen() {
   const colors = useThemeColors();
-  const { mode, savedRecipes, loading, loadSavedRecipes, toggleLike } = useRecipeStore();
+  const { savedRecipes, loading, loadSavedRecipes } = useRecipeStore();
   const { addDish, addItem, linkItemToDish } = useShoppingStore();
-  const { isAuthenticated, requestLogin } = useAuthStore();
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState<string | null>(null);
 
@@ -20,31 +18,17 @@ export default function RecipesScreen() {
     loadSavedRecipes();
   }, [loadSavedRecipes]);
 
-  // サーバモードはいいね済みのみ表示、local モードは全保存レシピを表示
   const filtered = useMemo(() => {
-    const base = mode === 'server' ? savedRecipes.filter((r) => r.liked) : savedRecipes;
-    if (!search.trim()) return base;
+    if (!search.trim()) return savedRecipes;
     const q = search.toLowerCase();
-    return base.filter(
+    return savedRecipes.filter(
       (r) =>
         r.title.toLowerCase().includes(q) ||
         r.dish_name.toLowerCase().includes(q) ||
         r.summary.toLowerCase().includes(q) ||
         r.steps_json.toLowerCase().includes(q),
     );
-  }, [mode, savedRecipes, search]);
-
-  const handleToggleLike = useCallback(async (id: number) => {
-    if (!isAuthenticated) {
-      requestLogin({ reason: 'レシピにいいねするにはログインしてください' });
-      return;
-    }
-    try {
-      await toggleLike(id);
-    } catch {
-      Alert.alert('エラー', 'いいねに失敗しました');
-    }
-  }, [isAuthenticated, requestLogin, toggleLike]);
+  }, [savedRecipes, search]);
 
   const handleAddToList = useCallback(async (recipe: SavedRecipe) => {
     try {
@@ -77,17 +61,13 @@ export default function RecipesScreen() {
         data={filtered}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <RecipeListItem recipe={item} onToggleLike={handleToggleLike} onAddToList={handleAddToList} />
+          <RecipeListItem recipe={item} onAddToList={handleAddToList} />
         )}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadSavedRecipes} tintColor={colors.primary} />}
         ListEmptyComponent={
           <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-            {search
-              ? '検索結果なし'
-              : mode === 'server'
-              ? 'いいねしたレシピがありません'
-              : 'レシピを生成すると自動で保存されます'}
+            {search ? '検索結果なし' : 'レシピを生成すると自動で保存されます'}
           </Text>
         }
       />

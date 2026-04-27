@@ -61,15 +61,6 @@ export default function TabsLayout() {
             ),
           }}
         />
-        <Tabs.Screen
-          name="shared"
-          options={{
-            title: 'みんなのレシピ',
-            tabBarIcon: ({ color, size }) => (
-              <TabIcon name="people" color={color} size={size} />
-            ),
-          }}
-        />
       </Tabs>
 
       {/* メニュー */}
@@ -120,7 +111,6 @@ function TabIcon({ name, color, size }: { name: string; color: string; size: num
   const icons: Record<string, string> = {
     cart: '🛒',
     book: '📖',
-    people: '👥',
   };
   const { Text } = require('react-native');
   return <Text style={{ fontSize: size * 0.8, color }}>{icons[name] ?? '?'}</Text>;
