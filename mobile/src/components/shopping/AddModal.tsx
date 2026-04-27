@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { useThemeColors } from '../../theme/theme-provider';
 import type { Dish } from '../../types/models';
-
-type ModalMode = 'item' | 'dish' | 'edit';
+import type { ModalMode } from '../../types/ui';
 
 interface AddModalProps {
   visible: boolean;

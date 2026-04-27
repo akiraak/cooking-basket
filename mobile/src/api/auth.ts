@@ -1,10 +1,5 @@
 import client from './client';
-
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  error: string | null;
-}
+import type { ApiResponse } from '../types/api';
 
 export async function requestLogin(email: string): Promise<{ message: string }> {
   const res = await client.post<ApiResponse<{ message: string }>>('/api/auth/login', { email });

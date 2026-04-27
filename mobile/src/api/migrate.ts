@@ -1,5 +1,6 @@
 import client from './client';
 import type { ApiResponse } from '../types/api';
+import type { Ingredient } from '../types/models';
 
 export interface MigrateItemInput {
   localId: number;
@@ -23,7 +24,7 @@ export interface MigrateSavedRecipeInput {
   title: string;
   summary?: string;
   steps?: string[];
-  ingredients?: { name: string; category: string }[];
+  ingredients?: Ingredient[];
   sourceDishLocalId?: number | null;
 }
 

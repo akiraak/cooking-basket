@@ -1,6 +1,6 @@
 import client from './client';
 import type { ApiResponse } from '../types/api';
-import type { SavedRecipe } from '../types/models';
+import type { Ingredient, SavedRecipe } from '../types/models';
 
 export async function getSavedRecipes(): Promise<SavedRecipe[]> {
   const res = await client.get<ApiResponse<SavedRecipe[]>>('/api/saved-recipes');
@@ -18,7 +18,7 @@ export interface BulkSavedRecipeInput {
   title: string;
   summary?: string;
   steps?: string[];
-  ingredients?: { name: string; category: string }[];
+  ingredients?: Ingredient[];
   sourceDishId?: number;
 }
 

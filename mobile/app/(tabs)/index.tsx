@@ -21,8 +21,7 @@ import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { Toast } from '../../src/components/ui/Toast';
 import { IngredientsScreen } from '../../src/components/dishes/IngredientsScreen';
 import type { Dish, DishItem, ShoppingItem } from '../../src/types/models';
-
-type ModalMode = 'item' | 'dish' | 'edit';
+import type { ModalMode } from '../../src/types/ui';
 
 export default function ShoppingListScreen() {
   const colors = useThemeColors();
