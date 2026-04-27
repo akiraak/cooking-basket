@@ -4,6 +4,7 @@
 
 ## 機能開発
 - [ ] 空状態メッセージの改善（レシピノート / 買い物リスト） [plan](docs/plans/empty-state-messages.md)
+  - [ ] Phase 0: 現状の空状態を実機で確認
   - [ ] Phase 1: 文言確定（ユーザー確認）
   - [ ] Phase 2: 実装
   - [ ] Phase 3: 親タスク DONE.md 移動 + プランをアーカイブ
