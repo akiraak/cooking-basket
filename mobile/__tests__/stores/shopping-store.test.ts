@@ -155,7 +155,7 @@ describe('shopping-store (server mode)', () => {
 
   describe('reorderItems', () => {
     it('forwards ordered ids to the api', async () => {
-      shopping.reorderItems.mockResolvedValue(undefined);
+      shopping.reorderItems.mockResolvedValue(null);
       await useShoppingStore.getState().reorderItems([3, 1, 2]);
       expect(shopping.reorderItems).toHaveBeenCalledWith([3, 1, 2]);
     });
@@ -163,7 +163,7 @@ describe('shopping-store (server mode)', () => {
 
   describe('deleteItem', () => {
     it('removes the item from state and nested dishes without reloading', async () => {
-      shopping.deleteItem.mockResolvedValue(undefined);
+      shopping.deleteItem.mockResolvedValue(null);
       useShoppingStore.setState({
         items: [
           makeItem({ id: 1, name: 'にんじん' }),

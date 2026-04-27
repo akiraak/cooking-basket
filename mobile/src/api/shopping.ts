@@ -1,37 +1,22 @@
-import client from './client';
-import type { ApiResponse } from '../types/api';
+import { request } from './client';
 import type { ShoppingItem } from '../types/models';
 
-export async function getAllItems(): Promise<ShoppingItem[]> {
-  const res = await client.get<ApiResponse<ShoppingItem[]>>('/api/shopping');
-  if (!res.data.success) throw new Error(res.data.error ?? '取得に失敗しました');
-  return res.data.data;
-}
+export const getAllItems = () => request<ShoppingItem[]>('get', '/api/shopping');
 
-export async function createItem(name: string, category?: string): Promise<ShoppingItem> {
-  const res = await client.post<ApiResponse<ShoppingItem>>('/api/shopping', { name, category });
-  if (!res.data.success) throw new Error(res.data.error ?? '追加に失敗しました');
-  return res.data.data;
-}
+export const createItem = (name: string, category?: string) =>
+  request<ShoppingItem>('post', '/api/shopping', { name, category });
 
-export async function updateItem(id: number, data: { name?: string; category?: string; checked?: number }): Promise<ShoppingItem> {
-  const res = await client.put<ApiResponse<ShoppingItem>>(`/api/shopping/${id}`, data);
-  if (!res.data.success) throw new Error(res.data.error ?? '更新に失敗しました');
-  return res.data.data;
-}
+export const updateItem = (
+  id: number,
+  data: { name?: string; category?: string; checked?: number },
+) => request<ShoppingItem>('put', `/api/shopping/${id}`, data);
 
-export async function deleteItem(id: number): Promise<void> {
-  const res = await client.delete<ApiResponse<null>>(`/api/shopping/${id}`);
-  if (!res.data.success) throw new Error(res.data.error ?? '削除に失敗しました');
-}
+export const deleteItem = (id: number) => request<null>('delete', `/api/shopping/${id}`);
 
 export async function deleteCheckedItems(): Promise<number> {
-  const res = await client.delete<ApiResponse<{ deleted: number }>>('/api/shopping/checked');
-  if (!res.data.success) throw new Error(res.data.error ?? '削除に失敗しました');
-  return res.data.data.deleted;
+  const result = await request<{ deleted: number }>('delete', '/api/shopping/checked');
+  return result.deleted;
 }
 
-export async function reorderItems(orderedIds: number[]): Promise<void> {
-  const res = await client.put<ApiResponse<null>>('/api/shopping/reorder', { orderedIds });
-  if (!res.data.success) throw new Error(res.data.error ?? '並び替えに失敗しました');
-}
+export const reorderItems = (orderedIds: number[]) =>
+  request<null>('put', '/api/shopping/reorder', { orderedIds });

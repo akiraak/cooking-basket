@@ -1,5 +1,4 @@
-import client from './client';
-import type { ApiResponse } from '../types/api';
+import { request } from './client';
 import type { Ingredient } from '../types/models';
 
 export interface MigrateItemInput {
@@ -40,10 +39,5 @@ export interface MigrateResult {
   savedRecipeIdMap: Record<string, number>;
 }
 
-export async function migrate(payload: MigratePayload): Promise<MigrateResult> {
-  const res = await client.post<ApiResponse<MigrateResult>>('/api/migrate', payload);
-  if (!res.data.success) {
-    throw new Error(res.data.error ?? 'マイグレーションに失敗しました');
-  }
-  return res.data.data;
-}
+export const migrate = (payload: MigratePayload) =>
+  request<MigrateResult>('post', '/api/migrate', payload);

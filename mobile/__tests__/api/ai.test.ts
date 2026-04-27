@@ -4,12 +4,14 @@ jest.mock('../../src/api/client', () => ({
     post: jest.fn(),
     get: jest.fn(),
   },
+  request: jest.fn(),
 }));
 
-import client from '../../src/api/client';
+import client, { request } from '../../src/api/client';
 import { suggestAi, getAiQuota, AiQuotaError } from '../../src/api/ai';
 
 const mockClient = client as unknown as { post: jest.Mock; get: jest.Mock };
+const mockRequest = request as unknown as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -86,34 +88,30 @@ describe('suggestAi', () => {
 
 describe('getAiQuota', () => {
   it('returns remaining/limit/resetAt from /api/ai/quota', async () => {
-    mockClient.get.mockResolvedValue({
-      data: {
-        success: true,
-        data: { remaining: 12, limit: 20, resetAt: '2026-04-27T15:00:00.000Z' },
-      },
+    mockRequest.mockResolvedValue({
+      remaining: 12,
+      limit: 20,
+      resetAt: '2026-04-27T15:00:00.000Z',
     });
 
     const q = await getAiQuota();
-    expect(mockClient.get).toHaveBeenCalledWith('/api/ai/quota');
+    expect(mockRequest).toHaveBeenCalledWith('get', '/api/ai/quota');
     expect(q).toEqual({ remaining: 12, limit: 20, resetAt: '2026-04-27T15:00:00.000Z' });
   });
 
   it('passes through nulls (unauthenticated guest without device-id)', async () => {
-    mockClient.get.mockResolvedValue({
-      data: {
-        success: true,
-        data: { remaining: null, limit: null, resetAt: '2026-04-27T15:00:00.000Z' },
-      },
+    mockRequest.mockResolvedValue({
+      remaining: null,
+      limit: null,
+      resetAt: '2026-04-27T15:00:00.000Z',
     });
     const q = await getAiQuota();
     expect(q.remaining).toBeNull();
     expect(q.limit).toBeNull();
   });
 
-  it('throws when success is false', async () => {
-    mockClient.get.mockResolvedValue({
-      data: { success: false, data: null, error: 'boom' },
-    });
+  it('propagates errors from the request helper', async () => {
+    mockRequest.mockRejectedValue(new Error('boom'));
     await expect(getAiQuota()).rejects.toThrow('boom');
   });
 });

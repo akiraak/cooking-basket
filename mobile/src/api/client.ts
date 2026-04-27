@@ -1,5 +1,6 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 import { API_BASE_URL } from '../config/api-endpoint';
+import type { ApiResponse } from '../types/api';
 import { getToken, removeToken } from '../utils/token';
 import { getDeviceId } from '../utils/device-id';
 
@@ -36,5 +37,18 @@ client.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+type Method = 'get' | 'post' | 'put' | 'delete';
+
+export async function request<T>(
+  method: Method,
+  url: string,
+  body?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<T> {
+  const res = await client.request<ApiResponse<T>>({ method, url, data: body, ...config });
+  if (!res.data.success) throw new Error(res.data.error ?? 'リクエストに失敗しました');
+  return res.data.data;
+}
 
 export default client;

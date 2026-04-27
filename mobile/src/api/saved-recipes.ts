@@ -1,17 +1,10 @@
-import client from './client';
-import type { ApiResponse } from '../types/api';
+import { request } from './client';
 import type { Ingredient, SavedRecipe } from '../types/models';
 
-export async function getSavedRecipes(): Promise<SavedRecipe[]> {
-  const res = await client.get<ApiResponse<SavedRecipe[]>>('/api/saved-recipes');
-  if (!res.data.success) throw new Error(res.data.error ?? '取得に失敗しました');
-  return res.data.data;
-}
+export const getSavedRecipes = () => request<SavedRecipe[]>('get', '/api/saved-recipes');
 
-export async function deleteSavedRecipe(id: number): Promise<void> {
-  const res = await client.delete<ApiResponse<null>>(`/api/saved-recipes/${id}`);
-  if (!res.data.success) throw new Error(res.data.error ?? '削除に失敗しました');
-}
+export const deleteSavedRecipe = (id: number) =>
+  request<null>('delete', `/api/saved-recipes/${id}`);
 
 export interface BulkSavedRecipeInput {
   dishName: string;
@@ -22,13 +15,5 @@ export interface BulkSavedRecipeInput {
   sourceDishId?: number;
 }
 
-export async function createSavedRecipesBulk(
-  recipes: BulkSavedRecipeInput[],
-): Promise<SavedRecipe[]> {
-  const res = await client.post<ApiResponse<SavedRecipe[]>>(
-    '/api/saved-recipes/bulk',
-    { recipes },
-  );
-  if (!res.data.success) throw new Error(res.data.error ?? '保存に失敗しました');
-  return res.data.data;
-}
+export const createSavedRecipesBulk = (recipes: BulkSavedRecipeInput[]) =>
+  request<SavedRecipe[]>('post', '/api/saved-recipes/bulk', { recipes });

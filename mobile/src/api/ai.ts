@@ -1,4 +1,4 @@
-import client from './client';
+import client, { request } from './client';
 import type { ApiResponse } from '../types/api';
 import type { Ingredient, Recipe } from '../types/models';
 
@@ -28,11 +28,7 @@ export interface AiQuota {
   resetAt: string | null;
 }
 
-export async function getAiQuota(): Promise<AiQuota> {
-  const res = await client.get<ApiResponse<AiQuota>>('/api/ai/quota');
-  if (!res.data.success) throw new Error(res.data.error ?? 'AI残量取得に失敗');
-  return res.data.data;
-}
+export const getAiQuota = () => request<AiQuota>('get', '/api/ai/quota');
 
 export async function suggestAi(
   dishName: string,
