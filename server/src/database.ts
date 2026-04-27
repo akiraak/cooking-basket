@@ -167,6 +167,8 @@ export function initDatabase(): void {
   }
 
   // マイグレーション: recipe_likes テーブル追加（複数ユーザーいいね対応）
+  // ※ いいね機能は廃止済み（app-simplification.md）。下記ブロックは履歴として残し、
+  //    末尾の DROP TABLE マイグレーションで本番 DB から削除する。
   try {
     database.exec(`
       CREATE TABLE IF NOT EXISTS recipe_likes (
@@ -188,6 +190,13 @@ export function initDatabase(): void {
     `);
   } catch {
     // テーブルが既に存在する場合は無視
+  }
+
+  // マイグレーション: recipe_likes テーブル削除（いいね機能廃止）
+  try {
+    database.exec('DROP TABLE IF EXISTS recipe_likes');
+  } catch {
+    // 既に消えている場合は無視
   }
 
   // マイグレーション: dishes に active カラム追加（ソフトデリート対応）
