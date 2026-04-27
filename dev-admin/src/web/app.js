@@ -31,6 +31,10 @@ const sseState = {
   connected: false,
 };
 
+// 現在表示中ドキュメントの TOC アクティブ追従用 IntersectionObserver。
+// renderMarkdown / 他カテゴリ表示への切替前に必ず disconnect する。
+let activeTocObserver = null;
+
 // 自分の保存による mtime を一時記録（SSE で戻ってきたとき外部変更として扱わないため）
 const selfWrittenMtimes = new Set();
 let saveInFlight = false;
@@ -275,7 +279,15 @@ function findFileMeta(category, filePath) {
   return walk(tree);
 }
 
+function clearTocObserver() {
+  if (activeTocObserver) {
+    activeTocObserver.disconnect();
+    activeTocObserver = null;
+  }
+}
+
 async function renderMarkdown(category, filePath) {
+  clearTocObserver();
   contentArea.innerHTML = '<div class="loading-text">読み込み中...</div>';
   const filename = filePath.split('/').pop();
   try {
@@ -345,7 +357,7 @@ function slugifyHeading(text, used) {
 // H1 は topbar の page-title と重複するため除外、見出し 0〜1 件なら何もしない（CSS :empty で非表示）
 function buildDocToc(mdContentEl, tocEl) {
   if (!mdContentEl || !tocEl) return;
-  const headings = mdContentEl.querySelectorAll('h2, h3, h4');
+  const headings = Array.from(mdContentEl.querySelectorAll('h2, h3, h4'));
   if (headings.length < 2) return;
 
   const used = new Set();
@@ -356,6 +368,7 @@ function buildDocToc(mdContentEl, tocEl) {
 
   const list = document.createElement('ul');
   list.className = 'doc-toc-list';
+  const linkById = new Map();
   headings.forEach((h) => {
     const level = parseInt(h.tagName.substring(1), 10);
     const li = document.createElement('li');
@@ -365,16 +378,74 @@ function buildDocToc(mdContentEl, tocEl) {
     a.href = `#${encodeURIComponent(h.id)}`;
     a.dataset.targetId = h.id;
     a.textContent = h.textContent;
-    // ルーティングは hash ベースなのでデフォルトのアンカー遷移は抑止し、直接スクロール
+    // ルーティングは hash ベースなのでデフォルトのアンカー遷移は抑止し、直接スムーズスクロール
     a.addEventListener('click', (e) => {
       e.preventDefault();
       const target = document.getElementById(h.id);
-      if (target) target.scrollIntoView({ block: 'start' });
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     li.appendChild(a);
     list.appendChild(li);
+    linkById.set(h.id, a);
   });
   tocEl.appendChild(list);
+
+  setupTocActiveTracking(headings, linkById);
+}
+
+// .main-content の縦スクロールに追従して active な TOC リンクを切り替える。
+// IntersectionObserver の rootMargin で「上端付近の active zone」を作り、
+// ゾーン内の最上位を、なければゾーン上に隠れた直近の見出しを active にする。
+function setupTocActiveTracking(headings, linkById) {
+  clearTocObserver();
+  const root = document.querySelector('.main-content');
+  if (!root || headings.length === 0) return;
+
+  const visible = new Set();
+  let activeId = null;
+
+  const setActive = (id) => {
+    if (id === activeId) return;
+    if (activeId) {
+      const prev = linkById.get(activeId);
+      if (prev) prev.classList.remove('active');
+    }
+    if (id) {
+      const next = linkById.get(id);
+      if (next) next.classList.add('active');
+    }
+    activeId = id;
+  };
+
+  const pickActive = () => {
+    if (visible.size > 0) {
+      for (const h of headings) if (visible.has(h.id)) return h.id;
+    }
+    const cutoff = root.getBoundingClientRect().top + 16;
+    let above = null;
+    for (const h of headings) {
+      if (h.getBoundingClientRect().top <= cutoff) above = h.id;
+      else break;
+    }
+    return above || headings[0].id;
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) visible.add(e.target.id);
+      else visible.delete(e.target.id);
+    }
+    setActive(pickActive());
+  }, {
+    root,
+    rootMargin: '0px 0px -70% 0px',
+    threshold: 0,
+  });
+
+  headings.forEach((h) => observer.observe(h));
+  activeTocObserver = observer;
+  // IO の初回コールバック前に、現状から推定した先頭見出しを active にしておく
+  setActive(pickActive());
 }
 
 async function archiveDirectory(dirName) {
@@ -425,6 +496,7 @@ async function archivePlan(filename) {
 }
 
 async function renderTodoView(name) {
+  clearTocObserver();
   contentArea.innerHTML = '<div class="loading-text">読み込み中...</div>';
   try {
     // 生 Markdown + mtime を先に取得（編集モードで必要）
@@ -801,6 +873,7 @@ function showToast(message, durationMs = 2000) {
 }
 
 function renderDesign(category, filePath) {
+  clearTocObserver();
   const filename = filePath.split('/').pop();
   const meta = findFileMeta(category, filePath);
   pageTitle.textContent = meta ? meta.title : filename;
@@ -836,6 +909,7 @@ function renderDesign(category, filePath) {
 }
 
 function showError(message) {
+  clearTocObserver();
   contentArea.innerHTML = '';
   const div = document.createElement('div');
   div.className = 'error-text';
@@ -844,6 +918,7 @@ function showError(message) {
 }
 
 function showEmpty() {
+  clearTocObserver();
   pageTitle.textContent = 'ドキュメント';
   topbarSub.textContent = '';
   contentArea.innerHTML = '<div class="empty-state">サイドバーからドキュメントを選択してください。</div>';

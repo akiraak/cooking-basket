@@ -77,10 +77,10 @@ CSS:
   - [x] `.md-content` 内の見出しを走査し、必要なら id を付与
   - [x] 階層付き `<ul>` を生成して `.doc-toc` に挿入
   - [x] 見出しが 0〜1 件のときは TOC ペインを非表示
-- [ ] Phase 3: クリック / アクティブ追従
-  - [ ] クリックで該当見出しへスムーズスクロール
-  - [ ] IntersectionObserver で active ハイライトを切替
-  - [ ] ルート切替時に observer を disconnect
+- [x] Phase 3: クリック / アクティブ追従
+  - [x] クリックで該当見出しへスムーズスクロール
+  - [x] IntersectionObserver で active ハイライトを切替
+  - [x] ルート切替時に observer を disconnect
 - [ ] Phase 4: 動作確認 / 微調整
   - [ ] 短いプラン / 長いプラン / Mermaid を含むプランで表示確認
   - [ ] 狭い幅（〜900px 程度）でレイアウト崩れがないか確認
