@@ -38,18 +38,6 @@ export interface Recipe {
   ingredients: Ingredient[];
 }
 
-export interface RecipeState {
-  id: number;
-}
-
-export interface SuggestIngredientsResponse {
-  dishId: number;
-  dishName: string;
-  ingredients: Ingredient[];
-  recipes: Recipe[];
-  recipeStates: RecipeState[];
-}
-
 export interface SavedRecipe {
   id: number;
   user_id: number;

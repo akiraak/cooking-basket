@@ -263,7 +263,6 @@ describe('shopping-store (local mode)', () => {
     expect(dishes.updateDishAiCache).not.toHaveBeenCalled(); // local モードではサーバキャッシュ呼出しない
     expect(result.ingredients).toHaveLength(1);
     expect(result.recipes).toHaveLength(1);
-    expect(result.recipeStates).toHaveLength(1);
     expect(useAiStore.getState().remaining).toBe(2);
 
     // dish のキャッシュ
