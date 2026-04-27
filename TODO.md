@@ -4,7 +4,7 @@
 
 ## 機能開発
 - [ ] 「自分のレシピ」タブを「レシピノート」にリネーム [plan](docs/plans/recipes-tab-rename.md)
-  - [ ] Phase 1: モバイルアプリのタブラベル変更
+  - [x] Phase 1: モバイルアプリのタブラベル変更
   - [ ] Phase 2: README / about.html / admin 内表記の整合
   - [ ] Phase 3: 親タスク DONE.md 移動 + プランをアーカイブ
 - [ ] 買い物リスト画面でレシピ料理を生成中は読み込みのアニメーションを表示して

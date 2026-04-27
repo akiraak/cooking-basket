@@ -55,7 +55,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="recipes"
           options={{
-            title: '自分のレシピ',
+            title: 'レシピノート',
             tabBarIcon: ({ color, size }) => (
               <TabIcon name="book" color={color} size={size} />
             ),
