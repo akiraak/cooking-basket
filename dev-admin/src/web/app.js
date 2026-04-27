@@ -300,7 +300,21 @@ async function renderMarkdown(category, filePath) {
     const div = document.createElement('div');
     div.className = 'md-content';
     div.innerHTML = data.html;
-    contentArea.appendChild(div);
+
+    const layout = document.createElement('div');
+    layout.className = 'doc-pane-layout';
+
+    const toc = document.createElement('nav');
+    toc.className = 'doc-toc';
+    toc.setAttribute('aria-label', 'ページ内目次');
+    layout.appendChild(toc);
+
+    const body = document.createElement('div');
+    body.className = 'doc-body';
+    body.appendChild(div);
+    layout.appendChild(body);
+
+    contentArea.appendChild(layout);
     renderMermaidIn(div);
   } catch (err) {
     showError(err.message);

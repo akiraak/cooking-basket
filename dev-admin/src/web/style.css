@@ -287,6 +287,39 @@ a { color: inherit; text-decoration: none; }
   outline-offset: 1px;
 }
 
+/* ドキュメント 2 ペイン (左: TOC, 右: 本文) */
+.doc-pane-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.doc-toc {
+  flex: 0 0 240px;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding: 4px 4px 12px;
+  font-size: 13px;
+}
+
+.doc-toc:empty {
+  display: none;
+}
+
+.doc-body {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .doc-toc {
+    display: none;
+  }
+}
+
 .empty-state {
   text-align: center;
   padding: 48px 20px;
