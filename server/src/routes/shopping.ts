@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import {
   getAllItems,
   createItem,
@@ -7,6 +7,7 @@ import {
   deleteCheckedItems,
   reorderItems,
 } from '../services/shopping-service';
+import { ERR } from '../lib/errors';
 
 export const shoppingRouter = Router();
 
@@ -20,7 +21,7 @@ shoppingRouter.get('/', (req: Request, res: Response) => {
 shoppingRouter.post('/', (req: Request, res: Response) => {
   const { name, category } = req.body;
   if (!name || typeof name !== 'string' || name.trim() === '') {
-    res.status(400).json({ success: false, data: null, error: 'name は必須です' });
+    res.status(400).json({ success: false, data: null, error: ERR.NAME_REQUIRED });
     return;
   }
   const item = createItem(req.userId!, { name: name.trim(), category });
@@ -28,7 +29,7 @@ shoppingRouter.post('/', (req: Request, res: Response) => {
 });
 
 // 並べ替え (/:id より先に定義)
-shoppingRouter.put('/reorder', (req: Request, res: Response) => {
+shoppingRouter.put('/reorder', (req: Request, res: Response, next: NextFunction) => {
   try {
     const { orderedIds } = req.body;
     if (!Array.isArray(orderedIds)) {
@@ -38,7 +39,7 @@ shoppingRouter.put('/reorder', (req: Request, res: Response) => {
     reorderItems(req.userId!, orderedIds);
     res.json({ success: true, data: null, error: null });
   } catch (err) {
-    res.status(500).json({ success: false, data: null, error: String(err) });
+    next(err);
   }
 });
 
@@ -53,7 +54,7 @@ shoppingRouter.put('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const item = updateItem(req.userId!, id, req.body);
   if (!item) {
-    res.status(404).json({ success: false, data: null, error: '食材が見つかりません' });
+    res.status(404).json({ success: false, data: null, error: ERR.ITEM_NOT_FOUND });
     return;
   }
   res.json({ success: true, data: item, error: null });
@@ -64,7 +65,7 @@ shoppingRouter.delete('/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const deleted = deleteItem(req.userId!, id);
   if (!deleted) {
-    res.status(404).json({ success: false, data: null, error: '食材が見つかりません' });
+    res.status(404).json({ success: false, data: null, error: ERR.ITEM_NOT_FOUND });
     return;
   }
   res.json({ success: true, data: null, error: null });

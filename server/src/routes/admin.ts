@@ -24,6 +24,7 @@ import {
   type LogFilter,
 } from '../services/logs-service';
 import { logger } from '../lib/logger';
+import { ERR } from '../lib/errors';
 
 const AI_QUOTA_RESET_SCOPES: ReadonlyArray<AiQuotaResetScope> = [
   'user',
@@ -74,7 +75,7 @@ adminRouter.put('/shopping/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const item = updateShoppingItem(id, req.body);
   if (!item) {
-    res.status(404).json({ success: false, data: null, error: '食材が見つかりません' });
+    res.status(404).json({ success: false, data: null, error: ERR.ITEM_NOT_FOUND });
     return;
   }
   res.json({ success: true, data: item, error: null });
@@ -85,7 +86,7 @@ adminRouter.delete('/shopping/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const deleted = deleteShoppingItem(id);
   if (!deleted) {
-    res.status(404).json({ success: false, data: null, error: '食材が見つかりません' });
+    res.status(404).json({ success: false, data: null, error: ERR.ITEM_NOT_FOUND });
     return;
   }
   res.json({ success: true, data: null, error: null });
@@ -102,7 +103,7 @@ adminRouter.delete('/dishes/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const deleted = deleteDish(id);
   if (!deleted) {
-    res.status(404).json({ success: false, data: null, error: '料理が見つかりません' });
+    res.status(404).json({ success: false, data: null, error: ERR.DISH_NOT_FOUND });
     return;
   }
   res.json({ success: true, data: null, error: null });
@@ -126,7 +127,7 @@ adminRouter.delete('/saved-recipes/:id', (req: Request, res: Response) => {
   const id = Number(req.params.id);
   const deleted = deleteSavedRecipeAdmin(id);
   if (!deleted) {
-    res.status(404).json({ success: false, data: null, error: 'レシピが見つかりません' });
+    res.status(404).json({ success: false, data: null, error: ERR.SAVED_RECIPE_NOT_FOUND });
     return;
   }
   res.json({ success: true, data: null, error: null });
@@ -144,21 +145,21 @@ adminRouter.put('/ai-limits', (req: Request, res: Response) => {
   const { user, guest } = body;
 
   if (user === undefined && guest === undefined) {
-    res.status(400).json({ success: false, data: null, error: 'invalid_ai_limit' });
+    res.status(400).json({ success: false, data: null, error: ERR.INVALID_AI_LIMIT });
     return;
   }
 
   const values: { user?: number; guest?: number } = {};
   if (user !== undefined) {
     if (typeof user !== 'number' || !Number.isInteger(user)) {
-      res.status(400).json({ success: false, data: null, error: 'invalid_ai_limit' });
+      res.status(400).json({ success: false, data: null, error: ERR.INVALID_AI_LIMIT });
       return;
     }
     values.user = user;
   }
   if (guest !== undefined) {
     if (typeof guest !== 'number' || !Number.isInteger(guest)) {
-      res.status(400).json({ success: false, data: null, error: 'invalid_ai_limit' });
+      res.status(400).json({ success: false, data: null, error: ERR.INVALID_AI_LIMIT });
       return;
     }
     values.guest = guest;
@@ -168,8 +169,8 @@ adminRouter.put('/ai-limits', (req: Request, res: Response) => {
     const limits = setAiLimits(values);
     res.json({ success: true, data: limits, error: null });
   } catch (err) {
-    if (err instanceof Error && err.message.startsWith('invalid_ai_limit')) {
-      res.status(400).json({ success: false, data: null, error: 'invalid_ai_limit' });
+    if (err instanceof Error && err.message.startsWith(ERR.INVALID_AI_LIMIT)) {
+      res.status(400).json({ success: false, data: null, error: ERR.INVALID_AI_LIMIT });
       return;
     }
     throw err;
@@ -185,13 +186,13 @@ adminRouter.post('/ai-quota/reset', (req: Request, res: Response) => {
     typeof scope !== 'string' ||
     !AI_QUOTA_RESET_SCOPES.includes(scope as AiQuotaResetScope)
   ) {
-    res.status(400).json({ success: false, data: null, error: 'invalid_scope' });
+    res.status(400).json({ success: false, data: null, error: ERR.INVALID_SCOPE });
     return;
   }
 
   if (scope === 'key') {
     if (typeof key !== 'string' || !AI_QUOTA_KEY_PATTERN.test(key)) {
-      res.status(400).json({ success: false, data: null, error: 'invalid_scope' });
+      res.status(400).json({ success: false, data: null, error: ERR.INVALID_SCOPE });
       return;
     }
   }
@@ -212,8 +213,8 @@ adminRouter.post('/ai-quota/reset', (req: Request, res: Response) => {
     );
     res.json({ success: true, data: result, error: null });
   } catch (err) {
-    if (err instanceof Error && err.message === 'invalid_scope') {
-      res.status(400).json({ success: false, data: null, error: 'invalid_scope' });
+    if (err instanceof Error && err.message === ERR.INVALID_SCOPE) {
+      res.status(400).json({ success: false, data: null, error: ERR.INVALID_SCOPE });
       return;
     }
     throw err;

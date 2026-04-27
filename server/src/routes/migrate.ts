@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import {
   migrateLocalData,
   type LocalDish,
@@ -11,7 +11,7 @@ import {
 // 返り値では「ローカル ID -> サーバ ID」対応表を返す。
 export const migrateRouter = Router();
 
-migrateRouter.post('/', (req: Request, res: Response) => {
+migrateRouter.post('/', (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.userId!;
     const items: LocalItem[] = Array.isArray(req.body?.items) ? req.body.items : [];
@@ -22,6 +22,6 @@ migrateRouter.post('/', (req: Request, res: Response) => {
 
     res.status(201).json({ success: true, data, error: null });
   } catch (err) {
-    res.status(500).json({ success: false, data: null, error: String(err) });
+    next(err);
   }
 });

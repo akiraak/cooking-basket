@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import {
   getAllSavedRecipes,
   getSavedRecipe,
@@ -7,21 +7,22 @@ import {
   deleteSavedRecipe,
   SavedRecipeInput,
 } from '../services/saved-recipe-service';
+import { ERR } from '../lib/errors';
 
 export const savedRecipesRouter = Router();
 
 // GET /api/saved-recipes — 全料理レシピ取得
-savedRecipesRouter.get('/', (req: Request, res: Response) => {
+savedRecipesRouter.get('/', (req: Request, res: Response, next: NextFunction) => {
   try {
     const recipes = getAllSavedRecipes(req.userId!);
     res.json({ success: true, data: recipes, error: null });
   } catch (err) {
-    res.status(500).json({ success: false, data: null, error: String(err) });
+    next(err);
   }
 });
 
 // POST /api/saved-recipes/bulk — 一括保存（AI 結果の自動保存用）
-savedRecipesRouter.post('/bulk', (req: Request, res: Response) => {
+savedRecipesRouter.post('/bulk', (req: Request, res: Response, next: NextFunction) => {
   try {
     const { recipes } = req.body;
     if (!Array.isArray(recipes)) {
@@ -52,27 +53,27 @@ savedRecipesRouter.post('/bulk', (req: Request, res: Response) => {
     const created = createSavedRecipesBulk(req.userId!, inputs);
     res.status(201).json({ success: true, data: created, error: null });
   } catch (err) {
-    res.status(500).json({ success: false, data: null, error: String(err) });
+    next(err);
   }
 });
 
 // GET /api/saved-recipes/:id — 料理レシピ個別取得
-savedRecipesRouter.get('/:id', (req: Request, res: Response) => {
+savedRecipesRouter.get('/:id', (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
     const recipe = getSavedRecipe(req.userId!, id);
     if (!recipe) {
-      res.status(404).json({ success: false, data: null, error: 'レシピが見つかりません' });
+      res.status(404).json({ success: false, data: null, error: ERR.SAVED_RECIPE_NOT_FOUND });
       return;
     }
     res.json({ success: true, data: recipe, error: null });
   } catch (err) {
-    res.status(500).json({ success: false, data: null, error: String(err) });
+    next(err);
   }
 });
 
 // POST /api/saved-recipes — 料理レシピ保存
-savedRecipesRouter.post('/', (req: Request, res: Response) => {
+savedRecipesRouter.post('/', (req: Request, res: Response, next: NextFunction) => {
   try {
     const { dishName, title, summary, steps, ingredients, sourceDishId } = req.body;
     if (!title || !dishName) {
@@ -89,21 +90,21 @@ savedRecipesRouter.post('/', (req: Request, res: Response) => {
     });
     res.status(201).json({ success: true, data: recipe, error: null });
   } catch (err) {
-    res.status(500).json({ success: false, data: null, error: String(err) });
+    next(err);
   }
 });
 
 // DELETE /api/saved-recipes/:id — 料理レシピ削除
-savedRecipesRouter.delete('/:id', (req: Request, res: Response) => {
+savedRecipesRouter.delete('/:id', (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = Number(req.params.id);
     const deleted = deleteSavedRecipe(req.userId!, id);
     if (!deleted) {
-      res.status(404).json({ success: false, data: null, error: 'レシピが見つかりません' });
+      res.status(404).json({ success: false, data: null, error: ERR.SAVED_RECIPE_NOT_FOUND });
       return;
     }
     res.json({ success: true, data: null, error: null });
   } catch (err) {
-    res.status(500).json({ success: false, data: null, error: String(err) });
+    next(err);
   }
 });
