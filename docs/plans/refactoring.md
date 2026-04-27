@@ -156,7 +156,7 @@ Phase 1 と同じ。**必ず証拠を添える**。
 ## 完了条件
 
 - [x] Phase 0: 一次データ（行数 / 変更頻度 / `any` 件数 / 未使用 export / 循環依存 / ESLint 警告 / 重複リテラル）が「Phase 0 一次データ」節に追記され、`web/admin/` の扱いが確定している
-- [ ] Phase 1: サーバ側候補リスト（証拠付き）が本ファイルに追記され、必須チェックがすべて消化されている
+- [x] Phase 1: サーバ側候補リスト（証拠付き）が本ファイルに追記され、必須チェックがすべて消化されている
 - [ ] Phase 2: モバイル側候補リスト（証拠付き）が本ファイルに追記され、必須チェックがすべて消化されている
 - [ ] Phase 3: 優先度付け済み上位候補が個別プランファイルとして起こされ、`TODO.md` に追加されている
 - [ ] 本プランは `docs/plans/archive/` に移送されている（個別プランの完了は待たない）
@@ -332,7 +332,135 @@ mobile はハードコード `throw new Error('...')` が 1 件のみ（`'料理
 ## 候補リスト
 
 ### サーバ
-（Phase 1 で記入。各候補は「ファイル / 観点 / **証拠（行番号・関数名・重複箇所）** / 想定工数 / リスク」）
+
+スナップショット日: 2026-04-27。Phase 0 一次データを参照しつつ、**必須チェックの結果**と**コード読解で得た証拠**を併記する。
+
+#### 必須チェックの結果
+
+| 必須チェック | 結果 |
+| --- | --- |
+| `requireAuth` と `requireCloudflareAccess` の二重掛け | **無し**。`app.ts:81–89` で disjoint にマウント。`auth.ts:82` の `requireAuth` 重ね掛けも `/api/auth` 系のみで `requireCloudflareAccess` とは別経路 |
+| `{ success, data, error }` 形式からの逸脱 | **無し**。`/api` 配下は全て準拠（`ai.ts:31`, `migrate.ts:114` の複数行も同形式）。`/docs/*` の HTML レンダラ（`docs.ts`）は `/api` 配下ではないので対象外 |
+| route 層での SQL 直叩き | **1 件ヒット**: `routes/migrate.ts:42–110`（候補 S2） |
+| 外部 API（Gemini / Resend / Google OAuth）のサービス層境界 | **境界に閉じている**。Gemini は `services/gemini-service.ts` のみ、Resend / OAuth2Client は `services/auth-service.ts` のみで使用 |
+
+#### 候補
+
+##### S1: route 層のエラーハンドリング不統一 + `String(err)` の内部メッセージ漏洩
+
+- **ファイル**: `routes/dishes.ts`, `routes/saved-recipes.ts`, `routes/migrate.ts`, `routes/shopping.ts`
+- **観点**: エラーハンドリングの一貫性 + セキュリティ（情報漏洩）
+- **証拠**:
+  - `routes/dishes.ts` 全 8 ルートが `try { ... } catch (err) { res.status(500).json({ ..., error: String(err) }) }` パターン: 行 23 / 38 / 53 / 73 / 88 / 109 / 130 / 146 / 162
+  - `routes/saved-recipes.ts` 全 5 ルート同パターン: 行 19 / 55 / 70 / 92 / 107
+  - `routes/migrate.ts:124` 同パターン
+  - `routes/shopping.ts:41` 部分的に同パターン（他のルートは try/catch 無し）
+  - 一方、`routes/auth.ts:31`, `routes/ai.ts:39/65` は `next(err)` を呼び `middleware/error-handler.ts:11` に集約 → ロガーで記録しつつ `err.message || 'Internal Server Error'` を返す（`String(err)` のような raw な内部表現を直接漏らさない）
+  - 既存 `errorHandler` ミドルウェアは `app.ts:93` で配線済み。route 側で `next(err)` を呼ぶだけで一貫した処理に寄せられる
+- **想定工数**: 1〜2 日（パターン置換 + 既存テスト整合確認）
+- **リスク**: 低（errorHandler は既存。`integration/dishes.test.ts` 等で 500 系のレスポンス body 形を検証している箇所があれば差分を吸収する必要あり）
+- **メンテ性インパクト**: 高（一貫性 + セキュリティ）
+
+##### S2: route 層からの SQL 直叩き（migrate.ts → service 抽出）
+
+- **ファイル**: `routes/migrate.ts`
+- **観点**: 必須チェック「route 層で SQL を直接叩いている箇所」のヒット
+- **証拠**:
+  - `routes/migrate.ts:2` `import { getDatabase } from '../database';`
+  - `routes/migrate.ts:42` `const db = getDatabase();`
+  - `routes/migrate.ts:47/50/53` で `db.prepare('INSERT INTO dishes ...')` / `'INSERT INTO shopping_items ...'` / `'INSERT INTO saved_recipes ...'` を route 内で構築
+  - `routes/migrate.ts:57` で `db.transaction(() => {...})` を route 内で組み立てる
+- **想定工数**: 半日（`services/migrate-service.ts` への抽出 + `routes/migrate.ts` を 30 行程度の薄いルートに）
+- **リスク**: 低（ロジックそのままを service に移すだけ。既存 `tests/integration/migrate.test.ts` で挙動が固定されている前提で確認）
+- **メンテ性インパクト**: 中（必須チェックを「全 routes が service 経由」に整える意義）
+
+##### S3: `services/admin-service.ts` の責務肥大 + `any` 集中 + JST ヘルパ重複
+
+- **ファイル**: `services/admin-service.ts`（295 LoC、Phase 0 で `any` 10 件すべてここに集中）
+- **観点**: service 層の責務分離、型の弱さ、重複コード（心得 4）
+- **証拠**:
+  - 8 つの責務を `// ---` コメントで仕切って 1 ファイル化: Dashboard（行 6–33）/ Users（35–55）/ Shopping（57–94）/ Dishes（96–116）/ Purchase（118–129）/ SavedRecipes（131–147）/ AiQuota（149–255）/ SystemInfo（257–295）
+  - `as any` キャストはすべて better-sqlite3 の `get()` 結果に対するもの: 行 10–22 の COUNT 集計 7 箇所、行 73 の `db.prepare('SELECT * FROM shopping_items WHERE id = ?').get(id)`、行 77 の `values: any[]` 動的バインド、行 213 の `todaySummary`、行 279 の `tableCounts` ループ
+  - `getJstDate`（行 151–154）は `services/ai-quota-service.ts:12–16` と完全同一実装の重複（`getJstResetAtIso` 経由で `rate-limit-ai.ts` / `routes/ai.ts` が同モジュールを既に再利用しているのに、admin-service だけ独自定義）
+  - `updateShoppingItem`（行 71–88）の動的 SQL 組み立て（`fields.push('updated_at = ...')` を `fields.length > 1` で分岐）は読みづらく、テスト未整備
+- **想定工数**: 1〜2 日（責務別ファイル分割 + 型付き `getCount(sql)` ヘルパ抽出 + `getJstDate` を `ai-quota-service` から import に統一 + `updateShoppingItem` の特性化テスト先行）
+- **リスク**: 中（`integration/admin-cloudflare-auth.test.ts` 等で間接カバーのみ。事前に特性化テスト追加が必要）
+- **メンテ性インパクト**: 高（高 LoC × 高頻度 13 × `any` 集中の三重苦）
+
+##### S4: `database.ts` のアドホック・マイグレーション群
+
+- **ファイル**: `database.ts`（254 LoC、変更頻度 20 = サーバ最高）
+- **観点**: 起動・DB 初期化の見通し、未使用コードの整理（心得 11）
+- **証拠**:
+  - 9 個の `try { database.exec(...) } catch {}` ブロック（行 134–228）— 「カラムが既に存在する場合は無視」「テーブルが既に存在する場合は無視」「既に消えている場合は無視」が並ぶ。明示的なバージョン管理から外れている
+  - `SCHEMA_VERSION = 2`（行 6）— マルチユーザー対応以降に追加された ai_quota / app_settings / saved_recipes / liked / active / dish_id 等のマイグレーションはすべてバージョン外
+  - 行 169–193 の `recipe_likes` ブロックがコメントで「いいね機能は廃止済み（app-simplification.md）。下記ブロックは履歴として残し、末尾の DROP TABLE マイグレーションで本番 DB から削除する」と明記。行 197 で DROP 済 → 心得 11 に従い CREATE / INSERT OR IGNORE 部分（行 172–193）は削除可
+  - 行 209–228 の `dish_items` 統合マイグレーションも、本番が完了していれば不要（要本番状態の確認）
+- **想定工数**: 1〜2 日（マイグレーション登録パターン化 + 完了済み移行ブロックの安全な除去）
+- **リスク**: 中〜高（本番 DB がある。既存ユーザーデータを壊さないため、削除する移行ブロックは「本番にもう必要ない」ことを確認してから）
+- **メンテ性インパクト**: 高（変更頻度トップ、起動経路）
+
+##### S5: `routes/docs.ts` の HTML テンプレ＋CSS インライン
+
+- **ファイル**: `routes/docs.ts`（418 LoC、サーバ最大）
+- **観点**: 責務集中（ファイル走査 + Markdown 変換 + HTML レンダリング + 大量の CSS）、テスト不足、文字列の取り違え
+- **証拠**:
+  - `layoutHtml` 関数内に 245 行の CSS が文字列リテラルで埋め込み（行 184–411）
+  - `layoutHtml` 行 183 のページタイトルが `<title>${escapeHtml(title)} - Life Stream</title>`。本プロジェクトは「お料理バスケット」で、`Life Stream` は他プロジェクトの名残（要修正）
+  - 専用テストなし（Phase 0 確認）
+  - `app.ts:90` で `app.use('/docs', docsRouter)` — 認証ミドルウェアが入っていない。本番でも公開状態。**スコープ外ながら**、認証要否は別タスクで検討要
+- **想定工数**: 1 日（CSS を `web/docs.css` 等に外出し / タイトル文字列修正 / `layoutHtml` の薄化）
+- **リスク**: 低（変更頻度 5 と低めだが、テストが薄いので手動確認必須）
+- **メンテ性インパクト**: 中（ファイル長は劇的に減らせるが、変更頻度自体は低い）
+
+##### S6: 未使用 export の削除（心得 11）
+
+- **ファイル**: `services/shopping-service.ts`、`services/saved-recipe-service.ts`
+- **観点**: 未使用機能の削除
+- **証拠**（参照 0 件をリポジトリ全体で確認済み）:
+  - `services/shopping-service.ts:71 deleteAllItems`
+  - `services/shopping-service.ts:77 getUncheckedItems`
+  - `services/shopping-service.ts:82 getStats`
+  - `services/saved-recipe-service.ts:94 getSavedRecipeStates`
+  - `services/saved-recipe-service.ts:105 autoSaveRecipes`
+- **想定工数**: 半日（削除 + 既存テスト確認）
+- **リスク**: 低（呼び出しなしを確認済み。Git 履歴に残るので必要なら復元可）
+- **メンテ性インパクト**: 中（心得 11 を一度きちんと適用する）
+
+##### S7: エラーメッセージリテラルの重複整理
+
+- **ファイル**: `routes/admin.ts`, `routes/dishes.ts`, `routes/shopping.ts`, `routes/saved-recipes.ts`
+- **観点**: 重複リテラル（心得 4: 3 箇所以上で共通化）
+- **証拠**（Phase 0 集計の証拠付き再掲）:
+  - `'食材が見つかりません'` × 4: `routes/admin.ts:77,88` / `routes/shopping.ts:56,67`
+  - `'料理が見つかりません'` × 4: `routes/admin.ts:105` / `routes/dishes.ts:68,83,98`
+  - `'invalid_ai_limit'` × 4: `routes/admin.ts:147,154,161,172`
+  - `'レシピが見つかりません'` × 3: `routes/admin.ts:129` / `routes/saved-recipes.ts:65,102`
+  - `'name は必須です'` × 3: `routes/shopping.ts:23` / `routes/dishes.ts:47,63`
+  - `'invalid_scope'` × 3: `routes/admin.ts:188,194,216`
+- **想定工数**: 半日（`server/src/lib/errors.ts` 等にメッセージ定数集約。S1 とまとめてやる方が効率的）
+- **リスク**: 低
+- **メンテ性インパクト**: 低〜中（単独より S1 と束ねる候補）
+
+##### S8（任意・小粒）: `index.ts` cleanup interval のサイレント握り潰し
+
+- **ファイル**: `server/src/index.ts`
+- **観点**: エラーハンドリングの一貫性 / 運用可観測性
+- **証拠**: `index.ts:13` `setInterval(() => { try { cleanupExpiredTokens(); } catch {} }, ...)` — 例外を完全に握り潰しており、本番で token クリーンアップが失敗していても気付けない
+- **想定工数**: 30 分（catch ブロック内で `logger.error({ err }, 'cleanup_failed')` を入れるだけ）
+- **リスク**: 低
+- **メンテ性インパクト**: 低（運用品質の小改善）
+
+#### 観点チェックの総括
+
+| 観点 | 状況 |
+| --- | --- |
+| ルートとサービスの責務分離 | `routes/migrate.ts` で破綻（S2）。他は概ね分離済み |
+| service 層の関数粒度 | `admin-service.ts` の `getAiQuotaStats`（行 199–255、サブクエリ 3 連発で 56 行）と `getSystemInfo`（行 266–295）は粒度が大きい。S3 の分割で改善 |
+| 型定義の重複・`any` | `any` 10 件すべて `admin-service.ts`（S3）。型定義の重複は無し（Phase 0 確認） |
+| 認証ミドルウェアの使い分け | OK（必須チェック合格） |
+| エラーハンドリングの一貫性 | **不一致あり**（S1）。`String(err)` 漏洩と `next(err)` 経由が混在 |
+| 起動・DB 初期化の見通し | `database.ts` のアドホック・マイグレーション（S4） |
 
 ### モバイル
 （Phase 2 で記入。各候補は「ファイル / 観点 / **証拠（行番号・関数名・重複箇所）** / 想定工数 / リスク」）
