@@ -56,6 +56,9 @@ interface ShoppingState {
   // 料理⇔食材
   linkItemToDish: (dishId: number, itemId: number) => Promise<void>;
   unlinkItemFromDish: (dishId: number, itemId: number) => Promise<void>;
+  // 食材を別の料理（または「その他」= null）に移動する合成アクション。
+  // 失敗時は操作前のスナップショットへ復元してから throw を再送出する。
+  moveItemToDish: (itemId: number, toDishId: number | null) => Promise<void>;
 }
 
 function nowIso(): string {
@@ -194,21 +197,40 @@ export const useShoppingStore = create<ShoppingState>()(
           return count;
         },
 
-        // reorder 系は本タスク (refactor-08) のスコープ外として現状の非対称を保つ。
-        // server モードでは store は state を触らず、呼び出し側 (`index.tsx` の
-        // handleReorder*) が先に setState してから呼ぶ前提。local モードのみ position を
-        // 更新し、その後 backend を叩く（local backend は no-op）。
+        // reorder 系は両モードで楽観更新する（refactor-09 で対称化）。
+        // 失敗時は操作前のスナップショットへ復元してから throw を再送出する
+        // （moveItemToDish と同じく、refactor-08 の「ロールバックなし」方針からの
+        // 限定的方針転換）。
+        // orderedIds は ungrouped 部分の subset を想定し、items 配列内では
+        // 「subset が現在占めているスロット」を新しい順で埋め直すことで、
+        // 非 subset 要素のスロット位置を保つ。position フィールドは subset 内の
+        // 0..N-1 に揃える（サーバ側の position と一致）。
         reorderItems: async (orderedIds) => {
-          if (get().mode === 'local') {
-            const order = new Map(orderedIds.map((id, idx) => [id, idx]));
-            set((s) => ({
-              items: s.items.map((i) => ({
-                ...i,
-                position: order.has(i.id) ? (order.get(i.id) as number) : i.position,
-              })),
-            }));
+          const snapshotItems = get().items;
+
+          set((s) => {
+            const subsetSet = new Set(orderedIds);
+            const subsetById = new Map(
+              s.items.filter((i) => subsetSet.has(i.id)).map((i) => [i.id, i]),
+            );
+            const positionMap = new Map(orderedIds.map((id, idx) => [id, idx]));
+            let cursor = 0;
+            const items = s.items.map((i) => {
+              if (!subsetSet.has(i.id)) return i;
+              const nextId = orderedIds[cursor++];
+              const next = subsetById.get(nextId);
+              if (!next) return i;
+              return { ...next, position: positionMap.get(next.id) as number };
+            });
+            return { items };
+          });
+
+          try {
+            await backendFor().reorderItems(orderedIds);
+          } catch (e) {
+            set({ items: snapshotItems });
+            throw e;
           }
-          await backendFor().reorderItems(orderedIds);
         },
 
         addDish: async (name) => {
@@ -239,39 +261,55 @@ export const useShoppingStore = create<ShoppingState>()(
         },
 
         reorderDishes: async (orderedIds) => {
-          if (get().mode === 'local') {
+          const snapshotDishes = get().dishes;
+
+          set((s) => {
             const order = new Map(orderedIds.map((id, idx) => [id, idx]));
-            set((s) => ({
+            return {
               dishes: [...s.dishes].sort(
                 (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0),
               ),
-            }));
+            };
+          });
+
+          try {
+            await backendFor().reorderDishes(orderedIds);
+          } catch (e) {
+            set({ dishes: snapshotDishes });
+            throw e;
           }
-          await backendFor().reorderDishes(orderedIds);
         },
 
         reorderDishItems: async (dishId, orderedItemIds) => {
-          if (get().mode === 'local') {
+          const snapshotItems = get().items;
+          const snapshotDishes = get().dishes;
+
+          set((s) => {
             const order = new Map(orderedItemIds.map((id, idx) => [id, idx]));
-            set((s) => ({
-              items: s.items.map((i) =>
-                i.dish_id === dishId && order.has(i.id)
-                  ? { ...i, position: order.get(i.id) as number }
-                  : i,
-              ),
-              dishes: s.dishes.map((d) =>
-                d.id === dishId
-                  ? {
-                      ...d,
-                      items: [...d.items].sort(
-                        (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0),
-                      ),
-                    }
-                  : d,
-              ),
-            }));
+            const items = s.items.map((i) =>
+              i.dish_id === dishId && order.has(i.id)
+                ? { ...i, position: order.get(i.id) as number }
+                : i,
+            );
+            const dishes = s.dishes.map((d) =>
+              d.id === dishId
+                ? {
+                    ...d,
+                    items: [...d.items].sort(
+                      (a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0),
+                    ),
+                  }
+                : d,
+            );
+            return { items, dishes };
+          });
+
+          try {
+            await backendFor().reorderDishItems(dishId, orderedItemIds);
+          } catch (e) {
+            set({ items: snapshotItems, dishes: snapshotDishes });
+            throw e;
           }
-          await backendFor().reorderDishItems(dishId, orderedItemIds);
         },
 
         suggestIngredients: async (dishId, extraIngredients) => {
@@ -342,6 +380,40 @@ export const useShoppingStore = create<ShoppingState>()(
             );
             return { items, dishes: rebuildDishItems(s.dishes, items) };
           });
+        },
+
+        // 移動元 dish_id は store の現在 state から推定し、unlink → link を順に呼ぶ。
+        // 失敗時のロールバックは loadAll() ではなく snapshot 復元で行う
+        // （refactor-08 の「ロールバックなし」方針からの限定的方針転換、refactor-09 で
+        // moveItemToDish と reorder 系に限り適用）。中間失敗（unlink 成功 / link 失敗）は
+        // 復元するがサーバ側の整合性はサーバが担保する前提。
+        moveItemToDish: async (itemId, toDishId) => {
+          const state = get();
+          const item = state.items.find((i) => i.id === itemId);
+          if (!item) return;
+          const fromDishId = item.dish_id;
+          if (fromDishId === toDishId) return;
+
+          const snapshot = { items: state.items, dishes: state.dishes };
+
+          set((s) => {
+            const items = s.items.map((i) =>
+              i.id === itemId ? { ...i, dish_id: toDishId, updated_at: nowIso() } : i,
+            );
+            return { items, dishes: rebuildDishItems(s.dishes, items) };
+          });
+
+          try {
+            if (fromDishId !== null) {
+              await backendFor().unlinkItemFromDish(fromDishId, itemId);
+            }
+            if (toDishId !== null) {
+              await backendFor().linkItemToDish(toDishId, itemId);
+            }
+          } catch (e) {
+            set({ items: snapshot.items, dishes: snapshot.dishes });
+            throw e;
+          }
         },
       };
     },

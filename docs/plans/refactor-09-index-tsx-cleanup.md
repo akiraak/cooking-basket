@@ -125,57 +125,61 @@
 
 ### Phase 1: 監査と漏出インベントリ作成（実装なし）
 
-- [ ] `app/(tabs)/index.tsx` の各責務を「描画 / 画面状態 / store 配線 / API 直叩き /
+- [x] `app/(tabs)/index.tsx` の各責務を「描画 / 画面状態 / store 配線 / API 直叩き /
   drag 協調 / モーダル workflow / セクション固有 state」に分類し、本ファイル末尾の
   「Phase 1 監査結果」に表で集約
-- [ ] 影響を受ける呼び出し側（DishGroup / DraggableList / IngredientsScreen /
+- [x] 影響を受ける呼び出し側（DishGroup / DraggableList / IngredientsScreen /
   recipes.tsx）が、画面側のどの props に依存しているか確認
-- [ ] テスト不在領域の洗い出し: 現状 `index.tsx` のロジックを直接アサートする
+- [x] テスト不在領域の洗い出し: 現状 `index.tsx` のロジックを直接アサートする
   テストはゼロ（store 単体 / api 単体しかない）。Phase 4 / Phase 5 で何をユニット化
   できるか棚卸し
 
 ### Phase 2: 合成アクション `moveItemToDish` の導入と直叩き解消
 
-- [ ] `shopping-store.ts` に `moveItemToDish(itemId, toDishId | null)` を追加
+- [x] `shopping-store.ts` に `moveItemToDish(itemId, toDishId | null)` を追加
   - 内部で現在 state から `fromDishId` を推定
   - **state スナップショット**を取って楽観更新 → backend 呼び出し →
     失敗時に `set(snapshot)` で復元 → throw を再送出
   - 移動元・移動先がどちらか null なら片方だけ呼ぶ
   - 同一料理（`from === to`）は no-op
-- [ ] backend interface の変更は不要（既存の `linkItemToDish` /
+- [x] backend interface の変更は不要（既存の `linkItemToDish` /
   `unlinkItemFromDish` を内部で順番に呼ぶ）
-- [ ] `index.tsx` `handleUpdateItem` (L131-135) と `handleItemDrop` (L240-246) を
-  `moveItemToDish` 呼び出しに置換し、`dishesApi` import を削除。`loadAll()` も削除
-- [ ] テスト追加: server モードで
+- [x] `index.tsx` `handleUpdateItem` (L131-135) と `handleItemDrop` (L240-246) を
+  `moveItemToDish` 呼び出しに置換し、`dishesApi` import を削除。これら 2 経路の
+  `loadAll()` も削除（store 側の snapshot 復元でロールバック）。useEffect 初期ロード /
+  RefreshControl / Phase 3 で触る reorder 経路の `loadAll` は温存
+- [x] テスト追加: server モードで
   (a) null→dishId (b) dishId→null (c) dishId→otherDishId (d) 失敗時の state 復元
   と throw を assert
-- [ ] (b)(c) の中間失敗（unlink 成功 / link 失敗）はテストで「state は復元される」ことを
+- [x] (b)(c) の中間失敗（unlink 成功 / link 失敗）はテストで「state は復元される」ことを
   保証するが、サーバ側の整合性はサーバが担保する前提（プランに明記）
 
 ### Phase 3: reorder 系の対称化
 
-- [ ] `shopping-store.ts` の `reorderItems` / `reorderDishes` / `reorderDishItems` を
+- [x] `shopping-store.ts` の `reorderItems` / `reorderDishes` / `reorderDishItems` を
   **両モードで state を触る** ように変更
   - 楽観更新で並び替えた後 backend を呼ぶ
   - 失敗時はスナップショット復元 → throw 再送出
   - local backend は no-op のままで挙動不変
-- [ ] `index.tsx` の `handleReorderDishes` / `handleReorderDishItems` /
+  - `reorderItems` は subset 部分だけを items 配列内で並び替え、非 subset 要素の
+    スロット位置を保つ実装にした
+- [x] `index.tsx` の `handleReorderDishes` / `handleReorderDishItems` /
   `handleReorderUngroupedItems` から `useShoppingStore.setState(...)` 直書きと
   失敗時の `loadAll()` ロールバックを撤去（store の throw を Alert で受けるだけに）
-- [ ] テスト書き換え: shopping-store.test.ts の「reorder asymmetry」セクションを
-  **対称な前提に再構成**。server モードでも store が並びを反映することを assert。
-  `loadAll` を呼んでロールバックする経路は消える
-- [ ] `useShoppingStore.setState({ mode: 'local' })` の意図的迂回ガード（auth-store
+- [x] テスト書き換え: shopping-store.test.ts の「reorder asymmetry」セクションを
+  「reorder symmetry」に再構成。server モードで state 反映 + 失敗時 snapshot 復元を
+  assert。local モード側は backend selection 節に「state 反映 + api 未呼出」だけ残す
+- [x] `useShoppingStore.setState({ mode: 'local' })` の意図的迂回ガード（auth-store
   logout 経路）はそのまま温存。reorder 用の setState 直書きとは別物
 
 ### Phase 4: ドラッグ協調を純関数 + 薄 hook に分離
 
-- [ ] 新規 `mobile/src/hooks/dish-drag-helpers.ts` (or `.../use-dish-drag-coordinator.ts`
+- [x] 新規 `mobile/src/hooks/dish-drag-helpers.ts` (or `.../use-dish-drag-coordinator.ts`
   と同居) に **純関数** を切り出す:
   - `pickTargetDishId(layouts: Map<number, { pageY: number; height: number }>,
     pageY: number): number | null` — pageY を含む layout の dishId を返す（0 = ungrouped）
   - 必要に応じて helper を追加（layouts の clear / set などはコンポーネント側でいい）
-- [ ] 新規 `mobile/src/hooks/use-dish-drag-coordinator.ts` を作成（純関数を呼ぶ薄 hook）
+- [x] 新規 `mobile/src/hooks/use-dish-drag-coordinator.ts` を作成（純関数を呼ぶ薄 hook）
   - 内部 state: `dropTargetDishId` / `draggingFromDishId` / `scrollEnabled`
   - 内部 ref: `dishGroupRefs` / `dishGroupLayouts`
   - `measureDishGroups` を内部関数化（`measureInWindow` 呼び出し）
@@ -183,17 +187,19 @@
     - `scrollEnabled` (boolean)
     - `dropTargetDishId` / `draggingFromDishId` (state)
     - `registerDishGroup(id): (ref) => void` — refs Map に登録するコールバック
-    - `dishGroupHandlers`: { onDragStart, onDragEnd, onItemDragStart,
-      onItemDragMove, onItemDrop } — DishGroup に渡す束
+    - `dishGroupHandlers`: { onDragStart, onDragEnd, onItemDragMove, onItemDrop } —
+      DishGroup に渡す束（DishGroup の prop 名と一対一対応）
     - `ungroupedHandlers`: { onDragStart, onDragEnd, onDragMoveY, onDragDrop } —
       ungrouped DraggableList に渡す束
     - `outerDragHandlers`: { onDragStart, onDragEnd } — 料理リスト並び替え用
   - drop 時は内部で `useShoppingStore.getState().moveItemToDish(...)` を呼ぶ
     （Phase 2 で導入済み）。Alert / Toast は呼び出し側に渡す callback で受ける
-- [ ] `index.tsx` を hook 利用に書き換え。drag 系の useCallback / useState / ref を
-  すべて hook へ移譲し、画面側の見通しを大幅に縮める（推定 -120 行）
-- [ ] テスト: `__tests__/hooks/dish-drag-helpers.test.ts` で `pickTargetDishId` を
-  境界条件（layout 完全外 / 上端 / 下端 / 重なり）で確認。**hook 自体のテストは
+    （`onMoveSuccess(targetDishId)` / `onMoveError()`）
+- [x] `index.tsx` を hook 利用に書き換え。drag 系の useCallback / useState / ref を
+  すべて hook へ移譲し、画面側の見通しを大幅に縮める（実測 487 → 407 行 = -80 行。
+  reorder 3 ハンドラと renderDishGroup の配線は残したため推定 -120 行よりやや小さい）
+- [x] テスト: `__tests__/hooks/dish-drag-helpers.test.ts` で `pickTargetDishId` を
+  境界条件（layout 完全外 / 上端 / 下端 / 重なり / dishId=0）で確認。**hook 自体のテストは
   本 Phase では書かない**（純関数で機能カバレッジを確保し、配線部分は手動 Expo Go で確認）
 
 ### Phase 5: `CheckedItemsSection` の component 化（小さめ）
@@ -270,5 +276,72 @@
 
 ## Phase 1 監査結果
 
-> 着手時に埋める。
+> 2026-04-27 に実施。Phase 2 以降の置換作業はこの表をチェックリストとして参照する。
+
+### 1. `app/(tabs)/index.tsx` 責務インベントリ
+
+`index.tsx` は 505 行（うち styles 約 70 行）。残り約 435 行を以下 7 区分で分類する。
+区分名は本プラン冒頭の「目的・背景」と揃えた。**移譲先**列が Phase 2 / 3 / 4 / 5 で
+触る対象になる。
+
+| # | 区分 | 行範囲 | 中身 | 移譲先 / Phase |
+|---|------|--------|------|----------------|
+| A | store 配線 | L29 | `useShoppingStore()` から 11 アクション + 3 state を destructure | 維持。Phase 2/3 後に `reorderItems` / `reorderDishes` / `reorderDishItems` のセマンティクスは変わるが import の形は同じ |
+| A' | store 直 setState | L156, L165-167, L176-179 | reorder 3 ハンドラ内で `useShoppingStore.setState({...})` を直書き | **撤去** (Phase 3) — store 側で対称化したらコメントごと消す |
+| B | API 直叩き | L15, L132-134, L240-244 | `import * as dishesApi`、`unlinkItemFromDish`/`linkItemToDish` を直接呼ぶ 2 か所 + `loadAll()` ロールバック | **撤去** (Phase 2) — `moveItemToDish` 経由に置換、`dishesApi` import 自体を消す |
+| C | 画面ローカル state | L31-37 | `modalVisible` / `modalMode` / `presetDishId` / `confirmDish` / `toast` / `activeDish` / `editItem` | 維持 (本タスク非スコープ。AddModal workflow 整理で別途) |
+| C-1 | セクション固有 state | L38-39, L45 | `checkedExpanded` / `checkedLimit` / `CHECKED_PAGE_SIZE` | **`CheckedItemsSection` に引き上げ** (Phase 5) |
+| C-2 | drag 協調 state | L40-44 | `scrollEnabled` / `dropTargetDishId` / `draggingFromDishId` / `dishGroupRefs` / `dishGroupLayouts` | **`useDishDragCoordinator` に移譲** (Phase 4) |
+| D | 副作用 / 初期化 | L47-49 | `useEffect(() => loadAll(), [loadAll])` | 維持 |
+| E | derived 計算 | L51-58 | `itemDishMap` / `ungroupedItems` / `checkedItems` | 維持。`itemDishMap` は `handlePressItemName` / `handleUpdateItem` で参照 |
+| F | モーダル workflow | L91-153 | `handleSubmitItem` / `handleSubmitDish` / `handlePressItemName` / `handleUpdateItem` / `handleDeleteEditItem` | 維持（**非スコープ**）。ただし `handleUpdateItem` (L131-135) の API 直叩き部分だけは Phase 2 で `moveItemToDish` に置換 |
+| F' | 確認/トースト workflow | L60-77 | `handleToggleCheck` / `handleDeleteDish` | 維持 |
+| G | drag 協調ハンドラ | L155-272 | `handleReorder*` 3 つ + `handleDragStart` / `handleDragEnd` + `measureDishGroups` + `handleItemDragStart`/`Move`/`End`/`Drop` + `handleUngroupedDragStart`/`End`/`Drop` | **大半が Phase 4 で hook へ移譲**。`handleReorder*` 3 つは Phase 3 で setState 直書きを撤去（hook 側ではなく画面に残ったまま薄くなる） |
+| H | render helpers | L274-305 | `renderUngroupedItem` / `renderDishGroup` | 維持。ただし `renderDishGroup` は drag 系 props を 6 個 (L297-302) 渡しているので、Phase 4 で hook が返す `dishGroupHandlers` 束に差し替えると 1〜2 props に縮む |
+| I | JSX | L310-433 | `DragProvider` / `ScrollView` / `DraggableList` x2 / `CheckedSection` / FAB / `AddModal` / `ConfirmDialog` / `Toast` / `IngredientsScreen` overlay | 維持（`CheckedSection` 部分のみ Phase 5 でコンポーネントに置換） |
+| J | styles | L436-505 | `StyleSheet.create` | 維持。`checkedSection` / `checkedHeader` / `showMoreBtn` は Phase 5 で `CheckedItemsSection` に移植 |
+
+**Phase 完了後の差分見積もり**:
+- Phase 2: -10 行（API 直叩き 2 か所 + import 1 行 + loadAll 1 行）
+- Phase 3: -15 行（reorder 3 ハンドラの setState 直書き + try/catch loadAll を畳む）
+- Phase 4: -120 行（drag 系 state / refs / 9 ハンドラ + measure を hook へ）
+- Phase 5: -35 行（checked セクションの JSX + state + styles 3 件）
+- 合計: 約 -180 行 → `index.tsx` が 505 → 約 325 行。styles を除いた実質ロジックは
+  約 260 → 約 80 行に縮む見込み
+
+### 2. 影響を受ける呼び出し側の依存
+
+| 呼び出し側 | `index.tsx` への依存 | Phase 4 / 5 で気にする点 |
+|------------|----------------------|--------------------------|
+| `DishGroup` (`src/components/shopping/DishGroup.tsx`) | props 12 個。drag 系 6 個 (`onDragStart` / `onDragEnd` / `onItemDragMove` / `onItemDrop` / `dropTarget` / `itemDragging`) はすべて `index.tsx` の協調 state から供給 | Phase 4 で hook が返す `dishGroupHandlers` を spread で渡せる形に揃える。挙動は不変 |
+| `DraggableList` (`src/components/ui/DraggableList.tsx`) | `onReorder` / `onDragStart` / `onDragEnd` / `onDragMoveY` / `onDragDrop` / `elevatedKey`。`elevatedKey` は `draggingFromDishId` から計算（L333） | Phase 4 で hook 内に `elevatedKey` 用 selector も引き渡せるようにする |
+| `IngredientsScreen` (`src/components/dishes/IngredientsScreen.tsx`) | `dish` / `onClose` のみ。store を直接購読 (`useShoppingStore((s) => s.dishes.find(...))`) しているので `index.tsx` のリファクタとは独立 | 影響なし |
+| `recipes.tsx` (`app/(tabs)/recipes.tsx`) | `index.tsx` には依存しない（store 経由） | 影響なし。Phase 2 で `linkItemToDish` のシグネチャは変わらないので壊れない |
+| `_layout.tsx` (`app/_layout.tsx`) | `index.tsx` には依存しない（`useShoppingStore.getState().setMode` / `loadAll` を直接呼ぶ） | 影響なし |
+| `auth-store.ts` (`src/stores/auth-store.ts`) | `useShoppingStore.setState({ mode: 'local' })` で意図的迂回 (L45) | Phase 3 の reorder 対称化と無関係。プラン明記済みのとおり温存 |
+
+### 3. テスト不在領域の棚卸し
+
+現状のテスト配置:
+- `__tests__/stores/shopping-store.test.ts` — `loadAll` / `addItem` / reorder asymmetry など。
+  L383-468 に `reorder asymmetry` セクションがあり、コメント (L389) で
+  「refactor-09 で `index.tsx` の setState 直書きと一緒に整理する想定」と明記
+- `__tests__/stores/backends/` — backend 単体（local / server）
+- `__tests__/api/` — `dishes.ts` / `shopping.ts` 等の HTTP クライアント層
+- `__tests__/utils/migration.test.ts` — local→server 移行
+- `__tests__/components/auth-modal-flow.test.ts` — 認証モーダルのフロー（唯一のコンポーネントテスト）
+
+**ロジックを直接 assert できていない領域**:
+| 領域 | 現状 | Phase で何をするか |
+|------|------|--------------------|
+| `index.tsx` 本体のハンドラ | テスト 0。`handleUpdateItem` の dish 切替分岐や `handleItemDrop` の sourceDishId / targetDishId の null 分岐は **どこにも assert がない** | Phase 2 で `moveItemToDish` 単体テストを書くと、これらの分岐ロジックを store 単体テストに引き上げできる |
+| reorder の server モード | L391-408 で「state を触らない」を assert しているのみ | Phase 3 で「server モードでも反映 + 失敗時 restore」に書き換え（プラン記載のとおり） |
+| drag 協調ヒット判定 | テスト 0。`handleItemDragMove` (L214-222) のヒット判定ロジックはどこにも assert がない | Phase 4 で純関数 `pickTargetDishId(layouts, pageY)` を切り出して境界条件 4 件（layout 完全外 / 上端 / 下端 / 重なり）を追加 |
+| `useDishDragCoordinator` 自体 | 該当 hook なし | 確定方針 3 のとおり Phase 4 でテスト未書き。純関数で機能カバレッジ確保 |
+| `CheckedItemsSection` | コンポーネントなし。L362-391 の expand / 「さらに N 件」挙動はテスト 0 | Phase 5 でロジックテスト 3 件追加（プラン記載のとおり） |
+| AddModal workflow (`handleSubmit*` / `handleUpdate*` / `handleDelete*`) | テスト 0 | **本タスク非スコープ**。後続で別タスク化する想定 |
+
+**Phase 6 でやらないことの明示**:
+- RN コンポーネント描画テスト（render + fireEvent）は引き続き未導入
+- `useDishDragCoordinator` 自体の hook テストは導入しない（確定方針 3）
 

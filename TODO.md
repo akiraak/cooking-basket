@@ -4,10 +4,10 @@
 
 ## 機能開発
 - [ ] リファクタリング 9（TODO ストック）: `app/(tabs)/index.tsx` の責務漏出整理（数日規模・M1 の上で M2 として進める） [plan](docs/plans/refactor-09-index-tsx-cleanup.md)
-  - [ ] Phase 1: 監査と漏出インベントリ作成
-  - [ ] Phase 2: 合成アクション `moveItemToDish` の導入と直叩き解消
-  - [ ] Phase 3: reorder 系の対称化（state スナップショット → 失敗時復元）
-  - [ ] Phase 4: `useDishDragCoordinator` hook の抽出
+  - [x] Phase 1: 監査と漏出インベントリ作成
+  - [x] Phase 2: 合成アクション `moveItemToDish` の導入と直叩き解消
+  - [x] Phase 3: reorder 系の対称化（state スナップショット → 失敗時復元）
+  - [x] Phase 4: `useDishDragCoordinator` hook の抽出
   - [ ] Phase 5: `CheckedItemsSection` の component 化
   - [ ] Phase 6: テスト整理 & Expo Go 動作確認
 - [ ] passkeys認証対応

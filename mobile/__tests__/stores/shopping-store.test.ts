@@ -365,6 +365,33 @@ describe('shopping-store / backend selection', () => {
     expect(useShoppingStore.getState().items).toHaveLength(0);
   });
 
+  it('local mode: reorderItems mutates state but does not call the api', async () => {
+    resetStore('local');
+    useShoppingStore.setState({
+      items: [
+        makeItem({ id: 1, name: 'A', position: 0 }),
+        makeItem({ id: 2, name: 'B', position: 1 }),
+      ],
+    });
+
+    await useShoppingStore.getState().reorderItems([2, 1]);
+
+    expect(shopping.reorderItems).not.toHaveBeenCalled();
+    expect(useShoppingStore.getState().items.map((i) => i.id)).toEqual([2, 1]);
+  });
+
+  it('local mode: reorderDishes mutates state but does not call the api', async () => {
+    resetStore('local');
+    useShoppingStore.setState({
+      dishes: [makeDish({ id: 10, name: 'A' }), makeDish({ id: 20, name: 'B' })],
+    });
+
+    await useShoppingStore.getState().reorderDishes([20, 10]);
+
+    expect(dishes.reorderDishes).not.toHaveBeenCalled();
+    expect(useShoppingStore.getState().dishes.map((d) => d.id)).toEqual([20, 10]);
+  });
+
   it('local mode: addDish + linkItemToDish wires the item via negative ids end-to-end', async () => {
     resetStore('local');
     const dish = await useShoppingStore.getState().addDish('豚汁');
@@ -381,34 +408,19 @@ describe('shopping-store / backend selection', () => {
 });
 
 // ---------------------------------------------------------------------------
-// reorder asymmetry
+// reorder symmetry
 //
-// reorder 系は本タスク (refactor-08) のスコープ外として現状の非対称を保つ:
-// - server モードでは store は state を触らない（呼び出し側 setState 前提）
-// - local モードでは store が position / 並び順を更新する
-// refactor-09 で index.tsx の setState 直書きと一緒に整理する想定。
+// reorder 系は refactor-09 Phase 3 で両モード対称化された:
+// - 楽観更新で state を反映 → backend を呼ぶ → 失敗時はスナップショット復元 → 再 throw
+// 状態遷移は他のアクションと同じく mode に依存しないので、state 検証は
+// server モード一択で書く（backend 自体の挙動は backends/ 側のテストで担保）。
+// 「mode に応じて backend が呼ばれる / 呼ばれない」だけは backend selection 節で確認。
 // ---------------------------------------------------------------------------
-describe('shopping-store / reorder asymmetry', () => {
-  it('server mode: reorderItems forwards ids to the api without touching state', async () => {
-    resetStore('server');
+describe('shopping-store / reorder symmetry', () => {
+  beforeEach(() => resetStore('server'));
+
+  it('reorderItems: reorders the subset slots in the items array and updates positions', async () => {
     shopping.reorderItems.mockResolvedValue(null);
-    useShoppingStore.setState({
-      items: [
-        makeItem({ id: 1, name: 'A', position: 0 }),
-        makeItem({ id: 2, name: 'B', position: 1 }),
-      ],
-    });
-
-    await useShoppingStore.getState().reorderItems([2, 1]);
-
-    expect(shopping.reorderItems).toHaveBeenCalledWith([2, 1]);
-    // server モードでは store の items position は変わらない
-    const state = useShoppingStore.getState();
-    expect(state.items.map((i) => i.position)).toEqual([0, 1]);
-  });
-
-  it('local mode: reorderItems updates item positions in state', async () => {
-    resetStore('local');
     useShoppingStore.setState({
       items: [
         makeItem({ id: 1, name: 'A', position: 0 }),
@@ -419,15 +431,58 @@ describe('shopping-store / reorder asymmetry', () => {
 
     await useShoppingStore.getState().reorderItems([3, 1, 2]);
 
+    expect(shopping.reorderItems).toHaveBeenCalledWith([3, 1, 2]);
     const state = useShoppingStore.getState();
+    expect(state.items.map((i) => i.id)).toEqual([3, 1, 2]);
     const positionById = new Map(state.items.map((i) => [i.id, i.position]));
     expect(positionById.get(3)).toBe(0);
     expect(positionById.get(1)).toBe(1);
     expect(positionById.get(2)).toBe(2);
   });
 
-  it('local mode: reorderDishes sorts dishes by ordered ids', async () => {
-    resetStore('local');
+  it('reorderItems: keeps non-subset items in their original slots', async () => {
+    // 並び替え対象は ungrouped（dish_id null）で、料理に紐付く X / Y のスロット位置は
+    // 不変であることを確認する
+    shopping.reorderItems.mockResolvedValue(null);
+    useShoppingStore.setState({
+      items: [
+        makeItem({ id: 1, name: 'A', dish_id: null, position: 0 }),
+        makeItem({ id: 10, name: 'X', dish_id: 100, position: 5 }),
+        makeItem({ id: 2, name: 'B', dish_id: null, position: 1 }),
+        makeItem({ id: 20, name: 'Y', dish_id: 100, position: 6 }),
+        makeItem({ id: 3, name: 'C', dish_id: null, position: 2 }),
+      ],
+    });
+
+    await useShoppingStore.getState().reorderItems([3, 1, 2]);
+
+    const state = useShoppingStore.getState();
+    expect(state.items.map((i) => i.id)).toEqual([3, 10, 1, 20, 2]);
+    // 非 subset 要素 (X, Y) は position も不変
+    const xy = state.items.filter((i) => i.dish_id === 100);
+    expect(xy.map((i) => i.position)).toEqual([5, 6]);
+  });
+
+  it('reorderItems: restores items snapshot on failure and rethrows', async () => {
+    shopping.reorderItems.mockRejectedValue(new Error('reorder failed'));
+    useShoppingStore.setState({
+      items: [
+        makeItem({ id: 1, name: 'A', position: 0 }),
+        makeItem({ id: 2, name: 'B', position: 1 }),
+      ],
+    });
+    const before = useShoppingStore.getState();
+
+    await expect(useShoppingStore.getState().reorderItems([2, 1])).rejects.toThrow(
+      'reorder failed',
+    );
+
+    const after = useShoppingStore.getState();
+    expect(after.items).toEqual(before.items);
+  });
+
+  it('reorderDishes: sorts dishes by ordered ids', async () => {
+    dishes.reorderDishes.mockResolvedValue(null);
     useShoppingStore.setState({
       dishes: [
         makeDish({ id: 10, name: 'A' }),
@@ -438,11 +493,30 @@ describe('shopping-store / reorder asymmetry', () => {
 
     await useShoppingStore.getState().reorderDishes([30, 10, 20]);
 
+    expect(dishes.reorderDishes).toHaveBeenCalledWith([30, 10, 20]);
     expect(useShoppingStore.getState().dishes.map((d) => d.id)).toEqual([30, 10, 20]);
   });
 
-  it('local mode: reorderDishItems sorts a dish.items by ordered ids', async () => {
-    resetStore('local');
+  it('reorderDishes: restores dishes snapshot on failure and rethrows', async () => {
+    dishes.reorderDishes.mockRejectedValue(new Error('reorder dishes failed'));
+    useShoppingStore.setState({
+      dishes: [
+        makeDish({ id: 10, name: 'A' }),
+        makeDish({ id: 20, name: 'B' }),
+      ],
+    });
+    const before = useShoppingStore.getState();
+
+    await expect(useShoppingStore.getState().reorderDishes([20, 10])).rejects.toThrow(
+      'reorder dishes failed',
+    );
+
+    const after = useShoppingStore.getState();
+    expect(after.dishes).toEqual(before.dishes);
+  });
+
+  it('reorderDishItems: sorts a dish.items by ordered ids and updates positions', async () => {
+    dishes.reorderDishItems.mockResolvedValue(null);
     useShoppingStore.setState({
       items: [
         makeItem({ id: 1, name: 'A', dish_id: 10, position: 0 }),
@@ -462,8 +536,203 @@ describe('shopping-store / reorder asymmetry', () => {
 
     await useShoppingStore.getState().reorderDishItems(10, [2, 1]);
 
+    expect(dishes.reorderDishItems).toHaveBeenCalledWith(10, [2, 1]);
     const state = useShoppingStore.getState();
     expect(state.dishes[0].items.map((i) => i.id)).toEqual([2, 1]);
+    const positionById = new Map(state.items.map((i) => [i.id, i.position]));
+    expect(positionById.get(2)).toBe(0);
+    expect(positionById.get(1)).toBe(1);
+  });
+
+  it('reorderDishItems: restores items + dishes snapshot on failure and rethrows', async () => {
+    dishes.reorderDishItems.mockRejectedValue(new Error('reorder dish items failed'));
+    useShoppingStore.setState({
+      items: [
+        makeItem({ id: 1, name: 'A', dish_id: 10, position: 0 }),
+        makeItem({ id: 2, name: 'B', dish_id: 10, position: 1 }),
+      ],
+      dishes: [
+        makeDish({
+          id: 10,
+          name: 'カレー',
+          items: [
+            { id: 1, name: 'A', category: '', checked: 0 },
+            { id: 2, name: 'B', category: '', checked: 0 },
+          ],
+        }),
+      ],
+    });
+    const before = useShoppingStore.getState();
+
+    await expect(
+      useShoppingStore.getState().reorderDishItems(10, [2, 1]),
+    ).rejects.toThrow('reorder dish items failed');
+
+    const after = useShoppingStore.getState();
+    expect(after.items).toEqual(before.items);
+    expect(after.dishes).toEqual(before.dishes);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// moveItemToDish
+//
+// 料理間 / その他⇔料理 の移動を unlink → link の合成として扱うアクション。
+// 失敗時は操作前のスナップショットへ復元してから throw を再送出する
+// （refactor-08 の「ロールバックなし」方針からの限定的方針転換、refactor-09 で
+// moveItemToDish と reorder 系に限り適用）。
+// ---------------------------------------------------------------------------
+describe('shopping-store / moveItemToDish', () => {
+  beforeEach(() => resetStore('server'));
+
+  it('null -> dishId: links only (no unlink call)', async () => {
+    dishes.linkItemToDish.mockResolvedValue(makeDish({ id: 10, name: 'カレー' }));
+    useShoppingStore.setState({
+      items: [makeItem({ id: 1, name: 'にんじん', dish_id: null })],
+      dishes: [makeDish({ id: 10, name: 'カレー', items: [] })],
+    });
+
+    await useShoppingStore.getState().moveItemToDish(1, 10);
+
+    expect(dishes.unlinkItemFromDish).not.toHaveBeenCalled();
+    expect(dishes.linkItemToDish).toHaveBeenCalledWith(10, 1);
+    const state = useShoppingStore.getState();
+    expect(state.items[0].dish_id).toBe(10);
+    expect(state.dishes[0].items.map((i) => i.id)).toEqual([1]);
+  });
+
+  it('dishId -> null: unlinks only (no link call)', async () => {
+    dishes.unlinkItemFromDish.mockResolvedValue(null);
+    useShoppingStore.setState({
+      items: [makeItem({ id: 1, name: 'にんじん', dish_id: 10 })],
+      dishes: [
+        makeDish({
+          id: 10,
+          name: 'カレー',
+          items: [{ id: 1, name: 'にんじん', category: '', checked: 0 }],
+        }),
+      ],
+    });
+
+    await useShoppingStore.getState().moveItemToDish(1, null);
+
+    expect(dishes.unlinkItemFromDish).toHaveBeenCalledWith(10, 1);
+    expect(dishes.linkItemToDish).not.toHaveBeenCalled();
+    const state = useShoppingStore.getState();
+    expect(state.items[0].dish_id).toBeNull();
+    expect(state.dishes[0].items).toEqual([]);
+  });
+
+  it('dishId -> otherDishId: unlinks then links and rebuilds both dishes\' items', async () => {
+    dishes.unlinkItemFromDish.mockResolvedValue(null);
+    dishes.linkItemToDish.mockResolvedValue(makeDish({ id: 20, name: '豚汁' }));
+    useShoppingStore.setState({
+      items: [makeItem({ id: 1, name: 'にんじん', dish_id: 10 })],
+      dishes: [
+        makeDish({
+          id: 10,
+          name: 'カレー',
+          items: [{ id: 1, name: 'にんじん', category: '', checked: 0 }],
+        }),
+        makeDish({ id: 20, name: '豚汁', items: [] }),
+      ],
+    });
+
+    await useShoppingStore.getState().moveItemToDish(1, 20);
+
+    expect(dishes.unlinkItemFromDish).toHaveBeenCalledWith(10, 1);
+    expect(dishes.linkItemToDish).toHaveBeenCalledWith(20, 1);
+    const unlinkOrder = dishes.unlinkItemFromDish.mock.invocationCallOrder[0];
+    const linkOrder = dishes.linkItemToDish.mock.invocationCallOrder[0];
+    expect(unlinkOrder).toBeLessThan(linkOrder);
+    const state = useShoppingStore.getState();
+    expect(state.items[0].dish_id).toBe(20);
+    expect(state.dishes.find((d) => d.id === 10)?.items).toEqual([]);
+    expect(state.dishes.find((d) => d.id === 20)?.items.map((i) => i.id)).toEqual([1]);
+  });
+
+  it('same dish (from === to): no-op (no api call, state unchanged)', async () => {
+    useShoppingStore.setState({
+      items: [makeItem({ id: 1, name: 'にんじん', dish_id: 10 })],
+      dishes: [
+        makeDish({
+          id: 10,
+          name: 'カレー',
+          items: [{ id: 1, name: 'にんじん', category: '', checked: 0 }],
+        }),
+      ],
+    });
+    const before = useShoppingStore.getState();
+
+    await useShoppingStore.getState().moveItemToDish(1, 10);
+
+    expect(dishes.unlinkItemFromDish).not.toHaveBeenCalled();
+    expect(dishes.linkItemToDish).not.toHaveBeenCalled();
+    const after = useShoppingStore.getState();
+    expect(after.items).toBe(before.items);
+    expect(after.dishes).toBe(before.dishes);
+  });
+
+  it('null -> null: no-op (both ungrouped)', async () => {
+    useShoppingStore.setState({
+      items: [makeItem({ id: 1, name: 'にんじん', dish_id: null })],
+    });
+
+    await useShoppingStore.getState().moveItemToDish(1, null);
+
+    expect(dishes.unlinkItemFromDish).not.toHaveBeenCalled();
+    expect(dishes.linkItemToDish).not.toHaveBeenCalled();
+  });
+
+  it('unknown itemId: silently no-op (no api call, no throw)', async () => {
+    useShoppingStore.setState({
+      items: [makeItem({ id: 1, name: 'にんじん', dish_id: null })],
+    });
+
+    await useShoppingStore.getState().moveItemToDish(999, 10);
+
+    expect(dishes.unlinkItemFromDish).not.toHaveBeenCalled();
+    expect(dishes.linkItemToDish).not.toHaveBeenCalled();
+  });
+
+  it('failure on link restores state from snapshot and rethrows (null -> dishId)', async () => {
+    dishes.linkItemToDish.mockRejectedValue(new Error('network'));
+    useShoppingStore.setState({
+      items: [makeItem({ id: 1, name: 'にんじん', dish_id: null })],
+      dishes: [makeDish({ id: 10, name: 'カレー', items: [] })],
+    });
+    const before = useShoppingStore.getState();
+
+    await expect(useShoppingStore.getState().moveItemToDish(1, 10)).rejects.toThrow('network');
+
+    const after = useShoppingStore.getState();
+    expect(after.items).toEqual(before.items);
+    expect(after.dishes).toEqual(before.dishes);
+  });
+
+  it('mid-step failure (unlink ok, link fails) restores state from snapshot and rethrows', async () => {
+    dishes.unlinkItemFromDish.mockResolvedValue(null);
+    dishes.linkItemToDish.mockRejectedValue(new Error('link failed'));
+    useShoppingStore.setState({
+      items: [makeItem({ id: 1, name: 'にんじん', dish_id: 10 })],
+      dishes: [
+        makeDish({
+          id: 10,
+          name: 'カレー',
+          items: [{ id: 1, name: 'にんじん', category: '', checked: 0 }],
+        }),
+        makeDish({ id: 20, name: '豚汁', items: [] }),
+      ],
+    });
+    const before = useShoppingStore.getState();
+
+    await expect(useShoppingStore.getState().moveItemToDish(1, 20)).rejects.toThrow('link failed');
+
+    expect(dishes.unlinkItemFromDish).toHaveBeenCalledWith(10, 1);
+    expect(dishes.linkItemToDish).toHaveBeenCalledWith(20, 1);
+    const after = useShoppingStore.getState();
+    expect(after.items).toEqual(before.items);
+    expect(after.dishes).toEqual(before.dishes);
   });
 });
 
