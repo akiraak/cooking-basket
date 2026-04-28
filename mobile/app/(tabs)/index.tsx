@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useNavigation } from 'expo-router';
 import { useThemeColors } from '../../src/theme/theme-provider';
 import { useShoppingStore } from '../../src/stores/shopping-store';
 import { useDishDragCoordinator } from '../../src/hooks/use-dish-drag-coordinator';
@@ -22,11 +23,13 @@ import { DragProvider } from '../../src/components/ui/drag-context';
 import { ConfirmDialog } from '../../src/components/ui/ConfirmDialog';
 import { Toast } from '../../src/components/ui/Toast';
 import { IngredientsScreen } from '../../src/components/dishes/IngredientsScreen';
+import { DishNameHeader } from '../../src/components/dishes/DishNameHeader';
 import type { Dish, DishItem, ShoppingItem } from '../../src/types/models';
 import type { ModalMode } from '../../src/types/ui';
 
 export default function ShoppingListScreen() {
   const colors = useThemeColors();
+  const navigation = useNavigation();
   const { items, dishes, loading, loadAll, addItem, updateItemName, toggleCheck, deleteItem, addDish, deleteDish, linkItemToDish, moveItemToDish, reorderItems, reorderDishes, reorderDishItems } = useShoppingStore();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -52,6 +55,42 @@ export default function ShoppingListScreen() {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  const liveActiveDish = useMemo(
+    () => (activeDish ? dishes.find((d) => d.id === activeDish.id) ?? activeDish : null),
+    [activeDish, dishes],
+  );
+
+  const handleCloseActiveDish = useCallback(() => {
+    void loadAll();
+    setActiveDish(null);
+  }, [loadAll]);
+
+  useLayoutEffect(() => {
+    if (liveActiveDish) {
+      navigation.setOptions({
+        title: liveActiveDish.name,
+        headerTitle: () => <DishNameHeader dish={liveActiveDish} />,
+        headerLeft: () => (
+          <TouchableOpacity
+            onPress={handleCloseActiveDish}
+            style={styles.headerBackBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="戻る"
+            accessibilityRole="button"
+          >
+            <Text style={[styles.headerBackText, { color: colors.primaryLight }]}>←</Text>
+          </TouchableOpacity>
+        ),
+      });
+    } else {
+      navigation.setOptions({
+        title: '買い物リスト',
+        headerTitle: undefined,
+        headerLeft: undefined,
+      });
+    }
+  }, [liveActiveDish, navigation, colors.primaryLight, handleCloseActiveDish]);
 
   const itemDishMap = new Map<number, number>();
   for (const dish of dishes) {
@@ -299,7 +338,7 @@ export default function ShoppingListScreen() {
 
       {activeDish && (
         <View style={StyleSheet.absoluteFill}>
-          <IngredientsScreen dish={activeDish} onClose={() => setActiveDish(null)} />
+          <IngredientsScreen dish={activeDish} />
         </View>
       )}
     </View>
@@ -360,5 +399,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '300',
     marginTop: -2,
+  },
+  headerBackBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+  },
+  headerBackText: {
+    fontSize: 22,
+    fontWeight: '500',
   },
 });

@@ -62,7 +62,13 @@ export function DishNameHeader({ dish }: DishNameHeaderProps) {
   return (
     <TouchableOpacity style={styles.titleBtn} onPress={handleStartEdit}>
       <View style={[styles.titleUnderline, { borderBottomColor: 'rgba(251,146,60,0.5)' }]}>
-        <Text style={[styles.title, { color: colors.primaryLight }]}>{dish.name}</Text>
+        <Text
+          style={[styles.title, { color: colors.primaryLight }]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {dish.name}
+        </Text>
         <Text style={[styles.editIcon, { color: colors.textMuted }]}> ✎</Text>
       </View>
     </TouchableOpacity>
@@ -80,10 +86,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     paddingBottom: 2,
+    flexShrink: 1,
+    maxWidth: '100%',
   },
   title: {
     fontSize: 18,
     fontWeight: '600',
+    flexShrink: 1,
   },
   editIcon: {
     fontSize: 13,

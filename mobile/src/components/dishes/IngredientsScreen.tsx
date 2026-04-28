@@ -13,12 +13,10 @@ import { useShoppingStore } from '../../stores/shopping-store';
 import { useAiStore } from '../../stores/ai-store';
 import { useDishSuggestions } from '../../hooks/use-dish-suggestions';
 import { RecipeCard } from './RecipeCard';
-import { DishNameHeader } from './DishNameHeader';
 import type { Dish, Ingredient, Recipe } from '../../types/models';
 
 interface IngredientsScreenProps {
   dish: Dish;
-  onClose: () => void;
 }
 
 function parseJson<T>(json: string | null): T[] {
@@ -30,11 +28,10 @@ function parseJson<T>(json: string | null): T[] {
   }
 }
 
-export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
+export function IngredientsScreen({ dish }: IngredientsScreenProps) {
   const colors = useThemeColors();
   const addItem = useShoppingStore((s) => s.addItem);
   const linkItemToDish = useShoppingStore((s) => s.linkItemToDish);
-  const loadAll = useShoppingStore((s) => s.loadAll);
   // store の最新 dish を購読する。AI 提案は store の dish.ingredients_json /
   // recipes_json に書き戻すので、ここがそのまま唯一の真実になる。
   const liveDish = useShoppingStore((s) => s.dishes.find((d) => d.id === dish.id)) ?? dish;
@@ -159,26 +156,8 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
     [extraIngredients.length, withRemaining],
   );
 
-  const handleClose = useCallback(() => {
-    void loadAll();
-    onClose();
-  }, [loadAll, onClose]);
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.header,
-          { backgroundColor: colors.surface, borderBottomColor: colors.border },
-        ]}
-      >
-        <TouchableOpacity onPress={handleClose} style={styles.headerSide}>
-          <Text style={[styles.backBtn, { color: colors.primaryLight }]}>← 戻る</Text>
-        </TouchableOpacity>
-        <DishNameHeader dish={liveDish} />
-        <View style={styles.headerSide} />
-      </View>
-
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -295,20 +274,6 @@ export function IngredientsScreen({ dish, onClose }: IngredientsScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    gap: 12,
-  },
-  headerSide: {
-    width: 60,
-  },
-  backBtn: {
-    fontSize: 16,
   },
   scroll: {
     flex: 1,
