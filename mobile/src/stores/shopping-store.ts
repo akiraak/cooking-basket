@@ -120,28 +120,29 @@ export const useShoppingStore = create<ShoppingState>()(
       },
 
       addItem: async (name, category) => {
+        let item: ShoppingItem;
         if (get().mode === 'local') {
           const id = allocLocalId(get, set);
           const ts = nowIso();
-          const position = get().items.length;
-          const item: ShoppingItem = {
+          item = {
             id,
             name,
             category: category ?? '',
             checked: 0,
             dish_id: null,
-            position,
+            position: 0,
             created_at: ts,
             updated_at: ts,
           };
-          set((s) => {
-            const items = [...s.items, item];
-            return { items, dishes: rebuildDishItems(s.dishes, items) };
-          });
-          return item;
+        } else {
+          item = await shoppingApi.createItem(name, category);
         }
-        const item = await shoppingApi.createItem(name, category);
-        await get().loadAll();
+        // サーバ側 createItem は position=0 を採番し既存を +1 する。表示順を
+        // 「新しいものが先頭」に揃えるため両モードとも先頭に挿入する
+        set((s) => {
+          const items = [item, ...s.items];
+          return { items, dishes: rebuildDishItems(s.dishes, items) };
+        });
         return item;
       },
 
@@ -188,16 +189,17 @@ export const useShoppingStore = create<ShoppingState>()(
       },
 
       deleteCheckedItems: async () => {
+        const checkedIds = new Set(get().items.filter((i) => i.checked).map((i) => i.id));
+        let count: number;
         if (get().mode === 'local') {
-          const checkedIds = new Set(get().items.filter((i) => i.checked).map((i) => i.id));
-          set((s) => {
-            const items = s.items.filter((i) => !checkedIds.has(i.id));
-            return { items, dishes: rebuildDishItems(s.dishes, items) };
-          });
-          return checkedIds.size;
+          count = checkedIds.size;
+        } else {
+          count = await shoppingApi.deleteCheckedItems();
         }
-        const count = await shoppingApi.deleteCheckedItems();
-        await get().loadAll();
+        set((s) => {
+          const items = s.items.filter((i) => !checkedIds.has(i.id));
+          return { items, dishes: rebuildDishItems(s.dishes, items) };
+        });
         return count;
       },
 
@@ -216,10 +218,11 @@ export const useShoppingStore = create<ShoppingState>()(
       },
 
       addDish: async (name) => {
+        let dish: Dish;
         if (get().mode === 'local') {
           const id = allocLocalId(get, set);
           const ts = nowIso();
-          const dish: Dish = {
+          dish = {
             id,
             name,
             ingredients_json: null,
@@ -228,11 +231,11 @@ export const useShoppingStore = create<ShoppingState>()(
             created_at: ts,
             updated_at: ts,
           };
-          set((s) => ({ dishes: [...s.dishes, dish] }));
-          return dish;
+        } else {
+          dish = await dishesApi.createDish(name);
         }
-        const dish = await dishesApi.createDish(name);
-        await get().loadAll();
+        // サーバ側 createDish は position=0 を採番し既存を +1 するので先頭に挿入する
+        set((s) => ({ dishes: [dish, ...s.dishes] }));
         return dish;
       },
 
@@ -248,16 +251,14 @@ export const useShoppingStore = create<ShoppingState>()(
       },
 
       deleteDish: async (id) => {
-        if (get().mode === 'local') {
-          set((s) => {
-            const items = s.items.map((i) => (i.dish_id === id ? { ...i, dish_id: null } : i));
-            const dishes = s.dishes.filter((d) => d.id !== id);
-            return { items, dishes: rebuildDishItems(dishes, items) };
-          });
-          return;
+        if (get().mode === 'server') {
+          await dishesApi.deleteDish(id);
         }
-        await dishesApi.deleteDish(id);
-        await get().loadAll();
+        set((s) => {
+          const items = s.items.map((i) => (i.dish_id === id ? { ...i, dish_id: null } : i));
+          const dishes = s.dishes.filter((d) => d.id !== id);
+          return { items, dishes: rebuildDishItems(dishes, items) };
+        });
       },
 
       reorderDishes: async (orderedIds) => {
@@ -350,29 +351,25 @@ export const useShoppingStore = create<ShoppingState>()(
       },
 
       linkItemToDish: async (dishId, itemId) => {
-        if (get().mode === 'local') {
-          set((s) => {
-            const items = s.items.map((i) => (i.id === itemId ? { ...i, dish_id: dishId } : i));
-            return { items, dishes: rebuildDishItems(s.dishes, items) };
-          });
-          return;
+        if (get().mode === 'server') {
+          await dishesApi.linkItemToDish(dishId, itemId);
         }
-        await dishesApi.linkItemToDish(dishId, itemId);
-        await get().loadAll();
+        set((s) => {
+          const items = s.items.map((i) => (i.id === itemId ? { ...i, dish_id: dishId } : i));
+          return { items, dishes: rebuildDishItems(s.dishes, items) };
+        });
       },
 
       unlinkItemFromDish: async (dishId, itemId) => {
-        if (get().mode === 'local') {
-          set((s) => {
-            const items = s.items.map((i) =>
-              i.id === itemId && i.dish_id === dishId ? { ...i, dish_id: null } : i,
-            );
-            return { items, dishes: rebuildDishItems(s.dishes, items) };
-          });
-          return;
+        if (get().mode === 'server') {
+          await dishesApi.unlinkItemFromDish(dishId, itemId);
         }
-        await dishesApi.unlinkItemFromDish(dishId, itemId);
-        await get().loadAll();
+        set((s) => {
+          const items = s.items.map((i) =>
+            i.id === itemId && i.dish_id === dishId ? { ...i, dish_id: null } : i,
+          );
+          return { items, dishes: rebuildDishItems(s.dishes, items) };
+        });
       },
     }),
     {

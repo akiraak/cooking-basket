@@ -108,14 +108,33 @@ mode 分岐を潰す代わりに backend 抽象は作らず、各アクション
 意図: backend 抽象を入れる前に、サーバモードの「loadAll-after」と「楽観更新」の
 混在を片寄せする。原則 **全部楽観更新** とする（不要な GET を消す → 体感も改善）。
 
-- [ ] `addItem` / `addDish`: API 戻り値の正規 ID で楽観 push、`loadAll()` を削除
-- [ ] `deleteCheckedItems`: 削除対象 ID をローカルで把握 → API → 該当 ID を state から削除
-- [ ] `linkItemToDish` / `unlinkItemFromDish`: API → state の `dish_id` 更新だけで済ませる
-- [ ] `deleteDish`: 既に楽観に近い（API → loadAll）。loadAll を消して `deleteItem` と
+- [x] `addItem` / `addDish`: API 戻り値の正規 ID で楽観 push、`loadAll()` を削除
+- [x] `deleteCheckedItems`: 削除対象 ID をローカルで把握 → API → 該当 ID を state から削除
+- [x] `linkItemToDish` / `unlinkItemFromDish`: API → state の `dish_id` 更新だけで済ませる
+- [x] `deleteDish`: 既に楽観に近い（API → loadAll）。loadAll を消して `deleteItem` と
   揃える
-- [ ] テスト追加: 楽観更新後に state がどうなっているかを server モードでも assert
-- [ ] 失敗時の挙動を整理: 現状ほぼ throw → 呼び出し側 Alert。ロールバックは入れない方針
+- [x] テスト追加: 楽観更新後に state がどうなっているかを server モードでも assert
+- [x] 失敗時の挙動を整理: 現状ほぼ throw → 呼び出し側 Alert。ロールバックは入れない方針
   （UX 上の決定としてプランに明記）
+
+> 完了メモ（2026-04-27）:
+> - 6 アクション（`addItem` / `addDish` / `deleteCheckedItems` / `deleteDish` /
+>   `linkItemToDish` / `unlinkItemFromDish`）の `loadAll-after` を削除し、API → 共有
+>   `set` で state mutation する形に統一した。**local モードと server モードの本体が
+>   ほぼ揃った**ので Phase 3 で backend interface に切り出す土台が整った
+> - `addItem` / `addDish` は **両モードとも先頭挿入**（`[item, ...s.items]` /
+>   `[dish, ...s.dishes]`）に変更した。理由はサーバ側 `createItem` / `createDish` が
+>   `position=0` を採番して既存を +1 する仕様で、これまで loadAll 後に「新着が先頭」と
+>   見えていた UX を維持するため。**local モードはこれまで末尾追加だったので UX が変わる**
+>   が、（a）pre-login の一時 UI、（b）migration は array 順をそのまま `position` に
+>   写すので login 後の見え方と整合、の 2 点で許容と判断
+> - 失敗時のロールバックは入れず、API 例外をそのまま throw する方針を維持
+>   （呼び出し側で Alert する既存パターンを温存）。Phase 3 で backend 抽象を入れる際に
+>   再検討
+> - 既存の server `addItem` テスト（loadAll 呼出を assert）を「prepend されたか」を見る
+>   形に書き換え、`addDish` / `deleteCheckedItems` / `deleteDish` /
+>   `linkItemToDish` / `unlinkItemFromDish` の server モード楽観テストを追加
+>   （計 5 件）。`npm test` 全 79 件グリーン
 
 ### Phase 3: `ShoppingBackend` 抽象の導入
 

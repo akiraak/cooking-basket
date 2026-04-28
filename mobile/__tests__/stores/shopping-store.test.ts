@@ -98,19 +98,133 @@ describe('shopping-store (server mode)', () => {
   beforeEach(() => resetStore('server'));
 
   describe('addItem', () => {
-    it('calls api and reloads state', async () => {
-      const newItem = makeItem({ id: 1, name: 'にんじん' });
+    it('optimistically prepends the api result without reloading', async () => {
+      const existing = makeItem({ id: 1, name: 'たまねぎ' });
+      const newItem = makeItem({ id: 2, name: 'にんじん', position: 0 });
       shopping.createItem.mockResolvedValue(newItem);
-      shopping.getAllItems.mockResolvedValue([newItem]);
-      dishes.getAllDishes.mockResolvedValue([]);
+      useShoppingStore.setState({ items: [existing] });
 
       const result = await useShoppingStore.getState().addItem('にんじん', '野菜');
 
       expect(shopping.createItem).toHaveBeenCalledWith('にんじん', '野菜');
-      expect(shopping.getAllItems).toHaveBeenCalled();
-      expect(dishes.getAllDishes).toHaveBeenCalled();
+      expect(shopping.getAllItems).not.toHaveBeenCalled();
+      expect(dishes.getAllDishes).not.toHaveBeenCalled();
       expect(result).toEqual(newItem);
-      expect(useShoppingStore.getState().items).toEqual([newItem]);
+      expect(useShoppingStore.getState().items.map((i) => i.id)).toEqual([2, 1]);
+    });
+  });
+
+  describe('addDish', () => {
+    it('optimistically prepends the api result without reloading', async () => {
+      const existing = makeDish({ id: 10, name: 'カレー' });
+      const newDish = makeDish({ id: 20, name: '豚汁' });
+      dishes.createDish.mockResolvedValue(newDish);
+      useShoppingStore.setState({ dishes: [existing] });
+
+      const result = await useShoppingStore.getState().addDish('豚汁');
+
+      expect(dishes.createDish).toHaveBeenCalledWith('豚汁');
+      expect(dishes.getAllDishes).not.toHaveBeenCalled();
+      expect(result).toEqual(newDish);
+      expect(useShoppingStore.getState().dishes.map((d) => d.id)).toEqual([20, 10]);
+    });
+  });
+
+  describe('deleteCheckedItems', () => {
+    it('returns server count and filters checked items from state without reloading', async () => {
+      shopping.deleteCheckedItems.mockResolvedValue(2);
+      useShoppingStore.setState({
+        items: [
+          makeItem({ id: 1, name: 'A', checked: 1 }),
+          makeItem({ id: 2, name: 'B', checked: 0 }),
+          makeItem({ id: 3, name: 'C', checked: 1, dish_id: 10 }),
+        ],
+        dishes: [
+          makeDish({
+            id: 10,
+            name: 'カレー',
+            items: [{ id: 3, name: 'C', category: '', checked: 1 }],
+          }),
+        ],
+      });
+
+      const count = await useShoppingStore.getState().deleteCheckedItems();
+
+      expect(shopping.deleteCheckedItems).toHaveBeenCalled();
+      expect(shopping.getAllItems).not.toHaveBeenCalled();
+      expect(count).toBe(2);
+      const state = useShoppingStore.getState();
+      expect(state.items.map((i) => i.id)).toEqual([2]);
+      expect(state.dishes[0].items).toEqual([]);
+    });
+  });
+
+  describe('deleteDish', () => {
+    it('removes the dish and unlinks its items without reloading', async () => {
+      dishes.deleteDish.mockResolvedValue(null);
+      useShoppingStore.setState({
+        items: [
+          makeItem({ id: 1, name: 'にんじん', dish_id: 10 }),
+          makeItem({ id: 2, name: 'たまねぎ', dish_id: null }),
+        ],
+        dishes: [
+          makeDish({
+            id: 10,
+            name: 'カレー',
+            items: [{ id: 1, name: 'にんじん', category: '', checked: 0 }],
+          }),
+        ],
+      });
+
+      await useShoppingStore.getState().deleteDish(10);
+
+      expect(dishes.deleteDish).toHaveBeenCalledWith(10);
+      expect(dishes.getAllDishes).not.toHaveBeenCalled();
+      const state = useShoppingStore.getState();
+      expect(state.dishes).toEqual([]);
+      expect(state.items.find((i) => i.id === 1)?.dish_id).toBeNull();
+    });
+  });
+
+  describe('linkItemToDish', () => {
+    it('optimistically updates dish_id and rebuilds dish.items without reloading', async () => {
+      dishes.linkItemToDish.mockResolvedValue(makeDish({ id: 10, name: 'カレー' }));
+      useShoppingStore.setState({
+        items: [makeItem({ id: 1, name: 'にんじん', dish_id: null })],
+        dishes: [makeDish({ id: 10, name: 'カレー', items: [] })],
+      });
+
+      await useShoppingStore.getState().linkItemToDish(10, 1);
+
+      expect(dishes.linkItemToDish).toHaveBeenCalledWith(10, 1);
+      expect(dishes.getAllDishes).not.toHaveBeenCalled();
+      const state = useShoppingStore.getState();
+      expect(state.items[0].dish_id).toBe(10);
+      expect(state.dishes[0].items.map((i) => i.id)).toEqual([1]);
+    });
+  });
+
+  describe('unlinkItemFromDish', () => {
+    it('optimistically clears dish_id and rebuilds dish.items without reloading', async () => {
+      dishes.unlinkItemFromDish.mockResolvedValue(null);
+      useShoppingStore.setState({
+        items: [makeItem({ id: 1, name: 'にんじん', dish_id: 10 })],
+        dishes: [
+          makeDish({
+            id: 10,
+            name: 'カレー',
+            items: [{ id: 1, name: 'にんじん', category: '', checked: 0 }],
+          }),
+        ],
+      });
+
+      await useShoppingStore.getState().unlinkItemFromDish(10, 1);
+
+      expect(dishes.unlinkItemFromDish).toHaveBeenCalledWith(10, 1);
+      expect(dishes.getAllDishes).not.toHaveBeenCalled();
+      const state = useShoppingStore.getState();
+      expect(state.items[0].dish_id).toBeNull();
+      expect(state.dishes[0].items).toEqual([]);
     });
   });
 
