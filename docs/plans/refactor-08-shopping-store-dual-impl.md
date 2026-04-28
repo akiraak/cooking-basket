@@ -198,14 +198,36 @@ mode 分岐を潰す代わりに backend 抽象は作らず、各アクション
 
 ### Phase 5: テスト整理 & 動作確認
 
-- [ ] `shopping-store.test.ts` を「state mutation のテスト」「backend 呼び出しのテスト」に
+- [x] `shopping-store.test.ts` を「state mutation のテスト」「backend 呼び出しのテスト」に
   再構成（mode 別の重複を削減）
-- [ ] `migration.test.ts` が依然グリーンであることを確認（local→server の入口）
-- [ ] Expo Go で実機/シミュレータ動作確認
+- [x] `migration.test.ts` が依然グリーンであることを確認（local→server の入口）
+- [ ] Expo Go で実機/シミュレータ動作確認（**ユーザー手元で実施**）
   - 未ログイン状態の追加・編集・削除・並び替え
   - ログイン後（`/api/migrate` 経由）でデータが残っているか
   - ログアウト後にデータが画面に残るか（auth-store の意図的迂回が引き続き効くか）
   - AI 具材提案 → `dishes/<id>/ai-cache` への保存
+
+> 完了メモ（2026-04-27）:
+> - **backend 単体テストを新設**: `mobile/__tests__/stores/backends/shopping-backend.test.ts`
+>   を追加し、`createLocalShoppingBackend` の ID 採番 / no-op 性 / loadAll=null と、
+>   `createServerShoppingBackend` の API 転送をすべて直接アサート（13 件）。
+>   ID allocator は注入式なので backend 単体でテストできる
+> - **store テストを再構成**: `__tests__/stores/shopping-store.test.ts` の構成を
+>   「state mutations / backend selection / reorder asymmetry / suggestIngredients /
+>   setMode / logout pathway」の 6 ブロックに整理。state 遷移は backend 抽象化により
+>   mode 非依存になっているので、**state mutation テストは server モード一択** に揃え、
+>   local 用に重複していたアサートを削除。代わりに backend selection で「mode フラグが
+>   正しい backend を選ぶ」ことだけを検証
+> - **抜け落ちていたカバレッジを補完**: `updateItemName` / `updateDish` / `loadAll` /
+>   server モードの reorderItems（state 非触り）/ server モードの suggestIngredients
+>   ベストエフォート cache 書込・失敗 swallow を新たに追加
+> - reorder 系の意図的非対称（server は store が state を触らない、refactor-09 に持ち越し）
+>   を「reorder asymmetry」セクションに明記し、local/server 両モードで挙動を assert する形に
+>   移行。`index.tsx` 側の `setState` 直書きとの噛み合わせは refactor-09 で吸収する
+> - 結果: shopping-store 関連は 19 → 27 件（+ backend テスト 13 件新設）。`npm test` 全 105 件
+>   グリーン（既存 85 + 新規 20）。`tsc --noEmit` クリーン。`migration.test.ts` も無修正で通過
+> - **Expo Go 実機確認**は本セッションでは未実施。ユーザー側で `npx expo start` から
+>   no-login / login / logout の 3 シナリオを通したうえで、本タスクを完了扱いに移すこと
 
 ## 影響範囲
 
