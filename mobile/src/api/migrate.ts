@@ -40,4 +40,4 @@ export interface MigrateResult {
 }
 
 export const migrate = (payload: MigratePayload) =>
-  request<MigrateResult>('post', '/api/migrate', payload);
+  request<MigrateResult>('post', '/api/migrate', payload, { timeout: 120000 });

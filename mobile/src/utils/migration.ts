@@ -10,7 +10,13 @@ import {
 
 export type MigrationResult = 'migrated' | 'discarded' | 'cancelled';
 
-type PromptChoice = 'migrate' | 'discard' | 'cancel' | 'confirm-discard' | 'abort-discard';
+type PromptChoice =
+  | 'migrate'
+  | 'discard'
+  | 'cancel'
+  | 'confirm-discard'
+  | 'abort-discard'
+  | 'retry';
 
 function prompt(
   title: string,
@@ -38,6 +44,27 @@ function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+type AxiosLikeError = {
+  response?: { status?: number };
+  code?: string;
+};
+
+function isAxiosLikeError(e: unknown): e is AxiosLikeError {
+  return typeof e === 'object' && e !== null && ('response' in e || 'code' in e);
+}
+
+function describeMigrationError(e: unknown): string {
+  if (isAxiosLikeError(e)) {
+    if (e.response?.status === 413) {
+      return 'データが多すぎて移行できませんでした。一部を削除してから再度お試しください。';
+    }
+    if (e.code === 'ECONNABORTED') {
+      return 'ネットワークが不安定で移行できませんでした。電波の良い場所で再度お試しください。';
+    }
+  }
+  return e instanceof Error ? e.message : 'マイグレーションに失敗しました';
 }
 
 // ログイン直後（verify 完了後）に呼ぶ。local モードのままローカルデータを読み、
@@ -109,12 +136,20 @@ export async function runLoginMigration(): Promise<MigrationResult> {
     sourceDishLocalId: r.source_dish_id ?? null,
   }));
 
-  try {
-    await migrate({ items, dishes, savedRecipes });
-    return 'migrated';
-  } catch (e) {
-    const message = e instanceof Error ? e.message : 'マイグレーションに失敗しました';
-    Alert.alert('エラー', message);
-    return 'cancelled';
+  while (true) {
+    try {
+      await migrate({ items, dishes, savedRecipes });
+      return 'migrated';
+    } catch (e) {
+      const message = describeMigrationError(e);
+      const recovery = await prompt('移行に失敗しました', message, [
+        { text: '破棄してログイン続行', value: 'discard', style: 'destructive' },
+        { text: 'もう一度試す', value: 'retry' },
+        { text: 'キャンセル', value: 'cancel', style: 'cancel' },
+      ]);
+      if (recovery === 'discard') return 'discarded';
+      if (recovery === 'retry') continue;
+      return 'cancelled';
+    }
   }
 }

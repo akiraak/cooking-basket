@@ -212,7 +212,7 @@ describe('runLoginMigration', () => {
     expect(useShoppingStore.getState().items).toHaveLength(1);
   });
 
-  it('returns cancelled when migrate() throws', async () => {
+  it('returns cancelled when the recovery prompt is cancelled after migrate() throws', async () => {
     useShoppingStore.setState({
       items: [
         {
@@ -228,12 +228,134 @@ describe('runLoginMigration', () => {
       ],
     });
     migrate.mockRejectedValue(new Error('boom'));
-    mockAlertToPress('移す');
+
+    let call = 0;
+    jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+      const list = (buttons ?? []) as AlertButton[];
+      const label = call === 0 ? '移す' : 'キャンセル';
+      call += 1;
+      list.find((b) => b.text === label)?.onPress?.();
+    });
 
     const result = await runLoginMigration();
 
     expect(result).toBe('cancelled');
     expect(useShoppingStore.getState().mode).toBe('local');
     expect(useShoppingStore.getState().items).toHaveLength(1);
+  });
+
+  it('shows a Japanese message and 3-choice recovery prompt when the server returns 413', async () => {
+    useShoppingStore.setState({
+      items: [
+        {
+          id: -1,
+          name: 'x',
+          category: '',
+          checked: 0,
+          dish_id: null,
+          position: 0,
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+    });
+    migrate.mockRejectedValue({
+      response: { status: 413 },
+      message: 'データが多すぎて移行できませんでした',
+    });
+
+    const recoveryCall = { title: '', message: '', labels: [] as string[] };
+    let call = 0;
+    jest.spyOn(Alert, 'alert').mockImplementation((title, msg, buttons) => {
+      const list = (buttons ?? []) as AlertButton[];
+      if (call === 0) {
+        list.find((b) => b.text === '移す')?.onPress?.();
+      } else {
+        recoveryCall.title = title;
+        recoveryCall.message = msg ?? '';
+        recoveryCall.labels = list.map((b) => b.text);
+        list.find((b) => b.text === '破棄してログイン続行')?.onPress?.();
+      }
+      call += 1;
+    });
+
+    const result = await runLoginMigration();
+
+    expect(result).toBe('discarded');
+    expect(recoveryCall.title).toBe('移行に失敗しました');
+    expect(recoveryCall.message).toContain('データが多すぎて');
+    expect(recoveryCall.labels).toEqual([
+      '破棄してログイン続行',
+      'もう一度試す',
+      'キャンセル',
+    ]);
+  });
+
+  it('shows a Japanese network message when migrate() times out (ECONNABORTED)', async () => {
+    useShoppingStore.setState({
+      items: [
+        {
+          id: -1,
+          name: 'x',
+          category: '',
+          checked: 0,
+          dish_id: null,
+          position: 0,
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+    });
+    migrate.mockRejectedValue({ code: 'ECONNABORTED', message: 'timeout of 120000ms exceeded' });
+
+    let recoveryMessage = '';
+    let call = 0;
+    jest.spyOn(Alert, 'alert').mockImplementation((_t, msg, buttons) => {
+      const list = (buttons ?? []) as AlertButton[];
+      if (call === 0) {
+        list.find((b) => b.text === '移す')?.onPress?.();
+      } else {
+        recoveryMessage = msg ?? '';
+        list.find((b) => b.text === '破棄してログイン続行')?.onPress?.();
+      }
+      call += 1;
+    });
+
+    const result = await runLoginMigration();
+
+    expect(result).toBe('discarded');
+    expect(recoveryMessage).toContain('ネットワークが不安定');
+  });
+
+  it('retries migrate() when the user picks 「もう一度試す」', async () => {
+    useShoppingStore.setState({
+      items: [
+        {
+          id: -1,
+          name: 'x',
+          category: '',
+          checked: 0,
+          dish_id: null,
+          position: 0,
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+    });
+    migrate.mockRejectedValueOnce({ response: { status: 413 }, message: 'too large' });
+    migrate.mockResolvedValueOnce({ dishIdMap: {}, itemIdMap: { '-1': 1 }, savedRecipeIdMap: {} });
+
+    let call = 0;
+    jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+      const list = (buttons ?? []) as AlertButton[];
+      const label = call === 0 ? '移す' : 'もう一度試す';
+      call += 1;
+      list.find((b) => b.text === label)?.onPress?.();
+    });
+
+    const result = await runLoginMigration();
+
+    expect(result).toBe('migrated');
+    expect(migrate).toHaveBeenCalledTimes(2);
   });
 });
