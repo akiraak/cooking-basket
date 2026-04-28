@@ -3,7 +3,6 @@
 > 作業が完了した項目を DONE.md に移動する。docs/plans/ にプランファイルがある場合は docs/plans/archive に移動させる。
 
 ## 機能開発
-- [ ] 買物リストでの料理名が長かった場合に複数行に
 - [ ] アイテム編集ダイアログから削除を削除 [plan](docs/plans/remove-delete-from-item-edit-dialog.md)
 - [ ] サービスの状況をメールで定期報告
 

@@ -80,7 +80,7 @@ export function DishGroup({
       <View style={styles.content}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.dishNameArea} onPress={() => { if (!dragRef.current) onPressDishName(dish); }}>
-            <Text style={[styles.dishName, { color: colors.primaryLight }]} numberOfLines={1}>
+            <Text style={[styles.dishName, { color: colors.primaryLight }]}>
               {dish.name}
             </Text>
           </TouchableOpacity>
