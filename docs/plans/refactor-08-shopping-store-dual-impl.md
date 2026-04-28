@@ -172,8 +172,29 @@ mode 分岐を潰す代わりに backend 抽象は作らず、各アクション
 
 ### Phase 4: recipe-store にも同じパターンを適用
 
-- [ ] `RecipeBackend` 抽象を切る or `ShoppingBackend` を一般化して再利用
-- [ ] `autoSaveRecipes` / `deleteSavedRecipe` / `loadSavedRecipes` を一本化
+- [x] `RecipeBackend` 抽象を切る or `ShoppingBackend` を一般化して再利用
+- [x] `autoSaveRecipes` / `deleteSavedRecipe` / `loadSavedRecipes` を一本化
+
+> 完了メモ（2026-04-27）:
+> - `mobile/src/stores/backends/recipe-backend.ts` に `RecipeBackend` interface と
+>   `createLocalRecipeBackend(allocator)` / `createServerRecipeBackend()` を実装。
+>   `ShoppingBackend` の一般化ではなく、データ型 (`SavedRecipe`) が違うので **専用 interface**
+>   を切った。`LocalIdAllocator` は構造的に同型のため両ファイルで同名 interface を持つが、
+>   3 行の trivial type なので shared 化はせず重複を許容
+> - `recipe-store.ts` の `loadSavedRecipes` / `deleteSavedRecipe` / `autoSaveRecipes` から
+>   `if (mode === 'local') ... else ...` 分岐を排除し、`backend = backendFor()` →
+>   `await backend.xxx(...)` → 共通 `set(...)` に統一。backend インスタンスは store 構築時に
+>   1 度だけ生成し、`backendFor()` が `get().mode` を毎回読み直すので、`setState({ mode: 'local' })`
+>   迂回（`auth-store.logout`）でも次のアクションが正しく local backend を選ぶ
+> - `nextLocalId` の採番は `LocalRecipeBackend` の allocator closure に閉じ込め、store の
+>   `set/get` に委譲する形にした。永続化スキーマ（`partialize`）は変更なし
+> - `loadSavedRecipes` の `loading` フラグはサーバモード時だけ立てる従前挙動を保つために
+>   `if (mode === 'local')` の早期 return を残した（local backend は no-op で瞬時に終わる
+>   ため、loading フラグを立てるとフリッカーになる）
+> - 既存テストは API 形が変わらないためそのままグリーン。新規テスト 4 件追加:
+>   server モード `deleteSavedRecipe` の楽観テスト 1 件、`setState({ mode: 'local' })` 迂回の
+>   ガード 3 件（savedRecipes 保持 / 後続 autoSaveRecipes が local backend / 後続 deleteSavedRecipe
+>   が local backend）。`npm test` 全 85 件グリーン（既存 81 + 新規 4）。`tsc --noEmit` もクリーン
 
 ### Phase 5: テスト整理 & 動作確認
 

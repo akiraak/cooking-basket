@@ -71,6 +71,22 @@ describe('recipe-store (server mode)', () => {
     expect(result).toEqual(created);
     expect(useRecipeStore.getState().savedRecipes).toEqual(created);
   });
+
+  it('deleteSavedRecipe optimistically removes the item from state', async () => {
+    api.deleteSavedRecipe.mockResolvedValue(null);
+    useRecipeStore.setState({
+      savedRecipes: [
+        { id: 100, title: 'A' } as SavedRecipe,
+        { id: 101, title: 'B' } as SavedRecipe,
+      ],
+    });
+
+    await useRecipeStore.getState().deleteSavedRecipe(100);
+
+    expect(api.deleteSavedRecipe).toHaveBeenCalledWith(100);
+    expect(api.getSavedRecipes).not.toHaveBeenCalled();
+    expect(useRecipeStore.getState().savedRecipes.map((r) => r.id)).toEqual([101]);
+  });
 });
 
 describe('recipe-store (local mode)', () => {
@@ -118,5 +134,60 @@ describe('recipe-store (setMode)', () => {
     const state = useRecipeStore.getState();
     expect(state.mode).toBe('server');
     expect(state.savedRecipes).toHaveLength(0);
+  });
+});
+
+// auth-store.logout は savedRecipes を画面に残すため、`setMode('local')` ではなく
+// `useRecipeStore.setState({ mode: 'local' })` を直接呼ぶ意図的迂回を持つ。
+// Phase 4 で backend 抽象を入れた後も、この迂回が正しく機能すること
+// （= mode 切替後のアクションが local backend を選ぶこと）を担保する。
+describe('recipe-store (logout pathway: setState mode bypass)', () => {
+  it('keeps savedRecipes when mode is flipped via setState', () => {
+    resetStore('server');
+    useRecipeStore.setState({
+      savedRecipes: [{ id: 1, title: 'A' } as SavedRecipe],
+    });
+
+    useRecipeStore.setState({ mode: 'local' });
+
+    const state = useRecipeStore.getState();
+    expect(state.mode).toBe('local');
+    expect(state.savedRecipes).toHaveLength(1);
+  });
+
+  it('routes subsequent autoSaveRecipes through the local backend after setState bypass', async () => {
+    resetStore('server');
+    useRecipeStore.setState({
+      savedRecipes: [{ id: 1, title: 'A' } as SavedRecipe],
+      nextLocalId: -1,
+    });
+
+    useRecipeStore.setState({ mode: 'local' });
+    const result = await useRecipeStore
+      .getState()
+      .autoSaveRecipes('鍋', [makeRecipe({ title: 'B' })], 42);
+
+    expect(api.createSavedRecipesBulk).not.toHaveBeenCalled();
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(-1);
+    const state = useRecipeStore.getState();
+    expect(state.savedRecipes.map((r) => r.id)).toEqual([-1, 1]);
+    expect(state.nextLocalId).toBe(-2);
+  });
+
+  it('routes subsequent deleteSavedRecipe through the local backend after setState bypass', async () => {
+    resetStore('server');
+    useRecipeStore.setState({
+      savedRecipes: [
+        { id: 1, title: 'A' } as SavedRecipe,
+        { id: 2, title: 'B' } as SavedRecipe,
+      ],
+    });
+
+    useRecipeStore.setState({ mode: 'local' });
+    await useRecipeStore.getState().deleteSavedRecipe(1);
+
+    expect(api.deleteSavedRecipe).not.toHaveBeenCalled();
+    expect(useRecipeStore.getState().savedRecipes.map((r) => r.id)).toEqual([2]);
   });
 });

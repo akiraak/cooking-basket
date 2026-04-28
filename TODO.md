@@ -7,7 +7,7 @@
   - [x] Phase 1: 監査とインベントリ作成
   - [x] Phase 2: サーバモードの挙動正規化（楽観更新に片寄せ）
   - [x] Phase 3: `ShoppingBackend` 抽象の導入
-  - [ ] Phase 4: recipe-store への同パターン適用
+  - [x] Phase 4: recipe-store への同パターン適用
   - [ ] Phase 5: テスト整理 & 動作確認
 - [ ] リファクタリング 9（TODO ストック）: `app/(tabs)/index.tsx` の責務漏出整理（数日規模・M1 の上で M2 として進める）
 - [ ] passkeys認証対応
