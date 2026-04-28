@@ -4,6 +4,7 @@ import 'dotenv/config';
 import { createApp } from './app';
 import { initDatabase } from './database';
 import { cleanupExpiredTokens } from './services/auth-service';
+import { scheduleDailyStatusReport } from './services/status-report-scheduler';
 import { logger } from './lib/logger';
 
 const PORT = process.env.PORT || 3000;
@@ -20,6 +21,8 @@ setInterval(() => {
     logger.error({ err }, 'cleanup_failed');
   }
 }, 60 * 60 * 1000);
+
+scheduleDailyStatusReport();
 
 app.listen(PORT, () => {
   logger.info({ port: PORT }, `Server running on http://localhost:${PORT}`);

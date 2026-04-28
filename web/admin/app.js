@@ -648,13 +648,30 @@ async function renderSystem() {
   const area = document.getElementById('content-area');
   area.innerHTML = '<div class="loading-text">読み込み中...</div>';
 
-  const res = await api('GET', `${API}/system`);
-  if (!res.success) return;
-  const s = res.data;
+  const [systemRes, reportRes] = await Promise.all([
+    api('GET', `${API}/system`),
+    api('GET', `${API}/status-report/config`),
+  ]);
+  if (!systemRes.success) return;
+  const s = systemRes.data;
+  const sr = reportRes.success ? reportRes.data : null;
 
   const tableRows = Object.entries(s.tableCounts)
     .map(([name, count]) => `<div class="info-row"><span class="info-label">${escapeHtml(name)}</span><span class="info-value">${count}</span></div>`)
     .join('');
+
+  const recipientBadge = sr
+    ? (sr.recipientConfigured
+        ? '<span class="badge badge-success">設定済</span>'
+        : '<span class="badge badge-warning">未設定</span>')
+    : '<span class="badge badge-neutral">取得失敗</span>';
+  const resendBadge = sr
+    ? (sr.resendConfigured
+        ? '<span class="badge badge-success">設定済</span>'
+        : '<span class="badge badge-warning">未設定</span>')
+    : '<span class="badge badge-neutral">取得失敗</span>';
+  const sendTimeText = sr ? `${escapeHtml(sr.sendTime)} (PT)` : '-';
+  const sendDisabled = !sr || !sr.recipientConfigured || !sr.resendConfigured;
 
   area.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
@@ -672,9 +689,59 @@ async function renderSystem() {
         ${tableRows}
       </div>
     </div>
+
+    <div class="info-section" style="margin-top:16px">
+      <div class="info-section-title">サービス状況メール（運営者向け日次サマリ）</div>
+      <div class="info-row"><span class="info-label">送信先 (OPERATOR_EMAIL)</span><span class="info-value">${recipientBadge}</span></div>
+      <div class="info-row"><span class="info-label">Resend API キー</span><span class="info-value">${resendBadge}</span></div>
+      <div class="info-row"><span class="info-label">送信時刻 (STATUS_REPORT_SEND_TIME)</span><span class="info-value">${sendTimeText}</span></div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-top:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:#64748b;margin-bottom:4px">送信先を上書き（任意。空なら OPERATOR_EMAIL に送る）</label>
+          <input type="email" id="status-report-to" class="search-input" placeholder="例: ${escapeHtml('akiraak@gmail.com')}" style="width:100%">
+        </div>
+        <div>
+          <button class="btn btn-primary" id="status-report-send"${sendDisabled ? ' disabled' : ''}>今すぐ送信</button>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#94a3b8">${
+        sendDisabled
+          ? '※ OPERATOR_EMAIL と RESEND_API_KEY の両方が設定されているときのみ送信できます。送信先を上書きする場合も RESEND_API_KEY は必要です。'
+          : '送信時刻 (PT) に毎日自動送信されます。動作確認用にこのボタンから即時送信できます。'
+      }</div>
+    </div>
+
     <div style="margin-top:16px">
       <button class="btn btn-primary" onclick="renderSystem()">更新</button>
     </div>`;
+
+  const sendBtn = document.getElementById('status-report-send');
+  if (sendBtn) {
+    sendBtn.addEventListener('click', async () => {
+      const toInput = document.getElementById('status-report-to');
+      const overrideTo = toInput ? toInput.value.trim() : '';
+      const body = overrideTo ? { to: overrideTo } : {};
+      sendBtn.disabled = true;
+      const original = sendBtn.textContent;
+      sendBtn.textContent = '送信中...';
+      try {
+        const r = await api('POST', `${API}/status-report/send`, body);
+        if (r.success) {
+          showToast(`${r.data.to} に送信しました（エラー件数: ${r.data.errorCount}）`);
+        } else {
+          const errMap = {
+            no_recipient: '送信先が未設定です',
+            resend_not_configured: 'Resend API キーが設定されていません',
+            send_failed: '送信に失敗しました',
+          };
+          showToast(errMap[r.error] || '送信に失敗しました', 'error');
+        }
+      } finally {
+        sendBtn.disabled = sendDisabled;
+        sendBtn.textContent = original;
+      }
+    });
+  }
 }
 
 // ============================================================

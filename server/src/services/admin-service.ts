@@ -210,11 +210,12 @@ export function resetAiQuota(
   return { scope, deleted: result.changes };
 }
 
-export function getAiQuotaStats() {
-  const db = getDatabase();
-  const today = getJstDate();
-
-  const todaySummary = getOne<AiQuotaTodaySummary>(
+/**
+ * 指定 JST 日付（'YYYY-MM-DD'）の `ai_quota` を user / guest 別に集計する。
+ * status-report-service が前日 JST 集計を作るために流用する。
+ */
+export function getAiQuotaSummaryForDate(date: string): AiQuotaTodaySummary {
+  const summary = getOne<AiQuotaTodaySummary>(
     `
     SELECT
       COALESCE(SUM(count), 0) as total_calls,
@@ -226,8 +227,25 @@ export function getAiQuotaStats() {
     FROM ai_quota
     WHERE date = ?
   `,
-    today,
+    date,
   );
+  return (
+    summary ?? {
+      total_calls: 0,
+      unique_keys: 0,
+      user_calls: 0,
+      guest_calls: 0,
+      user_keys: 0,
+      guest_keys: 0,
+    }
+  );
+}
+
+export function getAiQuotaStats() {
+  const db = getDatabase();
+  const today = getJstDate();
+
+  const todaySummary = getAiQuotaSummaryForDate(today);
 
   const daily = db.prepare(`
     SELECT
@@ -273,7 +291,7 @@ export function getAiQuotaStats() {
 
 // --- System Info ---
 
-function getDeployedAt(): string | null {
+export function getDeployedAt(): string | null {
   const raw = process.env.DEPLOYED_AT;
   if (!raw) return null;
   const trimmed = raw.trim();

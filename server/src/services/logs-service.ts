@@ -128,6 +128,51 @@ export function readRecentLogs(lines: number, filter: LogFilter = {}): LogEntry[
   return matched.slice(matched.length - lines);
 }
 
+export interface ErrorWindowSummary {
+  count: number;
+  /** 直近 N 件の `msg` 文字列のみを抜粋（個人情報を含む可能性のある他フィールドは除外） */
+  samples: string[];
+}
+
+/**
+ * status-report-service 向け。`sinceMs` 以降に書かれた `level >= 50`（error/fatal）
+ * のエントリ件数と、直近 `sampleLimit` 件の `msg` を返す。
+ *
+ * pino-roll の現在アクティブなログファイル 1 本だけを読む。日跨ぎでファイルが
+ * 切り替わった瞬間の隙間は無視（運営者向けサマリで秒単位の正確性は不要）。
+ */
+export function summarizeErrorsInWindow(
+  sinceMs: number,
+  sampleLimit: number,
+): ErrorWindowSummary {
+  const file = findActiveLogFile();
+  if (!file) return { count: 0, samples: [] };
+
+  let content: string;
+  try {
+    content = fs.readFileSync(file, 'utf-8');
+  } catch {
+    return { count: 0, samples: [] };
+  }
+
+  let count = 0;
+  const matched: string[] = [];
+  for (const raw of content.split('\n')) {
+    if (!raw) continue;
+    const entry = parseLine(raw);
+    if (!entry) continue;
+    const level = typeof entry.level === 'number' ? entry.level : 0;
+    if (level < 50) continue;
+    const time = typeof entry.time === 'number' ? entry.time : 0;
+    if (time < sinceMs) continue;
+    count++;
+    if (typeof entry.msg === 'string') matched.push(entry.msg);
+  }
+  // chronological order なので末尾が最新 → 直近 sampleLimit 件を採る
+  const samples = matched.slice(-sampleLimit);
+  return { count, samples };
+}
+
 /**
  * tail -f 相当。新しく書かれた JSON Lines を 1 行ずつ `onEntry` に渡す。
  * 返り値の関数を呼ぶとウォッチを停止する。

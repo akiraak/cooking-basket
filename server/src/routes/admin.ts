@@ -23,6 +23,12 @@ import {
   type LogEntry,
   type LogFilter,
 } from '../services/logs-service';
+import { getStatusReport } from '../services/status-report-service';
+import { sendStatusReport } from '../services/status-report-mailer';
+import {
+  formatSendTime,
+  parseStatusReportSendTime,
+} from '../services/status-report-config';
 import { logger } from '../lib/logger';
 import { ERR } from '../lib/errors';
 
@@ -225,6 +231,53 @@ adminRouter.post('/ai-quota/reset', (req: Request, res: Response) => {
 adminRouter.get('/system', (_req: Request, res: Response) => {
   const info = getSystemInfo();
   res.json({ success: true, data: info, error: null });
+});
+
+// ステータス報告メールの設定（管理画面の表示用）
+adminRouter.get('/status-report/config', (_req: Request, res: Response) => {
+  const recipient = (process.env.OPERATOR_EMAIL || '').trim();
+  res.json({
+    success: true,
+    data: {
+      recipientConfigured: recipient.length > 0,
+      sendTime: formatSendTime(
+        parseStatusReportSendTime(process.env.STATUS_REPORT_SEND_TIME),
+      ),
+      resendConfigured: !!process.env.RESEND_API_KEY,
+    },
+    error: null,
+  });
+});
+
+// ステータス報告メールの手動トリガ（cron 待たず動作確認できるようにする）
+adminRouter.post('/status-report/send', async (req: Request, res: Response) => {
+  const body = (req.body ?? {}) as { to?: unknown };
+  const override = typeof body.to === 'string' ? body.to.trim() : '';
+  const to = override || (process.env.OPERATOR_EMAIL || '').trim();
+  if (!to) {
+    res.status(400).json({ success: false, data: null, error: 'no_recipient' });
+    return;
+  }
+  if (!process.env.RESEND_API_KEY) {
+    res.status(503).json({ success: false, data: null, error: 'resend_not_configured' });
+    return;
+  }
+  try {
+    const report = getStatusReport();
+    await sendStatusReport(to, report);
+    logger.info(
+      { to, adminEmail: req.adminEmail, errorCount: report.errors.last24hCount },
+      'status_report_sent_manually',
+    );
+    res.json({
+      success: true,
+      data: { to, errorCount: report.errors.last24hCount },
+      error: null,
+    });
+  } catch (err) {
+    logger.error({ err, adminEmail: req.adminEmail }, 'status_report_manual_failed');
+    res.status(500).json({ success: false, data: null, error: 'send_failed' });
+  }
 });
 
 // ログ閲覧（末尾 N 件）

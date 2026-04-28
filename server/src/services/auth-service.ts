@@ -84,7 +84,7 @@ export function verifyJwt(token: string): JwtPayload | null {
 }
 
 let resend: InstanceType<typeof Resend> | null = null;
-function getResend(): InstanceType<typeof Resend> {
+export function getResend(): InstanceType<typeof Resend> {
   if (!resend) resend = new Resend(process.env.RESEND_API_KEY);
   return resend;
 }
