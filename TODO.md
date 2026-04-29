@@ -18,7 +18,7 @@
   - [x] Phase 1: vibeboard 環境構築（足場・CLI エントリ・ビルド通し）
   - [x] Phase 2: 汎用化（ROOT_DIR / ブランド名のハードコード除去）
   - [x] Phase 3: `vibeboard init` で親 CLAUDE.md にスニペット注入
-  - [ ] Phase 4: README.md の整備（前提・Quick start・スニペット全文）
+  - [x] Phase 4: README.md の整備（前提・Quick start・スニペット全文）
   - [ ] Phase 5: npm 公開（`npx -y vibeboard` で起動できる状態にする）
   - [ ] Phase 6: cooking-basket 側を vibeboard に置き換え（dev-admin/ 削除）
   - [ ] Phase 7: `vibeboard.config.json` 対応（任意・カテゴリ / 編集対象を可変化）
