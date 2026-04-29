@@ -27,19 +27,36 @@ eas build -p android --profile production # Android 本番ビルド
 eas submit -p ios    # App Store 提出
 ```
 
-### 開発用管理サーバ (dev-admin/)
+### 開発用管理サーバ (vibeboard/)
+本体は [vibeboard](https://github.com/akiraak/vibeboard) を degit で取り込んでいる。
+cooking-basket 用にカスタマイズする前提なので vibeboard/ 配下のソースは git 管理対象。
+ただし `vibeboard/dist/`・`vibeboard/node_modules/` は除外。
+
 ```bash
 ./dev-admin.sh       # ルートから起動 (ポート 3010、127.0.0.1 バインド)
-# または
-cd dev-admin && npm run dev
 ```
+
+`./dev-admin.sh` は内部で `node vibeboard/dist/cli.js --root <repo-root>` を呼ぶだけ。
+未セットアップ（`vibeboard/dist/cli.js` が無い）状態だとエラーで止まり、初回手順を表示する。
+
+初回（新規 clone 時 / vibeboard を取り直したいとき）のセットアップ:
+
+```bash
+npx -y degit akiraak/vibeboard vibeboard      # 既存 vibeboard/ がある場合は事前に削除
+cd vibeboard && npm install                   # prepare で dist/ も生成される
+```
+
 - `http://localhost:3010` で `docs/plans`, `docs/specs`, `docs/specs/design` を閲覧できる
 - `TODO` タブで `TODO.md` / `DONE.md` をプレビュー表示・編集できる
   - 編集は楽観ロック（mtime チェック）付き。外部で先に更新されていた場合は保存時に 409 を返し、リロード / 手元維持 / 強制上書き を選べる
   - `fs.watch` + 2 秒ポーリングで外部変更を検知し、SSE (`/api/files/watch`) でクライアントへ即時反映する（プレビュー自動更新／clean 編集は差し替え＋情報バー／dirty 編集は競合警告バー＋差分モーダル）
   - ツールバーの `↻ 再取得` ボタンまたは `R` 単独キーで手動再取得できる
 - ローカル開発専用（本番 admin とは独立）
-- ポート変更は `DEV_ADMIN_PORT` 環境変数で指定可能
+- ポート変更は `--port <n>` か `VIBEBOARD_PORT` 環境変数（後方互換で `DEV_ADMIN_PORT` も読む）
+
+vibeboard 本体への汎用的な改善は `/home/ubuntu/vibeboard`（`akiraak/vibeboard` の作業
+クローン）で開発し、push 後に cooking-basket 側で再 degit + 必要ならカスタマイズ差分を
+手作業マージする運用。
 
 ## Git ルール
 
